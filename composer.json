@@ -1,0 +1,36 @@
+{
+    "name": "tang/dto",
+    "description": "php dto.",
+    "license": "MIT",
+    "keywords": [
+        "php",
+        "dto",
+        "hyperf"
+    ],
+    "require": {
+        "php": ">=7.4",
+        "ext-json": "*",
+        "netresearch/jsonmapper": "^4.0",
+        "hyperf/http-server": "^2.0.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Tang\\DTO\\": "src/"
+        }
+    },
+    "extra": {
+        "hyperf": {
+            "config": "Tang\\ApiDocs\\ConfigProvider"
+        },
+        "branch-alias":{
+            "dev-master":"1.0.x-dev"
+        }
+    },
+    "require-dev": {
+    },
+    "scripts": {
+        "cs-fix": "php-cs-fixer fix $1",
+        "test": "phpunit -c phpunit.xml --colors=always",
+        "analyse": "phpstan analyse --memory-limit 1024M -l 0 ./src"
+    }
+}
