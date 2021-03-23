@@ -1,5 +1,5 @@
 {
-    "name": "tangtang/dto",
+    "name": "tangwei/dto",
     "description": "php hyperf dto",
     "license": "MIT",
     "keywords": [
@@ -11,16 +11,17 @@
         "php": ">=7.4",
         "ext-json": "*",
         "netresearch/jsonmapper": "^4.0",
-        "hyperf/http-server": "^2.0.0"
+        "hyperf/http-server": "^2.0.0",
+        "tangwei/dto": "dev-master"
     },
     "autoload": {
         "psr-4": {
-            "TangTang\\DTO\\": "src/"
+            "Tang\\DTO\\": "src/"
         }
     },
     "extra": {
         "hyperf": {
-            "config": "TangTang\\ApiDocs\\ConfigProvider"
+            "config": "TangWei\\ApiDocs\\ConfigProvider"
         },
         "branch-alias":{
             "dev-master":"1.0.x-dev"
