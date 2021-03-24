@@ -11,6 +11,10 @@ declare(strict_types=1);
  */
 namespace Tang\DTO;
 
+use Hyperf\Contract\NormalizerInterface;
+use Hyperf\HttpServer\CoreMiddleware;
+use Tang\DTO\Dependencies\SimpleNormalizer;
+
 class ConfigProvider
 {
     public function __invoke(): array
@@ -18,8 +22,8 @@ class ConfigProvider
         return [
 
             'dependencies' => [
-                \Hyperf\Contract\NormalizerInterface::class => \Tang\Dependencies\SimpleNormalizer::class,
-                \Hyperf\HttpServer\CoreMiddleware::class => \Tang\Dependencies\CoreMiddleware::class
+                NormalizerInterface::class => SimpleNormalizer::class,
+                CoreMiddleware::class => Dependencies\CoreMiddleware::class
             ],
             'listeners' => [
             ],
@@ -31,8 +35,6 @@ class ConfigProvider
                 ],
             ],
             'publish' => [
-                [
-                ],
             ],
         ];
     }

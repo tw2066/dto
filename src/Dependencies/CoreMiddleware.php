@@ -10,13 +10,13 @@ declare(strict_types=1);
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
 
-namespace Tang\Dependencies;
+namespace Tang\DTO\Dependencies;
 
 use Tang\DTO\Contracts\RequestBody;
 use Tang\DTO\Contracts\RequestFormData;
 use Tang\DTO\Contracts\RequestQuery;
 use Hyperf\HttpServer\Contract\RequestInterface;
-use JsonMapper;
+use Tang\DTO\Mapper;
 
 
 class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
@@ -43,25 +43,21 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
                     if($obj instanceof RequestBody){
                         $request = $this->container->get(RequestInterface::class);
                         $json = $request->getBody()->getContents();
-                        $mapper = $this->container->get(JsonMapper::class);
+                        $mapper = $this->container->get(Mapper::class);
                         $class = $definition->getName();
                         $injections[] = $mapper->map(json_decode($json), make($class));
                         continue;
                     }
                     if ($obj instanceof RequestQuery) {
                         $request = $this->container->get(RequestInterface::class);
-                        $arr = $request->getQueryParams();
-                        $mapper = $this->container->get(JsonMapper::class);
-                        $mapper->bEnforceMapType = false;
-                        $injections[] = $mapper->map($arr, $obj);
+                        $mapper = $this->container->get(Mapper::class);
+                        $injections[] = $mapper->map($request->getQueryParams(), $obj);
                         continue;
                     }
                     if ($obj instanceof RequestFormData) {
                         $request = $this->container->get(RequestInterface::class);
-                        $arr = $request->getParsedBody();
-                        $mapper = $this->container->get(JsonMapper::class);
-                        $mapper->bEnforceMapType = false;
-                        $injections[] = $mapper->map($arr, $obj);
+                        $mapper = $this->container->get(Mapper::class);
+                        $injections[] = $mapper->map($request->getParsedBody(), $obj);
                         continue;
                     }
                     $injections[] = $obj;

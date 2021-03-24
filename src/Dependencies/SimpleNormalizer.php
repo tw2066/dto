@@ -10,11 +10,12 @@ declare(strict_types=1);
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
 
-namespace App\Dependencies;
+namespace Tang\DTO\Dependencies;
+
 
 use Hyperf\Utils\ApplicationContext;
 use Hyperf\Utils\Contracts\Jsonable;
-use JsonMapper;
+use Tang\DTO\Mapper;
 
 class SimpleNormalizer extends \Hyperf\Utils\Serializer\SimpleNormalizer
 {
@@ -38,8 +39,7 @@ class SimpleNormalizer extends \Hyperf\Utils\Serializer\SimpleNormalizer
                 if (ApplicationContext::getContainer()->has($class)) {
                     $obj = ApplicationContext::getContainer()->get($class);
                     if($obj instanceof Jsonable){
-                        $mapper = ApplicationContext::getContainer()->get(JsonMapper::class);
-                        $mapper->bEnforceMapType = false;
+                        $mapper = ApplicationContext::getContainer()->get(Mapper::class);
                         return $mapper->map($data,make($class));
                     }
                 }
