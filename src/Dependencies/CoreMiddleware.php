@@ -47,14 +47,12 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
                         $class = $definition->getName();
                         $injections[] = $mapper->map(json_decode($json), make($class));
                         continue;
-                    }
-                    if ($obj instanceof RequestQuery) {
+                    }elseif ($obj instanceof RequestQuery) {
                         $request = $this->container->get(RequestInterface::class);
                         $mapper = $this->container->get(Mapper::class);
                         $injections[] = $mapper->map($request->getQueryParams(), $obj);
                         continue;
-                    }
-                    if ($obj instanceof RequestFormData) {
+                    }elseif ($obj instanceof RequestFormData) {
                         $request = $this->container->get(RequestInterface::class);
                         $mapper = $this->container->get(Mapper::class);
                         $injections[] = $mapper->map($request->getParsedBody(), $obj);

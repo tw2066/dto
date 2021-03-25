@@ -2,24 +2,22 @@
 
 namespace Tang\DTO;
 
-use Hyperf\Utils\ApplicationContext;
 use JsonMapper;
-use Psr\Container\ContainerInterface;
 
 class Mapper
 {
-    private ContainerInterface $container;
+
+    private JsonMapper $jsonMapper;
 
     public function __construct()
     {
-        $this->container = ApplicationContext::getContainer();
-
+        $this->jsonMapper = new JsonMapper();
+        $this->jsonMapper->bEnforceMapType = false;
     }
+
     public function map($json, $object)
     {
-        $mapper = $this->container->get(JsonMapper::class);
-        $mapper->bEnforceMapType = false;
-        return $mapper->map($json, $object);
+        return $this->jsonMapper->map($json, $object);
     }
 
 }
