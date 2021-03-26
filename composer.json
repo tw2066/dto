@@ -25,6 +25,7 @@
             "Hyperf\\DTO\\": "src/"
         }
     },
+    "minimum-stability": "dev",
     "extra": {
         "hyperf": {
             "config": "Hyperf\\DTO\\ConfigProvider"
