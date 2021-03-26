@@ -1,23 +1,14 @@
 <?php
 
 declare(strict_types=1);
-/**
- * This file is part of Hyperf.
- *
- * @link     https://www.hyperf.io
- * @document https://hyperf.wiki
- * @contact  group@hyperf.io
- * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
- */
 
-namespace Tang\DTO\Dependencies;
+namespace Hyperf\DTO\Dependencies;
 
-use Tang\DTO\Contracts\RequestBody;
-use Tang\DTO\Contracts\RequestFormData;
-use Tang\DTO\Contracts\RequestQuery;
+use Hyperf\DTO\Contracts\RequestBody;
+use Hyperf\DTO\Contracts\RequestFormData;
+use Hyperf\DTO\Contracts\RequestQuery;
 use Hyperf\HttpServer\Contract\RequestInterface;
-use Tang\DTO\Mapper;
-
+use Hyperf\DTO\Mapper;
 
 class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
 {

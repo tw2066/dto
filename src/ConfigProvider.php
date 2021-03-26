@@ -9,11 +9,11 @@ declare(strict_types=1);
  * @contact  group@hyperf.io
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
-namespace Tang\DTO;
+namespace Hyperf\DTO;
 
 use Hyperf\Contract\NormalizerInterface;
 use Hyperf\HttpServer\CoreMiddleware;
-use Tang\DTO\Dependencies\SimpleNormalizer;
+use Hyperf\DTO\Dependencies\SimpleNormalizer;
 
 class ConfigProvider
 {

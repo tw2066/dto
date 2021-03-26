@@ -1,12 +1,11 @@
 <?php
 
-namespace Tang\DTO;
+namespace Hyperf\DTO;
 
 use JsonMapper;
 
 class Mapper
 {
-
     private JsonMapper $jsonMapper;
 
     public function __construct()

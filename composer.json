@@ -9,25 +9,25 @@
     ],
     "authors": [
         {
-            "name": "tang",
+            "name": "Tang",
             "email": "tw2066@163.com",
             "homepage": "https://github.com/tw2066",
             "role": "Developer"
         }
     ],
     "require": {
-        "php": ">=7.4",
+        "php": ">=7.2",
         "netresearch/jsonmapper": "^4.0",
         "hyperf/http-server": "^2.0.0"
     },
     "autoload": {
         "psr-4": {
-            "Tang\\DTO\\": "src/"
+            "Hyperf\\DTO\\": "src/"
         }
     },
     "extra": {
         "hyperf": {
-            "config": "Tang\\DTO\\ConfigProvider"
+            "config": "Hyperf\\DTO\\ConfigProvider"
         },
         "branch-alias":{
             "dev-master":"1.0.x-dev"

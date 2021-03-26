@@ -1,6 +1,6 @@
 <?php
 
-namespace Tang\DTO;
+namespace Hyperf\DTO;
 
 use Hyperf\Utils\Contracts\Jsonable;
 

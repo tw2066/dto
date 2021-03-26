@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tang\DTO\Contracts;
+namespace Hyperf\DTO\Contracts;
 
 interface RequestFormData
 {
