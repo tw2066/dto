@@ -7,6 +7,7 @@ namespace Hyperf\DTO\Dependencies;
 use Hyperf\DTO\Contracts\RequestBody;
 use Hyperf\DTO\Contracts\RequestFormData;
 use Hyperf\DTO\Contracts\RequestQuery;
+use Hyperf\DTO\ValidationDTO;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\DTO\Mapper;
 
@@ -31,25 +32,11 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
                     $injections[] = null;
                 } elseif ($this->container->has($definition->getName())) {
                     $obj = $this->container->get($definition->getName());
-                    if($obj instanceof RequestBody){
-                        $request = $this->container->get(RequestInterface::class);
-                        $json = $request->getBody()->getContents();
-                        $mapper = $this->container->get(Mapper::class);
-                        $class = $definition->getName();
-                        $injections[] = $mapper->map(json_decode($json), make($class));
-                        continue;
-                    }elseif ($obj instanceof RequestQuery) {
-                        $request = $this->container->get(RequestInterface::class);
-                        $mapper = $this->container->get(Mapper::class);
-                        $injections[] = $mapper->map($request->getQueryParams(), $obj);
-                        continue;
-                    }elseif ($obj instanceof RequestFormData) {
-                        $request = $this->container->get(RequestInterface::class);
-                        $mapper = $this->container->get(Mapper::class);
-                        $injections[] = $mapper->map($request->getParsedBody(), $obj);
-                        continue;
+                    if($this->isMap($obj)){
+                        $injections[] = $this->map($obj,$definition->getName());
+                    }else{
+                        $injections[] = $obj;
                     }
-                    $injections[] = $obj;
                 } else {
                     throw new \InvalidArgumentException("Parameter '{$definition->getMeta('name')}' "
                         . "of {$callableName} should not be null");
@@ -59,5 +46,37 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
             }
         }
         return $injections;
+    }
+
+    private function isMap($obj){
+        if(    $obj instanceof RequestBody
+            || $obj instanceof RequestQuery
+            || $obj instanceof RequestFormData
+        ){
+            return true;
+        }
+        return false;
+    }
+
+    private function map($obj,$className){
+        $validationDTO = $this->container->get(ValidationDTO::class);
+        $request = $this->container->get(RequestInterface::class);
+        $mapper = $this->container->get(Mapper::class);
+        if($obj instanceof RequestBody){
+            $json = $request->getBody()->getContents();
+            $param = json_decode($json,true);
+            $validationDTO->validateResolved($className,$param);
+            return $mapper->map($param, make($className));
+        }
+        if ($obj instanceof RequestQuery) {
+            $param = $request->getQueryParams();
+            $validationDTO->validateResolved($className,$param);
+            return $mapper->map($param, $obj);
+        }
+        if ($obj instanceof RequestFormData) {
+            $param = $request->getParsedBody();
+            $validationDTO->validateResolved($className,$param);
+            return $mapper->map($param, $obj);
+        }
     }
 }

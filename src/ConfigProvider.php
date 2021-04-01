@@ -26,6 +26,7 @@ class ConfigProvider
                 CoreMiddleware::class => Dependencies\CoreMiddleware::class
             ],
             'listeners' => [
+                BootAppConfListener::class
             ],
             'annotations' => [
                 'scan' => [
