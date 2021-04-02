@@ -3,6 +3,7 @@
 namespace Hyperf\DTO;
 
 use Hyperf\Di\MethodDefinitionCollectorInterface;
+use Hyperf\DTO\Exception\DTOException;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Scan\ValidationManager;
 use Hyperf\Utils\ApplicationContext;
@@ -33,23 +34,21 @@ class ValidationDTO
      * @param $className
      * @param $data
      */
-    public function validateResolved($className,$data)
+    public function validateResolved(string $className,$data)
     {
+        if(!is_array($data)){
+            throw new DTOException('class:'.$className.' data must be object or array');
+        }
         $notSimplePropertyArr = PropertyManager::getPropertyAndNotSimpleType($className);
         foreach ($notSimplePropertyArr as $fieldName=>$property) {
             if(!empty($data[$fieldName])){
-                if($property->type == 'array'){
-                    foreach ($data[$fieldName] as $item) {
-                        $this->validateResolved($property->className,$item);
-                    }
-                }else{
-                    $this->validateResolved($property->className,$data[$fieldName]);
-                }
+                $this->validateResolved($property->className,$data[$fieldName]);
             }
         }
         if(empty(ValidationManager::getRule($className))){
             return;
         }
+
         $validator = $this->validationFactory->make(
             $data,
             ValidationManager::getRule($className),

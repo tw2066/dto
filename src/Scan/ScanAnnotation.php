@@ -2,21 +2,16 @@
 
 namespace Hyperf\DTO\Scan;
 
-
-use App\Controller\DemoController;
-use Hyperf\ApiDocs\Annotation\ApiModelProperty;
 use Hyperf\ApiDocs\ApiAnnotation;
-use Hyperf\Contract\ConfigInterface;
 use Hyperf\Di\MethodDefinitionCollectorInterface;
 use Hyperf\Di\ReflectionManager;
-use Hyperf\DTO\Annotation\BaseValidation;
-use Hyperf\DTO\Annotation\Validation;
+use Hyperf\DTO\Annotation\Validation\BaseValidation;
 use Hyperf\Utils\ApplicationContext;
 use Hyperf\Validation\Contract\ValidatorFactoryInterface;
+use JsonMapper;
 
-class ScanAnnotation extends \JsonMapper
+class ScanAnnotation extends JsonMapper
 {
-
 
     public array $ruleArr = [];
     /**
@@ -36,7 +31,6 @@ class ScanAnnotation extends \JsonMapper
     public function __construct()
     {
         $this->container = ApplicationContext::getContainer();
-        $this->config = $this->container->get(ConfigInterface::class);
         $this->validationFactory = $this->container->get(ValidatorFactoryInterface::class);
         $this->methodDefinitionCollector = $this->container->get(MethodDefinitionCollectorInterface::class);
     }
@@ -61,9 +55,9 @@ class ScanAnnotation extends \JsonMapper
         foreach ($rc->getProperties() ?? [] as $reflectionProperty) {
             $propertyClassName = $type = $this->getTypeName($reflectionProperty);
             $fieldName = $reflectionProperty->getName();
-            $arrType = null;
             $isSimpleType = true;
             if ($type == 'array') {
+                $arrType = null;
                 $docblock = $reflectionProperty->getDocComment();
                 $annotations = static::parseAnnotations($docblock);
                 if(!empty($annotations)){
@@ -104,7 +98,7 @@ class ScanAnnotation extends \JsonMapper
      * @param string $fieldName
      */
     protected function makeValidation(string $className,string $fieldName){
-        /** @var Validation[] $validation */
+        /** @var BaseValidation[] $validation */
         $validationArr = [];
         $propertyReflectionPropertyArr = ApiAnnotation::propertyMetadata($className, $fieldName);
         foreach ($propertyReflectionPropertyArr as $propertyReflectionProperty) {
@@ -121,7 +115,8 @@ class ScanAnnotation extends \JsonMapper
             if(empty($validation->messages)){
                 continue;
             }
-            $key = $fieldName.'.'.$validation->rule;
+            $messagesRule = explode(':',$validation->rule)[0];
+            $key = $fieldName.'.'.$messagesRule;
             ValidationManager::setMessages($className,$key,$validation->messages);
         }
         !empty($rule) && ValidationManager::setRule($className,$fieldName,trim($rule,'|'));

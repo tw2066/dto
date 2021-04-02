@@ -7,8 +7,7 @@ class ValidationManager
     /**
      * @var array
      */
-    public static array $content = [];
-//    protected static array $content = [];
+    protected static array $content = [];
 
     public static function setRule($className,$fieldName,$rule)
     {

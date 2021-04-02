@@ -7,9 +7,9 @@ class PropertyManager
     /**
      * @var array
      */
-    public static array $content = [];
+    protected static array $content = [];
 
-    public static array $notSimpleClass = [];
+    protected static array $notSimpleClass = [];
 
     public static function setNotSimpleClass($className)
     {

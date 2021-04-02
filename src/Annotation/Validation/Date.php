@@ -9,13 +9,13 @@ declare(strict_types=1);
  * @contact  group@hyperf.io
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
-namespace Hyperf\DTO\Annotation;
+namespace Hyperf\DTO\Annotation\Validation;
 
 /**
  * @Annotation
  * @Target({"PROPERTY"})
  */
-class Integer extends BaseValidation
+class Date extends BaseValidation
 {
-    public $rule = 'integer';
+    public $rule = 'date';
 }

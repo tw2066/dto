@@ -6,6 +6,7 @@ namespace Hyperf\DTO;
 
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\DTO\Event\AfterDTOStart;
+use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Scan\ScanAnnotation;
 use Hyperf\Event\Contract\ListenerInterface;
 use Hyperf\Framework\Event\BootApplication;
