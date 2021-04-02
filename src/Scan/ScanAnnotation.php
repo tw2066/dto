@@ -19,10 +19,6 @@ class ScanAnnotation extends JsonMapper
      */
     private $methodDefinitionCollector;
     /**
-     * @var ValidatorFactoryInterface|mixed
-     */
-    private $validationFactory;
-    /**
      * @var \Psr\Container\ContainerInterface
      */
     private $container;
@@ -31,7 +27,6 @@ class ScanAnnotation extends JsonMapper
     public function __construct()
     {
         $this->container = ApplicationContext::getContainer();
-        $this->validationFactory = $this->container->get(ValidatorFactoryInterface::class);
         $this->methodDefinitionCollector = $this->container->get(MethodDefinitionCollectorInterface::class);
     }
 

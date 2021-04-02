@@ -24,18 +24,29 @@ class ValidationDTO
     public function __construct()
     {
         $container = ApplicationContext::getContainer();
-        $this->validationFactory =$container->get(ValidatorFactoryInterface::class);
+        if($container->has(ValidatorFactoryInterface::class)){
+            $this->validationFactory = $container->get(ValidatorFactoryInterface::class);
+        }
         $this->methodDefinitionCollector = $container->get(MethodDefinitionCollectorInterface::class);
     }
 
+
+    public function validate(string $className,$data)
+    {
+        if($this->validationFactory == null){
+            return;
+        }
+        $this->validateResolved($className,$data);
+    }
 
     /**
      * validate
      * @param $className
      * @param $data
      */
-    public function validateResolved(string $className,$data)
+    private function validateResolved(string $className,$data)
     {
+
         if(!is_array($data)){
             throw new DTOException('class:'.$className.' data must be object or array');
         }

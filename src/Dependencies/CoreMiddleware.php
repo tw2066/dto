@@ -65,17 +65,17 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
         if($obj instanceof RequestBody){
             $json = $request->getBody()->getContents();
             $param = json_decode($json,true);
-            $validationDTO->validateResolved($className,$param);
+            $validationDTO->validate($className,$param);
             return $mapper->map($param, make($className));
         }
         if ($obj instanceof RequestQuery) {
             $param = $request->getQueryParams();
-            $validationDTO->validateResolved($className,$param);
+            $validationDTO->validate($className,$param);
             return $mapper->map($param, $obj);
         }
         if ($obj instanceof RequestFormData) {
             $param = $request->getParsedBody();
-            $validationDTO->validateResolved($className,$param);
+            $validationDTO->validate($className,$param);
             return $mapper->map($param, $obj);
         }
     }
