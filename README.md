@@ -150,7 +150,7 @@ class DemoBodyRequest implements RequestBody
 ```
 ## 验证器
 ### 基于框架的验证
-- 安装框架验证器[hyperf/validation](https://github.com/hyperf/validation), 并配置
+> 安装hyperf框架验证器[hyperf/validation](https://github.com/hyperf/validation), 并配置(已安装忽略)
 - 注解
 `@Required` `@Between` `@Date` `@Email` `@Image` `@Integer` `@Nullable` `@Numeric`  `@Url` `@Validation`
 
