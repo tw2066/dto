@@ -28,11 +28,8 @@ class SimpleNormalizer extends \Hyperf\Utils\Serializer\SimpleNormalizer
                 return $data;
             default:
                 if (ApplicationContext::getContainer()->has($class)) {
-                    $obj = ApplicationContext::getContainer()->get($class);
-                    if($obj instanceof Jsonable){
-                        $mapper = ApplicationContext::getContainer()->get(Mapper::class);
-                        return $mapper->map($data,make($class));
-                    }
+                    $mapper = ApplicationContext::getContainer()->get(Mapper::class);
+                    return $mapper->map($data,make($class));
                 }
                 return $data;
         }
