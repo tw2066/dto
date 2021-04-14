@@ -13,7 +13,8 @@ use JsonMapper;
 class ScanAnnotation extends JsonMapper
 {
 
-    public array $ruleArr = [];
+    private static ?array $scanClassArray = [];
+
     /**
      * @var MethodDefinitionCollectorInterface|mixed
      */
@@ -34,7 +35,7 @@ class ScanAnnotation extends JsonMapper
     {
         $definitionParamArr = $this->methodDefinitionCollector->getParameters($className, $methodName);
         $definitionReturn = $this->methodDefinitionCollector->getReturnType($className, $methodName);
-        array_push($definitionParamArr,$definitionReturn);
+        array_push($definitionParamArr, $definitionReturn);
         foreach ($definitionParamArr as $k => $definition) {
             $parameterClassName = $definition->getName();
             if ($this->container->has($parameterClassName)) {
@@ -43,8 +44,18 @@ class ScanAnnotation extends JsonMapper
         }
     }
 
-    private function scanClass(string $className)
+    public function clearScanClassArray()
     {
+        self::$scanClassArray = null;
+    }
+
+    public function scanClass(string $className)
+    {
+        if (in_array($className, self::$scanClassArray)) {
+            return;
+        } else {
+            self::$scanClassArray[] = $className;
+        }
         $rc = ReflectionManager::reflectClass($className);
         $strNs = $rc->getNamespaceName();
         foreach ($rc->getProperties() ?? [] as $reflectionProperty) {

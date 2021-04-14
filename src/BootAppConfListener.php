@@ -6,7 +6,6 @@ namespace Hyperf\DTO;
 
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\DTO\Event\AfterDTOStart;
-use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Scan\ScanAnnotation;
 use Hyperf\Event\Contract\ListenerInterface;
 use Hyperf\Framework\Event\BootApplication;
@@ -30,6 +29,7 @@ class BootAppConfListener implements ListenerInterface
         $config = $container->get(ConfigInterface::class);
         $event = $container->get(EventDispatcherInterface::class);
         $scanAnnotation = $container->get(ScanAnnotation::class);
+        $container->get(Mapper::class);
         $servers = $config->get('server.servers');
         foreach ($servers as $server) {
             $router = $container->get(DispatcherFactory::class)->getRouter($server['name']);
@@ -42,6 +42,7 @@ class BootAppConfListener implements ListenerInterface
             });
         }
         $event->dispatch(new AfterDTOStart());
+        $scanAnnotation->clearScanClassArray();
     }
 
     protected function prepareHandler($handler): array
