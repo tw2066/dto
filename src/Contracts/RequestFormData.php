@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Contracts;
 
-interface RequestFormData
+interface RequestFormData extends DTO
 {
 
 }

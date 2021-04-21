@@ -10,6 +10,8 @@ use Hyperf\DTO\Contracts\RequestQuery;
 use Hyperf\DTO\ValidationDTO;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\DTO\Mapper;
+use Hyperf\Utils\Context;
+use Psr\Http\Message\ServerRequestInterface;
 
 class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
 {
@@ -33,7 +35,7 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
                 } elseif ($this->container->has($definition->getName())) {
                     $obj = $this->container->get($definition->getName());
                     if($this->isMap($obj)){
-                        $injections[] = $this->map($obj,$definition->getName());
+                        $injections[] = $this->validateAndMap($obj, $definition->getName());
                     }else{
                         $injections[] = $obj;
                     }
@@ -58,25 +60,19 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
         return false;
     }
 
-    private function map($obj,$className){
+    private function validateAndMap($obj, $className)
+    {
         $validationDTO = $this->container->get(ValidationDTO::class);
-        $request = $this->container->get(RequestInterface::class);
-        $mapper = $this->container->get(Mapper::class);
-        if($obj instanceof RequestBody){
-            $json = $request->getBody()->getContents();
-            $param = json_decode($json,true);
-            $validationDTO->validate($className,$param);
-            return $mapper->map($param, make($className));
-        }
-        if ($obj instanceof RequestQuery) {
-            $param = $request->getQueryParams();
-            $validationDTO->validate($className,$param);
-            return $mapper->map($param, make($className));
-        }
-        if ($obj instanceof RequestFormData) {
+        $request = Context::get(ServerRequestInterface::class);
+        $param = [];
+        if ($obj instanceof RequestBody) {
             $param = $request->getParsedBody();
-            $validationDTO->validate($className,$param);
-            return $mapper->map($param, make($className));
+        } else if ($obj instanceof RequestQuery) {
+            $param = $request->getQueryParams();
+        } else if ($obj instanceof RequestFormData) {
+            $param = $request->getParsedBody();
         }
+        $validationDTO->validate($className, $param);
+        return Mapper::map($param, make($className));
     }
 }

@@ -27,9 +27,8 @@ class SimpleNormalizer extends \Hyperf\Utils\Serializer\SimpleNormalizer
             case 'mixed':
                 return $data;
             default:
-                if (ApplicationContext::getContainer()->has($class)) {
-                    $mapper = ApplicationContext::getContainer()->get(Mapper::class);
-                    return $mapper->map($data,make($class));
+                if (Mapper::isMap($class)) {
+                    return Mapper::map($data, make($class));
                 }
                 return $data;
         }

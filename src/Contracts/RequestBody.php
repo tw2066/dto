@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Contracts;
 
-interface RequestBody
+interface RequestBody extends DTO
 {
 
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Hyperf\DTO\Scan;
 
 use Hyperf\ApiDocs\ApiAnnotation;
@@ -13,7 +15,7 @@ use JsonMapper;
 class ScanAnnotation extends JsonMapper
 {
 
-    private static ?array $scanClassArray = [];
+    private static array $scanClassArray = [];
 
     /**
      * @var MethodDefinitionCollectorInterface|mixed
@@ -46,7 +48,7 @@ class ScanAnnotation extends JsonMapper
 
     public function clearScanClassArray()
     {
-        self::$scanClassArray = null;
+        self::$scanClassArray = [];
     }
 
     public function scanClass(string $className)

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Hyperf\DTO;
 
 use Hyperf\Di\MethodDefinitionCollectorInterface;
