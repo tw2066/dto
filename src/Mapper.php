@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO;
 
-use Hyperf\Database\Model\Model;
 use Hyperf\DTO\Contracts\DTO;
 use Hyperf\Utils\ApplicationContext;
-use Hyperf\Utils\Collection;
+use Hyperf\Utils\Contracts\Arrayable;
 use Hyperf\Utils\Contracts\Jsonable;
 use JsonMapper;
 use Throwable;
+
 
 class Mapper
 {
@@ -56,7 +56,7 @@ class Mapper
         if ($obj == null) {
             return null;
         }
-        if ($obj instanceof Model) {
+        if ($obj instanceof Arrayable) {
             return self::$jsonMapper->map($obj->toArray(), $toObj);
         } else {
             return self::$jsonMapper->map($obj, $toObj);
@@ -73,7 +73,7 @@ class Mapper
         if (empty($json)) {
             return [];
         }
-        if ($json instanceof Collection) {
+        if ($json instanceof Arrayable) {
             return self::$jsonMapper->mapArray($json->toArray(), array(), $className);
         }
         return self::$jsonMapper->mapArray($json, array(), $className);

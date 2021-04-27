@@ -61,8 +61,11 @@ class BootAppConfListener implements ListenerInterface
 
         array_walk_recursive($data, function ($item) use ($scanAnnotation) {
             if ($item instanceof Handler && !($item->callback instanceof \Closure)) {
-                [$controller, $action] = $this->prepareHandler($item->callback);
-                $scanAnnotation->scan($controller, $action);
+                $prepareHandler = $this->prepareHandler($item->callback);
+                if (count($prepareHandler) > 1) {
+                    [$controller, $action] = $prepareHandler;
+                    $scanAnnotation->scan($controller, $action);
+                }
             }
         });
         $event->dispatch(new AfterDTOStart($serverConfig, $router));
