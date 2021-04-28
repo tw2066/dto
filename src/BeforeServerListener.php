@@ -4,29 +4,20 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO;
 
-use App\Kernel\Http\Response;
 use Hyperf\Contract\ConfigInterface;
-use Hyperf\Contract\StdoutLoggerInterface;
 use Hyperf\DTO\Event\AfterDTOStart;
 use Hyperf\DTO\Router\TCPRouter;
 use Hyperf\DTO\Scan\ScanAnnotation;
 use Hyperf\Event\Contract\ListenerInterface;
-use Hyperf\ExceptionHandler\Formatter\FormatterInterface;
 use Hyperf\Framework\Event\BeforeServerStart;
-use Hyperf\Framework\Event\BeforeWorkerStart;
-use Hyperf\Framework\Event\BootApplication;
 use Hyperf\HttpServer\Router\DispatcherFactory;
 use Hyperf\HttpServer\Router\Handler;
-use Hyperf\JsonRpc\TcpServer;
-use Hyperf\Rpc\Protocol;
-use Hyperf\RpcServer\CoreMiddleware;
 use Hyperf\Utils\ApplicationContext;
 use Hyperf\Utils\Str;
-use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 
 
-class BootAppConfListener implements ListenerInterface
+class BeforeServerListener implements ListenerInterface
 {
 
     public function listen(): array
@@ -70,11 +61,6 @@ class BootAppConfListener implements ListenerInterface
         });
         $event->dispatch(new AfterDTOStart($serverConfig, $router));
         $scanAnnotation->clearScanClassArray();
-    }
-
-    protected function getServerConfig()
-    {
-
     }
 
     protected function prepareHandler($handler): array
