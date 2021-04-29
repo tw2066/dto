@@ -6,6 +6,6 @@ namespace Hyperf\DTO\Exception;
 
 use Hyperf\Server\Exception\ServerException;
 
-class DTOException extends ServerException
+class DtoException extends ServerException
 {
 }

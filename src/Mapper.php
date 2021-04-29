@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO;
 
-use Hyperf\DTO\Contracts\DTO;
 use Hyperf\Utils\ApplicationContext;
 use Hyperf\Utils\Contracts\Arrayable;
 use Hyperf\Utils\Contracts\Jsonable;
 use JsonMapper;
-use Throwable;
 
 
 class Mapper
@@ -26,25 +24,6 @@ class Mapper
     {
         return self::$jsonMapper->map($json, $object);
     }
-
-    public static function isMap($obj)
-    {
-        if (!is_object($obj) && ApplicationContext::getContainer()->has($obj)) {
-            try {
-                $obj = ApplicationContext::getContainer()->get($obj);
-            } catch (Throwable $throwable) {
-                return false;
-            }
-        }
-
-        if ($obj instanceof DTO
-            || $obj instanceof Jsonable
-        ) {
-            return true;
-        }
-        return false;
-    }
-
 
     /**
      * @param $obj

@@ -2,13 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Hyperf\DTO\Dependencies;
+namespace Hyperf\DTO\Middleware;
 
 use Hyperf\DTO\Contracts\RequestBody;
 use Hyperf\DTO\Contracts\RequestFormData;
 use Hyperf\DTO\Contracts\RequestQuery;
 use Hyperf\DTO\ValidationDTO;
-use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\DTO\Mapper;
 use Hyperf\Utils\Context;
 use Psr\Http\Message\ServerRequestInterface;

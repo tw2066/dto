@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Hyperf\DTO;
 
 use Hyperf\Di\MethodDefinitionCollectorInterface;
-use Hyperf\DTO\Exception\DTOException;
+use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Scan\ValidationManager;
 use Hyperf\Utils\ApplicationContext;
@@ -50,7 +50,7 @@ class ValidationDTO
     {
 
         if(!is_array($data)){
-            throw new DTOException('class:'.$className.' data must be object or array');
+            throw new DtoException('class:' . $className . ' data must be object or array');
         }
         $notSimplePropertyArr = PropertyManager::getPropertyAndNotSimpleType($className);
         foreach ($notSimplePropertyArr as $fieldName=>$property) {

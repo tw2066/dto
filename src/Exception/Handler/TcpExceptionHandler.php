@@ -16,7 +16,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Throwable;
 
-class TCPExceptionHandler extends ExceptionHandler
+class TcpExceptionHandler extends ExceptionHandler
 {
     /**
      * @var StdoutLoggerInterface
