@@ -16,14 +16,12 @@ use Hyperf\Utils\ApplicationContext;
 use Hyperf\Utils\Str;
 use Psr\EventDispatcher\EventDispatcherInterface;
 
-
 class BeforeServerListener implements ListenerInterface
 {
-
     public function listen(): array
     {
         return [
-            BeforeServerStart::class
+            BeforeServerStart::class,
         ];
     }
 
@@ -32,7 +30,6 @@ class BeforeServerListener implements ListenerInterface
      */
     public function process(object $event)
     {
-
         $serverName = $event->serverName;
         $container = ApplicationContext::getContainer();
         $config = $container->get(ConfigInterface::class);

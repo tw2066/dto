@@ -32,9 +32,7 @@ class TcpExceptionHandler extends ExceptionHandler
      * @var TcpServer
      */
     private $server;
-    /**
-     * @var FormatterInterface
-     */
+
     private FormatterInterface $formatter;
 
     public function __construct(ContainerInterface $container, FormatterInterface $formatter)
@@ -43,14 +41,6 @@ class TcpExceptionHandler extends ExceptionHandler
         $this->logger = $container->get(StdoutLoggerInterface::class);
         $this->server = $container->get(TcpServer::class);
         $this->formatter = $formatter;
-    }
-
-    protected function getResponseBuilder(): ResponseBuilder
-    {
-        $getResponseBuilder = function () {
-            return $this->responseBuilder;
-        };
-        return $getResponseBuilder->call($this->server);
     }
 
     public function handle(Throwable $throwable, ResponseInterface $response)
@@ -71,5 +61,13 @@ class TcpExceptionHandler extends ExceptionHandler
     public function isValid(Throwable $throwable): bool
     {
         return true;
+    }
+
+    protected function getResponseBuilder(): ResponseBuilder
+    {
+        $getResponseBuilder = function () {
+            return $this->responseBuilder;
+        };
+        return $getResponseBuilder->call($this->server);
     }
 }

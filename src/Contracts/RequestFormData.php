@@ -6,5 +6,4 @@ namespace Hyperf\DTO\Contracts;
 
 interface RequestFormData extends DTO
 {
-
 }

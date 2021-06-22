@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Hyperf\DTO\Event;
 
 use Hyperf\HttpServer\Router\RouteCollector;

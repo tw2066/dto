@@ -18,47 +18,46 @@ class ValidationDTO
      * @var MethodDefinitionCollectorInterface|mixed
      */
     private $methodDefinitionCollector;
+
     /**
-     * @var ValidatorFactoryInterface|mixed
+     * @var mixed|ValidatorFactoryInterface
      */
     private $validationFactory;
 
     public function __construct()
     {
         $container = ApplicationContext::getContainer();
-        if($container->has(ValidatorFactoryInterface::class)){
+        if ($container->has(ValidatorFactoryInterface::class)) {
             $this->validationFactory = $container->get(ValidatorFactoryInterface::class);
         }
         $this->methodDefinitionCollector = $container->get(MethodDefinitionCollectorInterface::class);
     }
 
-
-    public function validate(string $className,$data)
+    public function validate(string $className, $data)
     {
-        if($this->validationFactory == null){
+        if ($this->validationFactory == null) {
             return;
         }
-        $this->validateResolved($className,$data);
+        $this->validateResolved($className, $data);
     }
 
     /**
-     * validate
+     * validate.
      * @param $className
      * @param $data
      */
-    private function validateResolved(string $className,$data)
+    private function validateResolved(string $className, $data)
     {
-
-        if(!is_array($data)){
+        if (!is_array($data)) {
             throw new DtoException('class:' . $className . ' data must be object or array');
         }
         $notSimplePropertyArr = PropertyManager::getPropertyAndNotSimpleType($className);
-        foreach ($notSimplePropertyArr as $fieldName=>$property) {
-            if(!empty($data[$fieldName])){
-                $this->validateResolved($property->className,$data[$fieldName]);
+        foreach ($notSimplePropertyArr as $fieldName => $property) {
+            if (!empty($data[$fieldName])) {
+                $this->validateResolved($property->className, $data[$fieldName]);
             }
         }
-        if(empty(ValidationManager::getRule($className))){
+        if (empty(ValidationManager::getRule($className))) {
             return;
         }
 
@@ -67,7 +66,7 @@ class ValidationDTO
             ValidationManager::getRule($className),
             ValidationManager::getMessages($className),
         );
-        if ($validator->fails()){
+        if ($validator->fails()) {
             throw new ValidationException($validator);
         }
     }

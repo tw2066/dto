@@ -7,14 +7,13 @@ namespace Hyperf\DTO\Middleware;
 use Hyperf\DTO\Contracts\RequestBody;
 use Hyperf\DTO\Contracts\RequestFormData;
 use Hyperf\DTO\Contracts\RequestQuery;
-use Hyperf\DTO\ValidationDTO;
 use Hyperf\DTO\Mapper;
+use Hyperf\DTO\ValidationDTO;
 use Hyperf\Utils\Context;
 use Psr\Http\Message\ServerRequestInterface;
 
 class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
 {
-
     protected function parseMethodParameters(string $controller, string $action, array $arguments): array
     {
         $definitions = $this->getMethodDefinitionCollector()->getParameters($controller, $action);
@@ -33,9 +32,9 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
                     $injections[] = null;
                 } elseif ($this->container->has($definition->getName())) {
                     $obj = $this->container->get($definition->getName());
-                    if($this->isMap($obj)){
+                    if ($this->isMap($obj)) {
                         $injections[] = $this->validateAndMap($obj, $definition->getName());
-                    }else{
+                    } else {
                         $injections[] = $obj;
                     }
                 } else {
@@ -49,11 +48,12 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
         return $injections;
     }
 
-    private function isMap($obj){
-        if(    $obj instanceof RequestBody
+    private function isMap($obj)
+    {
+        if ($obj instanceof RequestBody
             || $obj instanceof RequestQuery
             || $obj instanceof RequestFormData
-        ){
+        ) {
             return true;
         }
         return false;
@@ -66,9 +66,9 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
         $param = [];
         if ($obj instanceof RequestBody) {
             $param = $request->getParsedBody();
-        } else if ($obj instanceof RequestQuery) {
+        } elseif ($obj instanceof RequestQuery) {
             $param = $request->getQueryParams();
-        } else if ($obj instanceof RequestFormData) {
+        } elseif ($obj instanceof RequestFormData) {
             $param = $request->getParsedBody();
         }
         $validationDTO->validate($className, $param);

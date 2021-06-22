@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO;
 
-use Hyperf\Utils\ApplicationContext;
 use Hyperf\Utils\Contracts\Arrayable;
-use Hyperf\Utils\Contracts\Jsonable;
 use JsonMapper;
-
 
 class Mapper
 {
@@ -37,9 +34,8 @@ class Mapper
         }
         if ($obj instanceof Arrayable) {
             return self::$jsonMapper->map($obj->toArray(), $toObj);
-        } else {
-            return self::$jsonMapper->map($obj, $toObj);
         }
+        return self::$jsonMapper->map($obj, $toObj);
     }
 
     /**
@@ -53,8 +49,8 @@ class Mapper
             return [];
         }
         if ($json instanceof Arrayable) {
-            return self::$jsonMapper->mapArray($json->toArray(), array(), $className);
+            return self::$jsonMapper->mapArray($json->toArray(), [], $className);
         }
-        return self::$jsonMapper->mapArray($json, array(), $className);
+        return self::$jsonMapper->mapArray($json, [], $className);
     }
 }

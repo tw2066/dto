@@ -9,23 +9,21 @@ use Hyperf\Di\MethodDefinitionCollectorInterface;
 use Hyperf\Di\ReflectionManager;
 use Hyperf\DTO\Annotation\Validation\BaseValidation;
 use Hyperf\Utils\ApplicationContext;
-use Hyperf\Validation\Contract\ValidatorFactoryInterface;
 use JsonMapper;
 
 class ScanAnnotation extends JsonMapper
 {
-
     private static array $scanClassArray = [];
 
     /**
      * @var MethodDefinitionCollectorInterface|mixed
      */
     private $methodDefinitionCollector;
+
     /**
      * @var \Psr\Container\ContainerInterface
      */
     private $container;
-
 
     public function __construct()
     {
@@ -38,7 +36,7 @@ class ScanAnnotation extends JsonMapper
         $definitionParamArr = $this->methodDefinitionCollector->getParameters($className, $methodName);
         $definitionReturn = $this->methodDefinitionCollector->getReturnType($className, $methodName);
         array_push($definitionParamArr, $definitionReturn);
-        foreach ($definitionParamArr as $k => $definition) {
+        foreach ($definitionParamArr as $definition) {
             $parameterClassName = $definition->getName();
             if ($this->container->has($parameterClassName)) {
                 $this->scanClass($parameterClassName);
@@ -55,9 +53,9 @@ class ScanAnnotation extends JsonMapper
     {
         if (in_array($className, self::$scanClassArray)) {
             return;
-        } else {
-            self::$scanClassArray[] = $className;
         }
+        self::$scanClassArray[] = $className;
+
         $rc = ReflectionManager::reflectClass($className);
         $strNs = $rc->getNamespaceName();
         foreach ($rc->getProperties() ?? [] as $reflectionProperty) {
@@ -68,9 +66,9 @@ class ScanAnnotation extends JsonMapper
                 $arrType = null;
                 $docblock = $reflectionProperty->getDocComment();
                 $annotations = static::parseAnnotations($docblock);
-                if(!empty($annotations)){
+                if (!empty($annotations)) {
                     //support "@var type description"
-                    list($varType) = explode(' ', $annotations['var'][0]);
+                    [$varType] = explode(' ', $annotations['var'][0]);
                     $varType = $this->getFullNamespace($varType, $strNs);
                     if ($this->isArrayOfType($varType)) {
                         $arrType = substr($varType, 0, -2);
@@ -83,7 +81,7 @@ class ScanAnnotation extends JsonMapper
                 }
                 $propertyClassName = $arrType;
             }
-            if(!$this->isSimpleType($type)){
+            if (!$this->isSimpleType($type)) {
                 $this->scanClass($type);
                 $isSimpleType = false;
                 $propertyClassName = $type;
@@ -94,18 +92,17 @@ class ScanAnnotation extends JsonMapper
             $property->type = $type;
             $property->isSimpleType = $isSimpleType;
             $property->className = $propertyClassName;
-            PropertyManager::setContent($className,$fieldName,$property);
+            PropertyManager::setContent($className, $fieldName, $property);
 
-            $this->makeValidation($className,$fieldName);
+            $this->makeValidation($className, $fieldName);
         }
     }
 
     /**
-     * makeValidation
-     * @param string $className
-     * @param string $fieldName
+     * makeValidation.
      */
-    protected function makeValidation(string $className,string $fieldName){
+    protected function makeValidation(string $className, string $fieldName)
+    {
         /** @var BaseValidation[] $validation */
         $validationArr = [];
         $propertyReflectionPropertyArr = ApiAnnotation::propertyMetadata($className, $fieldName);
@@ -116,20 +113,19 @@ class ScanAnnotation extends JsonMapper
         }
         $rule = null;
         foreach ($validationArr as $validation) {
-            if(empty($validation->rule)){
+            if (empty($validation->rule)) {
                 continue;
             }
-            $rule .= $validation->rule.'|';
-            if(empty($validation->messages)){
+            $rule .= $validation->rule . '|';
+            if (empty($validation->messages)) {
                 continue;
             }
-            $messagesRule = explode(':',$validation->rule)[0];
-            $key = $fieldName.'.'.$messagesRule;
-            ValidationManager::setMessages($className,$key,$validation->messages);
+            $messagesRule = explode(':', $validation->rule)[0];
+            $key = $fieldName . '.' . $messagesRule;
+            ValidationManager::setMessages($className, $key, $validation->messages);
         }
-        !empty($rule) && ValidationManager::setRule($className,$fieldName,trim($rule,'|'));
+        !empty($rule) && ValidationManager::setRule($className, $fieldName, trim($rule, '|'));
     }
-
 
     protected function getTypeName(\ReflectionProperty $rp)
     {

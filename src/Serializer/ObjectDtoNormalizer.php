@@ -13,5 +13,4 @@ class ObjectDtoNormalizer extends ObjectNormalizer
     {
         return Mapper::map($data, make($type));
     }
-
 }

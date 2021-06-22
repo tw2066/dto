@@ -1,14 +1,7 @@
 <?php
 
 declare(strict_types=1);
-/**
- * This file is part of Hyperf.
- *
- * @link     https://www.hyperf.io
- * @document https://doc.hyperf.io
- * @contact  group@hyperf.io
- * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
- */
+
 namespace Hyperf\DTO\Annotation\Validation;
 
 /**
@@ -35,6 +28,6 @@ class Between extends BaseValidation
     public function __construct($value = null)
     {
         parent::__construct($value);
-        $this->rule = $this->rule .':'.$this->min . ',' . $this->max;
+        $this->rule = $this->rule . ':' . $this->min . ',' . $this->max;
     }
 }
