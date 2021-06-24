@@ -14,7 +14,7 @@ class SerializerFactory
     /**
      * @var string
      */
-    protected $serializer;
+    protected string $serializer;
 
     public function __construct(string $serializer = Serializer::class)
     {

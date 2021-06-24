@@ -11,10 +11,23 @@ abstract class BaseValidation extends AbstractAnnotation
     /**
      * @var string
      */
-    public $rule;
+    public $messages = '';
 
     /**
      * @var string
      */
-    public $messages = '';
+    protected $rule;
+
+    /**
+     * BaseValidation constructor.
+     */
+    public function __construct(string $messages = '')
+    {
+        $this->messages = $messages;
+    }
+
+    public function getRule(): string
+    {
+        return $this->rule;
+    }
 }

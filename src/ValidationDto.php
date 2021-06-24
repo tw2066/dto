@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO;
 
-use Hyperf\Di\MethodDefinitionCollectorInterface;
 use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Scan\ValidationManager;
@@ -12,17 +11,13 @@ use Hyperf\Utils\ApplicationContext;
 use Hyperf\Validation\Contract\ValidatorFactoryInterface;
 use Hyperf\Validation\ValidationException;
 
-class ValidationDTO
+class ValidationDto
 {
-    /**
-     * @var MethodDefinitionCollectorInterface|mixed
-     */
-    private $methodDefinitionCollector;
 
     /**
-     * @var mixed|ValidatorFactoryInterface
+     * @var ValidatorFactoryInterface
      */
-    private $validationFactory;
+    private ValidatorFactoryInterface $validationFactory;
 
     public function __construct()
     {
@@ -30,7 +25,6 @@ class ValidationDTO
         if ($container->has(ValidatorFactoryInterface::class)) {
             $this->validationFactory = $container->get(ValidatorFactoryInterface::class);
         }
-        $this->methodDefinitionCollector = $container->get(MethodDefinitionCollectorInterface::class);
     }
 
     public function validate(string $className, $data)
@@ -43,7 +37,7 @@ class ValidationDTO
 
     /**
      * validate.
-     * @param $className
+     * @param string $className
      * @param $data
      */
     private function validateResolved(string $className, $data)

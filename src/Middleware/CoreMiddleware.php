@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Middleware;
 
-use Hyperf\DTO\Contracts\RequestBody;
-use Hyperf\DTO\Contracts\RequestFormData;
-use Hyperf\DTO\Contracts\RequestQuery;
 use Hyperf\DTO\Mapper;
-use Hyperf\DTO\ValidationDTO;
+use Hyperf\DTO\Scan\MethodParametersManager;
+use Hyperf\DTO\ValidationDto;
 use Hyperf\Utils\Context;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -32,11 +30,7 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
                     $injections[] = null;
                 } elseif ($this->container->has($definition->getName())) {
                     $obj = $this->container->get($definition->getName());
-                    if ($this->isMap($obj)) {
-                        $injections[] = $this->validateAndMap($obj, $definition->getName());
-                    } else {
-                        $injections[] = $obj;
-                    }
+                    $injections[] = $this->validateAndMap($callableName, $definition->getMeta('name'), $definition->getName(), $obj);
                 } else {
                     throw new \InvalidArgumentException("Parameter '{$definition->getMeta('name')}' "
                         . "of {$callableName} should not be null");
@@ -48,30 +42,33 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
         return $injections;
     }
 
-    private function isMap($obj)
+    /**
+     * @param $callableName 'App\Controller\DemoController::index'
+     * @param $paramName
+     * @param $className
+     * @param $obj
+     */
+    private function validateAndMap($callableName, $paramName, $className, $obj): mixed
     {
-        if ($obj instanceof RequestBody
-            || $obj instanceof RequestQuery
-            || $obj instanceof RequestFormData
-        ) {
-            return true;
+        [$controllerName, $methodName] = explode('::', $callableName);
+        $methodParameter = MethodParametersManager::getMethodParameter($controllerName, $methodName, $paramName);
+        if ($methodParameter == null) {
+            return $obj;
         }
-        return false;
-    }
-
-    private function validateAndMap($obj, $className)
-    {
-        $validationDTO = $this->container->get(ValidationDTO::class);
+        $validationDTO = $this->container->get(ValidationDto::class);
         $request = Context::get(ServerRequestInterface::class);
         $param = [];
-        if ($obj instanceof RequestBody) {
+        if ($methodParameter->isRequestBody()) {
             $param = $request->getParsedBody();
-        } elseif ($obj instanceof RequestQuery) {
+        } elseif ($methodParameter->isRequestQuery()) {
             $param = $request->getQueryParams();
-        } elseif ($obj instanceof RequestFormData) {
+        } elseif ($methodParameter->isRequestFormData()) {
             $param = $request->getParsedBody();
         }
-        $validationDTO->validate($className, $param);
+        //校验数据
+        if ($methodParameter->isValid()) {
+            $validationDTO->validate($className, $param);
+        }
         return Mapper::map($param, make($className));
     }
 }

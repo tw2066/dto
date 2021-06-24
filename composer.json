@@ -3,13 +3,14 @@
     "description": "php hyperf dto",
     "license": "MIT",
     "keywords": [
-        "php",
         "dto",
-        "hyperf"
+        "hyperf",
+        "hyperf dto",
+        "hyperf swagger"
     ],
     "authors": [
         {
-            "name": "Tang",
+            "name": "TangWei",
             "email": "tw2066@163.com",
             "homepage": "https://github.com/tw2066",
             "role": "Developer"
@@ -31,7 +32,7 @@
             "config": "Hyperf\\DTO\\ConfigProvider"
         },
         "branch-alias":{
-            "dev-master":"1.0.x-dev"
+            "dev-master": "2.0.x-dev"
         }
     }
 }

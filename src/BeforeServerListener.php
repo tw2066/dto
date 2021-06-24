@@ -6,7 +6,7 @@ namespace Hyperf\DTO;
 
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\DTO\Event\AfterDTOStart;
-use Hyperf\DTO\Router\TCPRouter;
+use Hyperf\DTO\Router\TcpRouter;
 use Hyperf\DTO\Scan\ScanAnnotation;
 use Hyperf\Event\Contract\ListenerInterface;
 use Hyperf\Framework\Event\BeforeServerStart;
@@ -39,14 +39,13 @@ class BeforeServerListener implements ListenerInterface
 
         $serverConfig = collect($config->get('server.servers'))->where('name', $serverName)->first();
         if (isset($serverConfig['callbacks']['receive'][0]) && Str::contains($serverConfig['callbacks']['receive'][0], 'TcpServer')) {
-            $tcpRouter = $container->get(TCPRouter::class);
+            $tcpRouter = $container->get(TcpRouter::class);
             $router = $tcpRouter->getRouter($serverName);
             $data = $router->getData();
         } else {
             $router = $container->get(DispatcherFactory::class)->getRouter($serverName);
             $data = $router->getData();
         }
-
         array_walk_recursive($data, function ($item) use ($scanAnnotation) {
             if ($item instanceof Handler && !($item->callback instanceof \Closure)) {
                 $prepareHandler = $this->prepareHandler($item->callback);

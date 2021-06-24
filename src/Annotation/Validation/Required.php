@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Annotation\Validation;
 
-/**
- * @Annotation
- * @Target({"PROPERTY"})
- */
+use Attribute;
+
+#[Attribute(Attribute::TARGET_PROPERTY)]
 class Required extends BaseValidation
 {
-    public $rule = 'required';
+    protected $rule = 'required';
 }

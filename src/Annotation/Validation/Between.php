@@ -4,17 +4,11 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Annotation\Validation;
 
-/**
- * @Annotation
- * @Target({"PROPERTY"})
- */
+use Attribute;
+
+#[Attribute(Attribute::TARGET_PROPERTY)]
 class Between extends BaseValidation
 {
-    /**
-     * @var string
-     */
-    public $rule = 'between';
-
     /**
      * @var int
      */
@@ -25,9 +19,19 @@ class Between extends BaseValidation
      */
     public $max;
 
-    public function __construct($value = null)
+    /**
+     * @var string
+     */
+    protected $rule = 'between';
+
+    /**
+     * Between constructor.
+     */
+    public function __construct(int $min, int $max, string $messages = '')
     {
-        parent::__construct($value);
+        $this->min = $min;
+        $this->max = $max;
         $this->rule = $this->rule . ':' . $this->min . ',' . $this->max;
+        $this->messages = $messages;
     }
 }

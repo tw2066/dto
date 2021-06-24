@@ -7,9 +7,18 @@ namespace Hyperf\DTO\Scan;
 use Hyperf\ApiDocs\ApiAnnotation;
 use Hyperf\Di\MethodDefinitionCollectorInterface;
 use Hyperf\Di\ReflectionManager;
+use Hyperf\DTO\Annotation\Contracts\RequestBody;
+use Hyperf\DTO\Annotation\Contracts\RequestFormData;
+use Hyperf\DTO\Annotation\Contracts\RequestQuery;
+use Hyperf\DTO\Annotation\Contracts\Valid;
 use Hyperf\DTO\Annotation\Validation\BaseValidation;
+use Hyperf\DTO\Exception\DtoException;
 use Hyperf\Utils\ApplicationContext;
 use JsonMapper;
+use ReflectionException;
+use ReflectionMethod;
+use ReflectionProperty;
+use Throwable;
 
 class ScanAnnotation extends JsonMapper
 {
@@ -31,8 +40,15 @@ class ScanAnnotation extends JsonMapper
         $this->methodDefinitionCollector = $this->container->get(MethodDefinitionCollectorInterface::class);
     }
 
+    /**
+     * 扫描控制器中的方法.
+     * @param $className
+     * @param $methodName
+     * @throws ReflectionException
+     */
     public function scan($className, $methodName)
     {
+        $this->setMethodParameters($className, $methodName);
         $definitionParamArr = $this->methodDefinitionCollector->getParameters($className, $methodName);
         $definitionReturn = $this->methodDefinitionCollector->getReturnType($className, $methodName);
         array_push($definitionParamArr, $definitionReturn);
@@ -55,7 +71,6 @@ class ScanAnnotation extends JsonMapper
             return;
         }
         self::$scanClassArray[] = $className;
-
         $rc = ReflectionManager::reflectClass($className);
         $strNs = $rc->getNamespaceName();
         foreach ($rc->getProperties() ?? [] as $reflectionProperty) {
@@ -105,35 +120,85 @@ class ScanAnnotation extends JsonMapper
     {
         /** @var BaseValidation[] $validation */
         $validationArr = [];
-        $propertyReflectionPropertyArr = ApiAnnotation::propertyMetadata($className, $fieldName);
-        foreach ($propertyReflectionPropertyArr as $propertyReflectionProperty) {
-            if ($propertyReflectionProperty instanceof BaseValidation) {
-                $validationArr[] = $propertyReflectionProperty;
+        $annotationArray = ApiAnnotation::propertyArray($className, $fieldName);
+        foreach ($annotationArray as $annotation) {
+            if ($annotation instanceof BaseValidation) {
+                $validationArr[] = $annotation;
             }
         }
         $rule = null;
         foreach ($validationArr as $validation) {
-            if (empty($validation->rule)) {
+            if (empty($validation->getRule())) {
                 continue;
             }
-            $rule .= $validation->rule . '|';
+            $rule .= $validation->getRule() . '|';
             if (empty($validation->messages)) {
                 continue;
             }
-            $messagesRule = explode(':', $validation->rule)[0];
+            [$messagesRule,] = explode(':', $validation->getRule());
             $key = $fieldName . '.' . $messagesRule;
             ValidationManager::setMessages($className, $key, $validation->messages);
         }
         !empty($rule) && ValidationManager::setRule($className, $fieldName, trim($rule, '|'));
     }
 
-    protected function getTypeName(\ReflectionProperty $rp)
+    /**
+     * 获取类型
+     * @param ReflectionProperty $rp
+     * @return string
+     */
+    protected function getTypeName(ReflectionProperty $rp): string
     {
         try {
             $type = $rp->getType()->getName();
-        } catch (\Throwable $throwable) {
+        } catch (Throwable) {
             $type = 'string';
         }
         return $type;
+    }
+
+    /**
+     * 设置方法中的参数.
+     * @param $className
+     * @param $methodName
+     * @throws ReflectionException
+     */
+    private function setMethodParameters($className, $methodName)
+    {
+        // 获取方法的反射对象
+        $ref = new ReflectionMethod($className . '::' . $methodName);
+        // 获取方法上指定名称的全部注解
+        $attributes = $ref->getParameters();
+        $methodMark = 0;
+        foreach ($attributes as $attribute) {
+            $methodParameters = new MethodParameter();
+            $paramName = $attribute->getName();
+            $mark = 0;
+            if ($attribute->getAttributes(RequestQuery::class)) {
+                $methodParameters->setIsRequestQuery(true);
+                ++$mark;
+            }
+            if ($attribute->getAttributes(RequestFormData::class)) {
+                $methodParameters->setIsRequestFormData(true);
+                ++$mark;
+                ++$methodMark;
+            }
+            if ($attribute->getAttributes(RequestBody::class)) {
+                $methodParameters->setIsRequestBody(true);
+                ++$mark;
+                ++$methodMark;
+            }
+            if ($attribute->getAttributes(Valid::class)) {
+                $methodParameters->setIsValid(true);
+            }
+            if ($mark > 1) {
+                throw new DtoException("Parameter annotation [RequestQuery RequestFormData RequestBody] cannot exist simultaneously [{$className}::{$methodName}:{$paramName}]");
+            }
+            MethodParametersManager::setContent($className, $methodName, $paramName, $methodParameters);
+        }
+        if ($methodMark > 1) {
+            throw new DtoException("method annotation [RequestFormData RequestBody] cannot exist simultaneously [{$className}::{$methodName}]");
+        }
+
     }
 }

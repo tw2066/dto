@@ -9,7 +9,7 @@ use Hyperf\Rpc\Protocol;
 use Hyperf\RpcServer\Router\DispatcherFactory;
 use Psr\Container\ContainerInterface;
 
-class TCPRouter
+class TcpRouter
 {
     /**
      * @var mixed|TcpServer

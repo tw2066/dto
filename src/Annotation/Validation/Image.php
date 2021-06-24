@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Annotation\Validation;
 
-/**
- * @Annotation
- * @Target({"PROPERTY"})
- */
+use Attribute;
+
+#[Attribute(Attribute::TARGET_PROPERTY)]
 class Image extends BaseValidation
 {
-    public $rule = 'image';
+    protected $rule = 'image';
 }
