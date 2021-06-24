@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Hyperf\DTO;
 
 use Hyperf\Contract\ConfigInterface;
-use Hyperf\DTO\Event\AfterDTOStart;
+use Hyperf\DTO\Event\AfterDtoStart;
 use Hyperf\DTO\Router\TcpRouter;
 use Hyperf\DTO\Scan\ScanAnnotation;
 use Hyperf\Event\Contract\ListenerInterface;
@@ -55,7 +55,7 @@ class BeforeServerListener implements ListenerInterface
                 }
             }
         });
-        $event->dispatch(new AfterDTOStart($serverConfig, $router));
+        $event->dispatch(new AfterDtoStart($serverConfig, $router));
         $scanAnnotation->clearScanClassArray();
     }
 

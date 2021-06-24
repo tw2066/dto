@@ -7,7 +7,12 @@ namespace Hyperf\DTO\Middleware;
 use Hyperf\DTO\Mapper;
 use Hyperf\DTO\Scan\MethodParametersManager;
 use Hyperf\DTO\ValidationDto;
+use Hyperf\HttpMessage\Stream\SwooleStream;
+use Hyperf\Utils\Codec\Json;
 use Hyperf\Utils\Context;
+use Hyperf\Utils\Contracts\Arrayable;
+use Hyperf\Utils\Contracts\Jsonable;
+use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
@@ -47,6 +52,7 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
      * @param $paramName
      * @param $className
      * @param $obj
+     * @return mixed
      */
     private function validateAndMap($callableName, $paramName, $className, $obj): mixed
     {
@@ -71,4 +77,37 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
         }
         return Mapper::map($param, make($className));
     }
+
+    /**
+     * Transfer the non-standard response content to a standard response object.
+     *
+     * @param null|array|Arrayable|Jsonable|string $response
+     */
+    protected function transferToResponse($response, ServerRequestInterface $request): ResponseInterface
+    {
+        if (is_string($response)) {
+            return $this->response()->withAddedHeader('content-type', 'text/plain')->withBody(new SwooleStream($response));
+        }
+
+        if (is_array($response) || $response instanceof Arrayable) {
+            return $this->response()
+                ->withAddedHeader('content-type', 'application/json')
+                ->withBody(new SwooleStream(Json::encode($response)));
+        }
+
+        if ($response instanceof Jsonable) {
+            return $this->response()
+                ->withAddedHeader('content-type', 'application/json')
+                ->withBody(new SwooleStream((string)$response));
+        }
+        //对象转换
+        if (is_object($response)) {
+            return $this->response()
+                ->withAddedHeader('content-type', 'application/json')
+                ->withBody(new SwooleStream(Json::encode($response)));
+        }
+
+        return $this->response()->withAddedHeader('content-type', 'text/plain')->withBody(new SwooleStream((string)$response));
+    }
+
 }

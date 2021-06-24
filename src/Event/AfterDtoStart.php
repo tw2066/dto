@@ -6,7 +6,7 @@ namespace Hyperf\DTO\Event;
 
 use Hyperf\HttpServer\Router\RouteCollector;
 
-class AfterDTOStart
+class AfterDtoStart
 {
     /**
      * @var string
