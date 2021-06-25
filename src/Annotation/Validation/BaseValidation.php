@@ -14,7 +14,7 @@ abstract class BaseValidation extends AbstractAnnotation
     public $messages = '';
 
     /**
-     * @var string
+     * @var mixed
      */
     protected $rule;
 
@@ -26,7 +26,7 @@ abstract class BaseValidation extends AbstractAnnotation
         $this->messages = $messages;
     }
 
-    public function getRule(): string
+    public function getRule(): mixed
     {
         return $this->rule;
     }

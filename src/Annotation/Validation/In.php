@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace Hyperf\DTO\Annotation\Validation;
 
 use Attribute;
+use Hyperf\Validation\Rule;
 
 #[Attribute(Attribute::TARGET_PROPERTY)]
-class Validation extends BaseValidation
+class In extends BaseValidation
 {
     /**
-     * Validation constructor.
+     * In constructor.
      */
-    public function __construct(mixed $rule, string $messages = '')
+    public function __construct(array $in, string $messages = '')
     {
-        $this->rule = $rule;
         $this->messages = $messages;
+        $this->rule = Rule::in($in);
     }
 }

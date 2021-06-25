@@ -11,9 +11,6 @@ use Symfony\Component\Serializer\Serializer;
 
 class SerializerFactory
 {
-    /**
-     * @var string
-     */
     protected string $serializer;
 
     public function __construct(string $serializer = Serializer::class)

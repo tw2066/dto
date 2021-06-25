@@ -126,12 +126,12 @@ class ScanAnnotation extends JsonMapper
                 $validationArr[] = $annotation;
             }
         }
-        $rule = null;
+        $ruleArray = [];
         foreach ($validationArr as $validation) {
             if (empty($validation->getRule())) {
                 continue;
             }
-            $rule .= $validation->getRule() . '|';
+            $ruleArray[] = $validation->getRule();
             if (empty($validation->messages)) {
                 continue;
             }
@@ -139,13 +139,11 @@ class ScanAnnotation extends JsonMapper
             $key = $fieldName . '.' . $messagesRule;
             ValidationManager::setMessages($className, $key, $validation->messages);
         }
-        !empty($rule) && ValidationManager::setRule($className, $fieldName, trim($rule, '|'));
+        !empty($ruleArray) && ValidationManager::setRule($className, $fieldName, $ruleArray);
     }
 
     /**
-     * 获取类型
-     * @param ReflectionProperty $rp
-     * @return string
+     * 获取类型.
      */
     protected function getTypeName(ReflectionProperty $rp): string
     {
@@ -199,6 +197,5 @@ class ScanAnnotation extends JsonMapper
         if ($methodMark > 1) {
             throw new DtoException("method annotation [RequestFormData RequestBody] cannot exist simultaneously [{$className}::{$methodName}]");
         }
-
     }
 }

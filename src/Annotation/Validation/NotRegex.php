@@ -7,19 +7,19 @@ namespace Hyperf\DTO\Annotation\Validation;
 use Attribute;
 
 #[Attribute(Attribute::TARGET_PROPERTY)]
-class Between extends BaseValidation
+class NotRegex extends BaseValidation
 {
     /**
      * @var string
      */
-    protected $rule = 'between';
+    protected $rule = 'not_regex';
 
     /**
-     * Between constructor.
+     * Regex constructor.
      */
-    public function __construct(int $min, int $max, string $messages = '')
+    public function __construct(string $value, string $messages = '')
     {
-        $this->rule = $this->rule . ':' . $min . ',' . $max;
         $this->messages = $messages;
+        $this->rule = $this->rule . ':' . $value;
     }
 }

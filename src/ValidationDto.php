@@ -13,10 +13,6 @@ use Hyperf\Validation\ValidationException;
 
 class ValidationDto
 {
-
-    /**
-     * @var ValidatorFactoryInterface
-     */
     private ValidatorFactoryInterface $validationFactory;
 
     public function __construct()
@@ -37,7 +33,6 @@ class ValidationDto
 
     /**
      * validate.
-     * @param string $className
      * @param $data
      */
     private function validateResolved(string $className, $data)
