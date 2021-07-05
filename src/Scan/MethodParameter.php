@@ -57,8 +57,4 @@ class MethodParameter
         return $this;
     }
 
-//    public function isMap(): bool
-//    {
-//        return $this->isRequestBody || $this->isRequestFormData || $this->isRequestQuery;
-//    }
 }
