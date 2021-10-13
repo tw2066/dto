@@ -56,5 +56,4 @@ class MethodParameter
         $this->isRequestQuery = $isRequestQuery;
         return $this;
     }
-
 }

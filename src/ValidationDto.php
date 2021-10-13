@@ -33,7 +33,6 @@ class ValidationDto
 
     /**
      * validate.
-     * @param string $className
      * @param $data
      */
     private function validateResolved(string $className, $data)

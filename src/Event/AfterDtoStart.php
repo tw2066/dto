@@ -8,7 +8,6 @@ use Hyperf\HttpServer\Router\RouteCollector;
 
 class AfterDtoStart
 {
-
     public array $serverConfig;
 
     public RouteCollector $router;

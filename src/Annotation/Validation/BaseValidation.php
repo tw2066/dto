@@ -13,9 +13,6 @@ abstract class BaseValidation extends AbstractAnnotation
      */
     public $messages = '';
 
-    /**
-     * @var mixed
-     */
     protected mixed $rule;
 
     /**

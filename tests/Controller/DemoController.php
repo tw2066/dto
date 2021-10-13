@@ -4,12 +4,6 @@ declare(strict_types=1);
 
 namespace HyperfTest\DTO\Controller;
 
-use HyperfTest\DTO\Request\DemoBodyRequest;
-use HyperfTest\DTO\Request\DemoFormData;
-use HyperfTest\DTO\Request\DemoQuery;
-use HyperfTest\DTO\Response\Activity;
-use HyperfTest\DTO\Response\ActivityPage;
-use HyperfTest\DTO\Response\Contact;
 use Hyperf\DTO\Annotation\Contracts\RequestBody;
 use Hyperf\DTO\Annotation\Contracts\RequestFormData;
 use Hyperf\DTO\Annotation\Contracts\RequestQuery;
@@ -20,11 +14,15 @@ use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\PatchMapping;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\HttpServer\Annotation\PutMapping;
+use HyperfTest\DTO\Request\DemoBodyRequest;
+use HyperfTest\DTO\Request\DemoFormData;
+use HyperfTest\DTO\Request\DemoQuery;
+use HyperfTest\DTO\Response\Activity;
+use HyperfTest\DTO\Response\ActivityPage;
 
 #[Controller(prefix: '/demo')]
 class DemoController
 {
-
     #[PutMapping(path: 'add')]
     public function add(#[RequestBody] #[Valid] DemoBodyRequest $request, #[RequestQuery] DemoQuery $query): Activity
     {

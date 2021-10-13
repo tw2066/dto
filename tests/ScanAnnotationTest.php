@@ -1,38 +1,20 @@
 <?php
 
 declare(strict_types=1);
-/**
- * This file is part of Hyperf.
- *
- * @link     https://www.hyperf.io
- * @document https://hyperf.wiki
- * @contact  group@hyperf.io
- * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
- */
 
 namespace HyperfTest\DTO\Listener;
 
-use Hyperf\Contract\ConfigInterface;
-use Hyperf\Contract\StdoutLoggerInterface;
 use Hyperf\Di\Annotation\AnnotationCollector;
 use Hyperf\Di\MethodDefinitionCollector;
 use Hyperf\Di\MethodDefinitionCollectorInterface;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Scan\ScanAnnotation;
-use Hyperf\HttpServer\Router\DispatcherFactory;
 use Hyperf\Utils\Reflection\ClassInvoker;
-use Hyperf\XxlJob\Annotation\XxlJob;
-use Hyperf\XxlJob\Config;
-use Hyperf\XxlJob\Dispatcher\XxlJobRoute;
-use Hyperf\XxlJob\JobHandlerManager;
-use Hyperf\XxlJob\Listener\BootAppRouteListener;
 use HyperfTest\DTO\Controller\DemoController;
 use HyperfTest\DTO\Request\Address;
 use HyperfTest\DTO\Request\DemoBodyRequest;
-use HyperfTest\DTO\Request\DemoQuery;
 use HyperfTest\DTO\Request\User;
 use HyperfTest\DTO\Response\Activity;
-use HyperfTest\XxlJob\BarJobClass;
 use Mockery as m;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
@@ -89,6 +71,5 @@ class ScanAnnotationTest extends TestCase
         $this->assertSame('string', $property->type);
         $this->assertSame('string', $property->className);
         $this->assertSame(true, $property->isSimpleType);
-
     }
 }

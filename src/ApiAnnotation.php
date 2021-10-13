@@ -40,7 +40,6 @@ class ApiAnnotation
      * 通过类名和属性名返回一个注解对象数组.
      * @param $className
      * @param $propertyName
-     * @return array
      */
     public static function propertyArray($className, $propertyName): array
     {

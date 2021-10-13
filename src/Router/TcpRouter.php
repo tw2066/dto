@@ -11,7 +11,6 @@ use Psr\Container\ContainerInterface;
 
 class TcpRouter
 {
-
     private TcpServer $tcpServer;
 
     private $protocol;

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Scan;
 
-use Hyperf\DTO\ApiAnnotation;
 use Hyperf\Di\MethodDefinitionCollectorInterface;
 use Hyperf\Di\ReflectionManager;
 use Hyperf\DTO\Annotation\Contracts\RequestBody;
@@ -12,6 +11,7 @@ use Hyperf\DTO\Annotation\Contracts\RequestFormData;
 use Hyperf\DTO\Annotation\Contracts\RequestQuery;
 use Hyperf\DTO\Annotation\Contracts\Valid;
 use Hyperf\DTO\Annotation\Validation\BaseValidation;
+use Hyperf\DTO\ApiAnnotation;
 use Hyperf\DTO\Exception\DtoException;
 use JsonMapper;
 use Psr\Container\ContainerInterface;
@@ -137,7 +137,7 @@ class ScanAnnotation extends JsonMapper
     }
 
     /**
-     * 获取类型
+     * 获取类型.
      */
     protected function getTypeName(ReflectionProperty $rp): string
     {

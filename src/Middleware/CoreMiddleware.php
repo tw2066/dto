@@ -84,7 +84,6 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
      * @param $paramName
      * @param $className
      * @param $obj
-     * @return mixed
      */
     private function validateAndMap($callableName, $paramName, $className, $obj): mixed
     {
