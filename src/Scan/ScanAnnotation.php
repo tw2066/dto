@@ -75,14 +75,14 @@ class ScanAnnotation extends JsonMapper
                 $arrType = null;
                 $docblock = $reflectionProperty->getDocComment();
                 $annotations = static::parseAnnotations($docblock);
-                if (!empty($annotations)) {
+                if (! empty($annotations)) {
                     //support "@var type description"
                     [$varType] = explode(' ', $annotations['var'][0]);
                     $varType = $this->getFullNamespace($varType, $strNs);
                     if ($this->isArrayOfType($varType)) {
                         $arrType = substr($varType, 0, -2);
                         $isSimpleType = $this->isSimpleType($arrType);
-                        if (!$this->isSimpleType($arrType) && $this->container->has($arrType)) {
+                        if (! $this->isSimpleType($arrType) && $this->container->has($arrType)) {
                             $this->scanClass($arrType);
                             PropertyManager::setNotSimpleClass($className);
                         }
@@ -90,7 +90,7 @@ class ScanAnnotation extends JsonMapper
                 }
                 $propertyClassName = $arrType;
             }
-            if (!$this->isSimpleType($type)) {
+            if (! $this->isSimpleType($type)) {
                 $this->scanClass($type);
                 $isSimpleType = false;
                 $propertyClassName = $type;
@@ -133,7 +133,7 @@ class ScanAnnotation extends JsonMapper
             $key = $fieldName . '.' . $messagesRule;
             ValidationManager::setMessages($className, $key, $validation->messages);
         }
-        !empty($ruleArray) && ValidationManager::setRule($className, $fieldName, $ruleArray);
+        ! empty($ruleArray) && ValidationManager::setRule($className, $fieldName, $ruleArray);
     }
 
     /**

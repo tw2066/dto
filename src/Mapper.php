@@ -27,8 +27,8 @@ class Mapper
     /**
      * @param $obj
      * @param $toObj
-     * @return null|object $toObj
      * @throws JsonMapper_Exception
+     * @return null|object $toObj
      */
     public static function copy($obj, $toObj): ?object
     {

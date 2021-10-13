@@ -37,12 +37,12 @@ class ValidationDto
      */
     private function validateResolved(string $className, $data)
     {
-        if (!is_array($data)) {
+        if (! is_array($data)) {
             throw new DtoException('class:' . $className . ' data must be object or array');
         }
         $notSimplePropertyArr = PropertyManager::getPropertyAndNotSimpleType($className);
         foreach ($notSimplePropertyArr as $fieldName => $property) {
-            if (!empty($data[$fieldName])) {
+            if (! empty($data[$fieldName])) {
                 $this->validateResolved($property->className, $data[$fieldName]);
             }
         }

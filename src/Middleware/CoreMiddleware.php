@@ -43,7 +43,7 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
         if ($response instanceof Jsonable) {
             return $this->response()
                 ->withAddedHeader('content-type', 'application/json')
-                ->withBody(new SwooleStream((string)$response));
+                ->withBody(new SwooleStream((string) $response));
         }
         //object
         if (is_object($response)) {
@@ -52,7 +52,7 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
                 ->withBody(new SwooleStream(Json::encode($response)));
         }
 
-        return $this->response()->withAddedHeader('content-type', 'text/plain')->withBody(new SwooleStream((string)$response));
+        return $this->response()->withAddedHeader('content-type', 'text/plain')->withBody(new SwooleStream((string) $response));
     }
 
     private function getInjections(array $definitions, string $callableName, array $arguments): array

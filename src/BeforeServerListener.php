@@ -46,7 +46,7 @@ class BeforeServerListener implements ListenerInterface
         }
         $data = $router->getData();
         array_walk_recursive($data, function ($item) use ($scanAnnotation) {
-            if ($item instanceof Handler && !($item->callback instanceof \Closure)) {
+            if ($item instanceof Handler && ! ($item->callback instanceof \Closure)) {
                 $prepareHandler = $this->prepareHandler($item->callback);
                 if (count($prepareHandler) > 1) {
                     [$controller, $action] = $prepareHandler;

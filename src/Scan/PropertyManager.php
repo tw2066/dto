@@ -28,7 +28,7 @@ class PropertyManager
     public static function getProperty($className, $fieldName): ?Property
     {
         $className = trim($className, '\\');
-        if (!isset(static::$content[$className][$fieldName])) {
+        if (! isset(static::$content[$className][$fieldName])) {
             return null;
         }
         return static::$content[$className][$fieldName];
@@ -37,7 +37,7 @@ class PropertyManager
     public static function getPropertyByType($className, $type, bool $isSimpleType): array
     {
         $className = trim($className, '\\');
-        if (!isset(static::$content[$className])) {
+        if (! isset(static::$content[$className])) {
             return [];
         }
         $data = [];
@@ -61,7 +61,7 @@ class PropertyManager
     public static function getPropertyAndNotSimpleType($className): array
     {
         $className = trim($className, '\\');
-        if (!isset(static::$notSimpleClass[$className])) {
+        if (! isset(static::$notSimpleClass[$className])) {
             return [];
         }
         $data = [];

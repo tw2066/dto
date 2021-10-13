@@ -23,7 +23,7 @@ class ValidationManager
     public static function getRule($className)
     {
         $className = trim($className, '\\');
-        if (!isset(static::$content[$className]['rule'])) {
+        if (! isset(static::$content[$className]['rule'])) {
             return [];
         }
         return static::$content[$className]['rule'];
@@ -32,7 +32,7 @@ class ValidationManager
     public static function getMessages($className)
     {
         $className = trim($className, '\\');
-        if (!isset(static::$content[$className]['messages'])) {
+        if (! isset(static::$content[$className]['messages'])) {
             return [];
         }
         return static::$content[$className]['messages'];
