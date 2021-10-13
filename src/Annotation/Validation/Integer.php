@@ -9,5 +9,5 @@ use Attribute;
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class Integer extends BaseValidation
 {
-    protected $rule = 'integer';
+    protected mixed $rule = 'integer';
 }

@@ -12,5 +12,5 @@ use Attribute;
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class Bail extends BaseValidation
 {
-    public $rule = 'bail';
+    public mixed $rule = 'bail';
 }

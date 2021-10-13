@@ -9,5 +9,5 @@ use Attribute;
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class Image extends BaseValidation
 {
-    protected $rule = 'image';
+    protected mixed $rule = 'image';
 }

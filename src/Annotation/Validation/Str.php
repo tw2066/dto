@@ -12,5 +12,5 @@ use Attribute;
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class Str extends BaseValidation
 {
-    protected $rule = 'string';
+    protected mixed $rule = 'string';
 }

@@ -15,7 +15,7 @@ class After extends BaseValidation
     /**
      * @var string
      */
-    protected $rule = 'after';
+    protected mixed $rule = 'after';
 
     /**
      * After constructor.

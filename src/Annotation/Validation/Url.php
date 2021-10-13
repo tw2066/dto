@@ -9,5 +9,5 @@ use Attribute;
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class Url extends BaseValidation
 {
-    protected $rule = 'url';
+    protected mixed $rule = 'url';
 }

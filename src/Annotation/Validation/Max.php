@@ -12,7 +12,7 @@ class Max extends BaseValidation
     /**
      * @var string
      */
-    protected $rule = 'max';
+    protected mixed $rule = 'max';
 
     /**
      * Max constructor.

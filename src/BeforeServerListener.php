@@ -41,11 +41,10 @@ class BeforeServerListener implements ListenerInterface
         if (isset($serverConfig['callbacks']['receive'][0]) && Str::contains($serverConfig['callbacks']['receive'][0], 'TcpServer')) {
             $tcpRouter = $container->get(TcpRouter::class);
             $router = $tcpRouter->getRouter($serverName);
-            $data = $router->getData();
         } else {
             $router = $container->get(DispatcherFactory::class)->getRouter($serverName);
-            $data = $router->getData();
         }
+        $data = $router->getData();
         array_walk_recursive($data, function ($item) use ($scanAnnotation) {
             if ($item instanceof Handler && !($item->callback instanceof \Closure)) {
                 $prepareHandler = $this->prepareHandler($item->callback);

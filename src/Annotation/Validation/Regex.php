@@ -12,7 +12,7 @@ class Regex extends BaseValidation
     /**
      * @var string
      */
-    protected $rule = 'regex';
+    protected mixed $rule = 'regex';
 
     /**
      * Regex constructor.

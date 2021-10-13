@@ -11,10 +11,10 @@ use Psr\Container\ContainerInterface;
 
 class TcpRouter
 {
-    /**
-     * @var mixed|TcpServer
-     */
-    private $tcpServer;
+
+    private TcpServer $tcpServer;
+
+    private $protocol;
 
     public function __construct(ContainerInterface $container)
     {

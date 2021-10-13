@@ -15,7 +15,7 @@ class Size extends BaseValidation
     /**
      * @var string
      */
-    protected $rule = 'size';
+    protected mixed $rule = 'size';
 
     /**
      * Size constructor.

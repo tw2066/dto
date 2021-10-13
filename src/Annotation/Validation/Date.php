@@ -9,5 +9,5 @@ use Attribute;
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class Date extends BaseValidation
 {
-    protected $rule = 'date';
+    protected mixed $rule = 'date';
 }

@@ -12,7 +12,7 @@ class Min extends BaseValidation
     /**
      * @var string
      */
-    protected $rule = 'min';
+    protected mixed $rule = 'min';
 
     /**
      * Max constructor.

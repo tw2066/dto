@@ -9,5 +9,5 @@ use Attribute;
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class Nullable extends BaseValidation
 {
-    protected $rule = 'nullable';
+    protected mixed $rule = 'nullable';
 }

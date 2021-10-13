@@ -45,7 +45,7 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
                 ->withAddedHeader('content-type', 'application/json')
                 ->withBody(new SwooleStream((string)$response));
         }
-        //对象转换
+        //object
         if (is_object($response)) {
             return $this->response()
                 ->withAddedHeader('content-type', 'application/json')
@@ -84,6 +84,7 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
      * @param $paramName
      * @param $className
      * @param $obj
+     * @return mixed
      */
     private function validateAndMap($callableName, $paramName, $className, $obj): mixed
     {

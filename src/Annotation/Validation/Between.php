@@ -12,7 +12,7 @@ class Between extends BaseValidation
     /**
      * @var string
      */
-    protected $rule = 'between';
+    protected mixed $rule = 'between';
 
     /**
      * Between constructor.

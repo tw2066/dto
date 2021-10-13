@@ -12,7 +12,7 @@ class NotRegex extends BaseValidation
     /**
      * @var string
      */
-    protected $rule = 'not_regex';
+    protected mixed $rule = 'not_regex';
 
     /**
      * Regex constructor.

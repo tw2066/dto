@@ -12,5 +12,5 @@ use Attribute;
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class Required extends BaseValidation
 {
-    protected $rule = 'required';
+    protected mixed $rule = 'required';
 }

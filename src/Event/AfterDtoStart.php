@@ -8,15 +8,10 @@ use Hyperf\HttpServer\Router\RouteCollector;
 
 class AfterDtoStart
 {
-    /**
-     * @var string
-     */
-    public $serverConfig;
 
-    /**
-     * @var RouteCollector
-     */
-    public $router;
+    public array $serverConfig;
+
+    public RouteCollector $router;
 
     public function __construct(array $serverConfig, $router)
     {

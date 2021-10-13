@@ -16,7 +16,7 @@ abstract class BaseValidation extends AbstractAnnotation
     /**
      * @var mixed
      */
-    protected $rule;
+    protected mixed $rule;
 
     /**
      * BaseValidation constructor.

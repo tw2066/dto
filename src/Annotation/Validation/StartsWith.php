@@ -15,7 +15,7 @@ class StartsWith extends BaseValidation
     /**
      * @var string
      */
-    protected $rule = 'starts_with';
+    protected mixed $rule = 'starts_with';
 
     /**
      * Max constructor.
