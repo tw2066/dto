@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Scan;
 
-use App\Controller\DemoController;
 use Hyperf\DTO\ApiAnnotation;
 use Hyperf\Di\MethodDefinitionCollectorInterface;
 use Hyperf\Di\ReflectionManager;
@@ -14,8 +13,8 @@ use Hyperf\DTO\Annotation\Contracts\RequestQuery;
 use Hyperf\DTO\Annotation\Contracts\Valid;
 use Hyperf\DTO\Annotation\Validation\BaseValidation;
 use Hyperf\DTO\Exception\DtoException;
-use Hyperf\Utils\ApplicationContext;
 use JsonMapper;
+use Psr\Container\ContainerInterface;
 use ReflectionException;
 use ReflectionMethod;
 use ReflectionProperty;
@@ -25,19 +24,13 @@ class ScanAnnotation extends JsonMapper
 {
     private static array $scanClassArray = [];
 
-    /**
-     * @var MethodDefinitionCollectorInterface|mixed
-     */
-    private $methodDefinitionCollector;
+    private MethodDefinitionCollectorInterface $methodDefinitionCollector;
 
-    /**
-     * @var \Psr\Container\ContainerInterface
-     */
-    private $container;
+    private ContainerInterface $container;
 
-    public function __construct()
+    public function __construct(ContainerInterface $container)
     {
-        $this->container = ApplicationContext::getContainer();
+        $this->container = $container;
         $this->methodDefinitionCollector = $this->container->get(MethodDefinitionCollectorInterface::class);
     }
 
