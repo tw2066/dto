@@ -42,9 +42,7 @@ class ScanAnnotationTest extends TestCase
         /** @var ScanAnnotation $scanAnnotation */
         $scanAnnotation = new ClassInvoker($scanAnnotation);
 
-        $className = DemoController::class;
-
-        $scanAnnotation->scan($className, 'add');
+        $scanAnnotation->scan(DemoController::class, 'add');
 
         $property = PropertyManager::getProperty(DemoBodyRequest::class, 'int');
         $this->assertSame('int', $property->type);

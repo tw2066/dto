@@ -100,7 +100,7 @@ class ScanAnnotation extends JsonMapper
             $property = new Property();
             $property->type = $type;
             $property->isSimpleType = $isSimpleType;
-            $property->className = $propertyClassName;
+            $property->className = trim($propertyClassName, '\\');
             PropertyManager::setContent($className, $fieldName, $property);
 
             $this->makeValidation($className, $fieldName);
