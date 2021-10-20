@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO;
 
+use Closure;
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\DTO\Event\AfterDtoStart;
 use Hyperf\DTO\Router\TcpRouter;
@@ -15,6 +16,8 @@ use Hyperf\HttpServer\Router\Handler;
 use Hyperf\Utils\ApplicationContext;
 use Hyperf\Utils\Str;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use ReflectionException;
+use RuntimeException;
 
 class BeforeServerListener implements ListenerInterface
 {
@@ -27,6 +30,7 @@ class BeforeServerListener implements ListenerInterface
 
     /**
      * @param BeforeServerStart $event
+     * @throws ReflectionException
      */
     public function process(object $event)
     {
@@ -46,7 +50,7 @@ class BeforeServerListener implements ListenerInterface
         }
         $data = $router->getData();
         array_walk_recursive($data, function ($item) use ($scanAnnotation) {
-            if ($item instanceof Handler && ! ($item->callback instanceof \Closure)) {
+            if ($item instanceof Handler && ! ($item->callback instanceof Closure)) {
                 $prepareHandler = $this->prepareHandler($item->callback);
                 if (count($prepareHandler) > 1) {
                     [$controller, $action] = $prepareHandler;
@@ -61,7 +65,7 @@ class BeforeServerListener implements ListenerInterface
     protected function prepareHandler($handler): array
     {
         if (is_string($handler)) {
-            if (strpos($handler, '@') !== false) {
+            if (str_contains($handler, '@')) {
                 return explode('@', $handler);
             }
             return explode('::', $handler);
@@ -69,6 +73,6 @@ class BeforeServerListener implements ListenerInterface
         if (is_array($handler) && isset($handler[0], $handler[1])) {
             return $handler;
         }
-        throw new \RuntimeException('Handler not exist.');
+        throw new RuntimeException('Handler not exist.');
     }
 }

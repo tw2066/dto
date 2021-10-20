@@ -80,12 +80,13 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
     }
 
     /**
-     * @param $callableName 'App\Controller\DemoController::index'
-     * @param $paramName
-     * @param $className
+     * @param string $callableName 'App\Controller\DemoController::index'
+     * @param string $paramName
+     * @param string $className
      * @param $obj
+     * @return mixed
      */
-    private function validateAndMap($callableName, $paramName, $className, $obj): mixed
+    private function validateAndMap(string $callableName,string $paramName,string $className, $obj): mixed
     {
         [$controllerName, $methodName] = explode('::', $callableName);
         $methodParameter = MethodParametersManager::getMethodParameter($controllerName, $methodName, $paramName);
@@ -102,7 +103,7 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
         } elseif ($methodParameter->isRequestFormData()) {
             $param = $request->getParsedBody();
         }
-        //校验数据
+        //validate
         if ($methodParameter->isValid()) {
             $validationDTO->validate($className, $param);
         }

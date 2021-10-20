@@ -19,6 +19,9 @@ class Mapper
         //self::$jsonMapper->bIgnoreVisibility = true;
     }
 
+    /**
+     * @throws JsonMapper_Exception
+     */
     public static function map($json, $object)
     {
         return self::$jsonMapper->map($json, $object);

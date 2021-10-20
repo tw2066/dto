@@ -189,7 +189,7 @@ class ScanAnnotation extends JsonMapper
             MethodParametersManager::setContent($className, $methodName, $paramName, $methodParameters);
         }
         if ($methodMark > 1) {
-            throw new DtoException("method annotation [RequestFormData RequestBody] cannot exist simultaneously [{$className}::{$methodName}]");
+            throw new DtoException("Method annotation [RequestFormData RequestBody] cannot exist simultaneously [{$className}::{$methodName}]");
         }
     }
 }

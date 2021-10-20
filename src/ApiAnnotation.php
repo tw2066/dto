@@ -11,7 +11,7 @@ use ReflectionAttribute;
 
 class ApiAnnotation
 {
-    public static function propertyMetadata($className, $propertyName)
+    public static function propertyMetadata($className, $propertyName): array
     {
         $reflectMethod = ReflectionManager::reflectProperty($className, $propertyName);
         $reader = new AnnotationReader();
@@ -19,7 +19,6 @@ class ApiAnnotation
     }
 
     /**
-     * 通过类名和属性名返回一个注解对象
      * @param $className
      * @param $propertyName
      * @param $annotationClassName
@@ -37,9 +36,9 @@ class ApiAnnotation
     }
 
     /**
-     * 通过类名和属性名返回一个注解对象数组.
      * @param $className
      * @param $propertyName
+     * @return array
      */
     public static function propertyArray($className, $propertyName): array
     {
@@ -53,7 +52,7 @@ class ApiAnnotation
         return $arr;
     }
 
-    public static function methodArray($className, $methodName)
+    public static function methodArray($className, $methodName): array
     {
         $reflectMethod = ReflectionManager::reflectMethod($className, $methodName);
         $raArr = $reflectMethod->getAttributes() ?? [];
