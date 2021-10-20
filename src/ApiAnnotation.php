@@ -38,7 +38,6 @@ class ApiAnnotation
     /**
      * @param $className
      * @param $propertyName
-     * @return array
      */
     public static function propertyArray($className, $propertyName): array
     {

@@ -16,10 +16,11 @@ class Mapper
     {
         self::$jsonMapper = new JsonMapper();
         self::$jsonMapper->bEnforceMapType = false;
-        //self::$jsonMapper->bIgnoreVisibility = true;
     }
 
     /**
+     * @param $json
+     * @param $object
      * @throws JsonMapper_Exception
      */
     public static function map($json, $object)
