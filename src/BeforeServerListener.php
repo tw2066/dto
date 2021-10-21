@@ -13,10 +13,10 @@ use Hyperf\Event\Contract\ListenerInterface;
 use Hyperf\Framework\Event\BeforeServerStart;
 use Hyperf\HttpServer\Router\DispatcherFactory;
 use Hyperf\HttpServer\Router\Handler;
+use Hyperf\Server\Event\MainCoroutineServerStart;
 use Hyperf\Utils\ApplicationContext;
 use Hyperf\Utils\Str;
 use Psr\EventDispatcher\EventDispatcherInterface;
-use ReflectionException;
 use RuntimeException;
 
 class BeforeServerListener implements ListenerInterface
@@ -25,19 +25,22 @@ class BeforeServerListener implements ListenerInterface
     {
         return [
             BeforeServerStart::class,
+            MainCoroutineServerStart::class,
         ];
     }
 
-    /**
-     * @param BeforeServerStart $event
-     * @throws ReflectionException
-     */
     public function process(object $event)
     {
-        $serverName = $event->serverName;
+        if ($event instanceof BeforeServerStart) {
+            $serverName = $event->serverName;
+        } else {
+            /** @var MainCoroutineServerStart $event */
+            $serverName = $event->name;
+        }
+
         $container = ApplicationContext::getContainer();
         $config = $container->get(ConfigInterface::class);
-        $event = $container->get(EventDispatcherInterface::class);
+        $eventDispatcher = $container->get(EventDispatcherInterface::class);
         $scanAnnotation = $container->get(ScanAnnotation::class);
         $container->get(Mapper::class);
 
@@ -58,7 +61,7 @@ class BeforeServerListener implements ListenerInterface
                 }
             }
         });
-        $event->dispatch(new AfterDtoStart($serverConfig, $router));
+        $eventDispatcher->dispatch(new AfterDtoStart($serverConfig, $router));
         $scanAnnotation->clearScanClassArray();
     }
 
