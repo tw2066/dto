@@ -17,7 +17,7 @@ class Mapper
         self::$jsonMapper->bEnforceMapType = false;
     }
 
-    public static function map($json,object $object)
+    public static function map($json, object $object)
     {
         return self::$jsonMapper->map($json, $object);
     }
@@ -33,8 +33,7 @@ class Mapper
         return self::$jsonMapper->map($source, $target);
     }
 
-
-    public static function copyArray($json,string $className): array
+    public static function mapArray($json, string $className)
     {
         if (empty($json)) {
             return [];

@@ -8,9 +8,6 @@ use Hyperf\Di\Annotation\AbstractAnnotation;
 
 abstract class BaseValidation extends AbstractAnnotation
 {
-    /**
-     * @var string
-     */
     public string $messages = '';
 
     protected mixed $rule;

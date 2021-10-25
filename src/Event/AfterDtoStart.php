@@ -12,7 +12,7 @@ class AfterDtoStart
     public array $serverConfig;
 
     /**
-     * @var RouteCollector | RpcRouteCollector
+     * @var RouteCollector|RpcRouteCollector
      */
     public mixed $router;
 
