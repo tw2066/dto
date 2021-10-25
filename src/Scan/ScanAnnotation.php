@@ -103,18 +103,18 @@ class ScanAnnotation extends JsonMapper
             $property->className = trim($propertyClassName, '\\');
             PropertyManager::setContent($className, $fieldName, $property);
 
-            $this->makeValidation($className, $fieldName);
+            $this->generateValidation($className, $fieldName);
         }
     }
 
     /**
-     * makeValidation.
+     * generateValidation.
      */
-    protected function makeValidation(string $className, string $fieldName)
+    protected function generateValidation(string $className, string $fieldName)
     {
         /** @var BaseValidation[] $validation */
         $validationArr = [];
-        $annotationArray = ApiAnnotation::propertyArray($className, $fieldName);
+        $annotationArray = ApiAnnotation::getClassProperty($className, $fieldName);
         foreach ($annotationArray as $annotation) {
             if ($annotation instanceof BaseValidation) {
                 $validationArr[] = $annotation;
@@ -136,9 +136,6 @@ class ScanAnnotation extends JsonMapper
         ! empty($ruleArray) && ValidationManager::setRule($className, $fieldName, $ruleArray);
     }
 
-    /**
-     * 获取类型.
-     */
     protected function getTypeName(ReflectionProperty $rp): string
     {
         try {

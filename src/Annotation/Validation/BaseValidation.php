@@ -11,7 +11,7 @@ abstract class BaseValidation extends AbstractAnnotation
     /**
      * @var string
      */
-    public $messages = '';
+    public string $messages = '';
 
     protected mixed $rule;
 

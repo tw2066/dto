@@ -6,7 +6,6 @@ namespace Hyperf\DTO;
 
 use Hyperf\Utils\Contracts\Arrayable;
 use JsonMapper;
-use JsonMapper_Exception;
 
 class Mapper
 {
@@ -18,40 +17,24 @@ class Mapper
         self::$jsonMapper->bEnforceMapType = false;
     }
 
-    /**
-     * @param $json
-     * @param $object
-     * @throws JsonMapper_Exception
-     */
-    public static function map($json, $object)
+    public static function map($json,object $object)
     {
         return self::$jsonMapper->map($json, $object);
     }
 
-    /**
-     * @param $obj
-     * @param $toObj
-     * @throws JsonMapper_Exception
-     * @return null|object $toObj
-     */
-    public static function copy($obj, $toObj): ?object
+    public static function copyProperties($source, object $target)
     {
-        if ($obj == null) {
+        if ($source == null) {
             return null;
         }
-        if ($obj instanceof Arrayable) {
-            return self::$jsonMapper->map($obj->toArray(), $toObj);
+        if ($source instanceof Arrayable) {
+            return self::$jsonMapper->map($source->toArray(), $target);
         }
-        return self::$jsonMapper->map($obj, $toObj);
+        return self::$jsonMapper->map($source, $target);
     }
 
-    /**
-     * @param $json
-     * @param $className
-     * @throws JsonMapper_Exception
-     * @return array $className[]
-     */
-    public static function copyArray($json, $className): array
+
+    public static function copyArray($json,string $className): array
     {
         if (empty($json)) {
             return [];
