@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Scan;
 
+use Hyperf\Utils\Arr;
+
 class ValidationManager
 {
     protected static array $content = [];
@@ -20,21 +22,9 @@ class ValidationManager
         static::$content[$className]['messages'][$key] = $messages;
     }
 
-    public static function getRule($className)
+    public static function getData($className)
     {
         $className = trim($className, '\\');
-        if (! isset(static::$content[$className]['rule'])) {
-            return [];
-        }
-        return static::$content[$className]['rule'];
-    }
-
-    public static function getMessages($className)
-    {
-        $className = trim($className, '\\');
-        if (! isset(static::$content[$className]['messages'])) {
-            return [];
-        }
-        return static::$content[$className]['messages'];
+        return static::$content[$className] ?? null;
     }
 }

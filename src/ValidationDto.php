@@ -31,10 +31,6 @@ class ValidationDto
         $this->validateResolved($className, $data);
     }
 
-    /**
-     * validate.
-     * @param $data
-     */
     private function validateResolved(string $className, $data)
     {
         if (! is_array($data)) {
@@ -46,14 +42,14 @@ class ValidationDto
                 $this->validateResolved($property->className, $data[$fieldName]);
             }
         }
-        if (empty(ValidationManager::getRule($className))) {
+        $validArr = ValidationManager::getData($className);
+        if (empty($validArr)) {
             return;
         }
-
         $validator = $this->validationFactory->make(
             $data,
-            ValidationManager::getRule($className),
-            ValidationManager::getMessages($className),
+            $validArr['rule'],
+            $validArr['messages'] ?? [],
         );
         if ($validator->fails()) {
             throw new ValidationException($validator);
