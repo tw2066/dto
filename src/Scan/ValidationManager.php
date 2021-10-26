@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Scan;
 
-use Hyperf\Utils\Arr;
-
 class ValidationManager
 {
     protected static array $content = [];
