@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Scan;
 
+use Hyperf\ApiDocs\Annotation\ApiModelProperty;
 use Hyperf\Di\MethodDefinitionCollectorInterface;
 use Hyperf\Di\ReflectionManager;
 use Hyperf\DTO\Annotation\Contracts\RequestBody;
@@ -115,9 +116,13 @@ class ScanAnnotation extends JsonMapper
         /** @var BaseValidation[] $validation */
         $validationArr = [];
         $annotationArray = ApiAnnotation::getClassProperty($className, $fieldName);
+
         foreach ($annotationArray as $annotation) {
             if ($annotation instanceof BaseValidation) {
                 $validationArr[] = $annotation;
+            }
+            if ($annotation instanceof ApiModelProperty && ! empty($annotation->value)) {
+                ValidationManager::setAttributes($className, $fieldName, $annotation->value);
             }
         }
         $ruleArray = [];

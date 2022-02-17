@@ -13,6 +13,8 @@ use Hyperf\Validation\ValidationException;
 
 class ValidationDto
 {
+    public static bool $isValidationCustomAttributes = false;
+
     private ValidatorFactoryInterface $validationFactory;
 
     public function __construct()
@@ -50,6 +52,7 @@ class ValidationDto
             $data,
             $validArr['rule'],
             $validArr['messages'] ?? [],
+            static::$isValidationCustomAttributes ? ($validArr['attributes'] ?? []) : []
         );
         if ($validator->fails()) {
             throw new ValidationException($validator);

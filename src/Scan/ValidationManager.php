@@ -20,6 +20,12 @@ class ValidationManager
         static::$content[$className]['messages'][$key] = $messages;
     }
 
+    public static function setAttributes($className, $fieldName, $value)
+    {
+        $className = trim($className, '\\');
+        static::$content[$className]['attributes'][$fieldName] = $value;
+    }
+
     public static function getData($className)
     {
         $className = trim($className, '\\');
