@@ -121,9 +121,6 @@ class ScanAnnotation extends JsonMapper
             if ($annotation instanceof BaseValidation) {
                 $validationArr[] = $annotation;
             }
-            if ($annotation instanceof ApiModelProperty && ! empty($annotation->value)) {
-                ValidationManager::setAttributes($className, $fieldName, $annotation->value);
-            }
         }
         $ruleArray = [];
         foreach ($validationArr as $validation) {
@@ -138,7 +135,14 @@ class ScanAnnotation extends JsonMapper
             $key = $fieldName . '.' . $messagesRule;
             ValidationManager::setMessages($className, $key, $validation->messages);
         }
-        ! empty($ruleArray) && ValidationManager::setRule($className, $fieldName, $ruleArray);
+        if (! empty($ruleArray)) {
+            ValidationManager::setRule($className, $fieldName, $ruleArray);
+            foreach ($annotationArray as $annotation) {
+                if ($annotation instanceof ApiModelProperty && ! empty($annotation->value)) {
+                    ValidationManager::setAttributes($className, $fieldName, $annotation->value);
+                }
+            }
+        }
     }
 
     protected function getTypeName(ReflectionProperty $rp): string
