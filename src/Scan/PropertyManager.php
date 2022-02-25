@@ -16,7 +16,14 @@ class PropertyManager
         static::$notSimpleClass[$className] = true;
     }
 
-    public static function setContent(string $className, string $fieldName, Property $property)
+    /**
+     * 设置类中字段的属性
+     * @param string $className
+     * @param string $fieldName
+     * @param Property $property
+     * @return void
+     */
+    public static function setProperty(string $className, string $fieldName, Property $property)
     {
         $className = trim($className, '\\');
         if (isset(static::$content[$className][$fieldName])) {
@@ -25,6 +32,12 @@ class PropertyManager
         static::$content[$className][$fieldName] = $property;
     }
 
+    /**
+     * 获取类中字段的属性
+     * @param $className
+     * @param $fieldName
+     * @return Property|null
+     */
     public static function getProperty($className, $fieldName): ?Property
     {
         $className = trim($className, '\\');
@@ -44,7 +57,7 @@ class PropertyManager
         foreach (static::$content[$className] as $fieldName => $propertyArr) {
             /** @var Property $property */
             foreach ($propertyArr as $property) {
-                if ($property->type == $type
+                if ($property->phpType == $type
                     && $property->isSimpleType == $isSimpleType
                 ) {
                     $data[$fieldName] = $property;

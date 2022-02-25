@@ -72,8 +72,8 @@ class ScanAnnotation extends JsonMapper
             $propertyClassName = $type = $this->getTypeName($reflectionProperty);
             $fieldName = $reflectionProperty->getName();
             $isSimpleType = true;
+            $arrayType = null;
             if ($type == 'array') {
-                $arrType = null;
                 $docblock = $reflectionProperty->getDocComment();
                 $annotations = static::parseAnnotations($docblock);
                 if (! empty($annotations)) {
@@ -84,12 +84,15 @@ class ScanAnnotation extends JsonMapper
                         $arrType = substr($varType, 0, -2);
                         $isSimpleType = $this->isSimpleType($arrType);
                         if (! $this->isSimpleType($arrType) && $this->container->has($arrType)) {
+                            $propertyClassName = $arrType;
                             $this->scanClass($arrType);
                             PropertyManager::setNotSimpleClass($className);
+                        }else if($this->isSimpleType($arrType)){
+                            $arrayType = $arrType;
                         }
                     }
                 }
-                $propertyClassName = $arrType;
+//                $propertyClassName = $arrType;
             }
             if (! $this->isSimpleType($type)) {
                 $this->scanClass($type);
@@ -99,10 +102,11 @@ class ScanAnnotation extends JsonMapper
             }
 
             $property = new Property();
-            $property->type = $type;
+            $property->phpType = $type;
             $property->isSimpleType = $isSimpleType;
+            $property->arrayType = $arrayType;
             $property->className = $propertyClassName ? trim($propertyClassName, '\\') : null;
-            PropertyManager::setContent($className, $fieldName, $property);
+            PropertyManager::setProperty($className, $fieldName, $property);
 
             $this->generateValidation($className, $fieldName);
         }

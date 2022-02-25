@@ -8,7 +8,13 @@ class Property
 {
     public bool $isSimpleType;
 
-    public string $type;
+    public ?string $phpType = null;
 
-    public ?string $className;
+    public ?string $className = null;
+
+    /**
+     * type为数组时,对应的类型  eg: int[]
+     * @var string|null
+     */
+    public ?string $arrayType = null;
 }
