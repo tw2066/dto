@@ -10,11 +10,9 @@ class Property
 
     public ?string $phpType = null;
 
-    public ?string $className = null;
-
     /**
-     * type为数组时,对应的类型  eg: int[]
-     * @var string|null
+     * 1. $phpType为数组时,对应的类型  eg: int[]  Hyperf\DTO\Scan\Property[]
+     * 2. 对应一般类  eg:Hyperf\DTO\Scan\Property.
      */
-    public ?string $arrayType = null;
+    public ?string $className = null;
 }

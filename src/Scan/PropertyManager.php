@@ -17,11 +17,7 @@ class PropertyManager
     }
 
     /**
-     * 设置类中字段的属性
-     * @param string $className
-     * @param string $fieldName
-     * @param Property $property
-     * @return void
+     * 设置类中字段的属性.
      */
     public static function setProperty(string $className, string $fieldName, Property $property)
     {
@@ -33,10 +29,9 @@ class PropertyManager
     }
 
     /**
-     * 获取类中字段的属性
+     * 获取类中字段的属性.
      * @param $className
      * @param $fieldName
-     * @return Property|null
      */
     public static function getProperty($className, $fieldName): ?Property
     {

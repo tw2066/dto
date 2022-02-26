@@ -9,7 +9,7 @@ use Hyperf\Di\Annotation\AnnotationCollector;
 class ApiAnnotation
 {
     /**
-     * 获取属性
+     * 获取属性.
      * @param $className
      * @param $propertyName
      * @param $annotationClassName
