@@ -154,7 +154,7 @@ class ScanAnnotation extends JsonMapperDto
         if (! empty($ruleArray)) {
             ValidationManager::setRule($className, $fieldName, $ruleArray);
             foreach ($annotationArray as $annotation) {
-                if ($annotation instanceof ApiModelProperty && ! empty($annotation->value)) {
+                if (class_exists(ApiModelProperty::class) && $annotation instanceof ApiModelProperty && ! empty($annotation->value)) {
                     ValidationManager::setAttributes($className, $fieldName, $annotation->value);
                 }
             }

@@ -46,28 +46,36 @@ class ScanAnnotationTest extends TestCase
 
         $property = PropertyManager::getProperty(DemoBodyRequest::class, 'int');
         $this->assertSame('int', $property->phpSimpleType);
-        $this->assertSame('int', $property->className);
+        $this->assertSame(null, $property->className);
         $this->assertSame(true, $property->isSimpleType);
 
         $property = PropertyManager::getProperty(DemoBodyRequest::class, 'string');
         $this->assertSame('string', $property->phpSimpleType);
-        $this->assertSame('string', $property->className);
+        $this->assertSame(null, $property->className);
         $this->assertSame(true, $property->isSimpleType);
 
-        $property = PropertyManager::getProperty(DemoBodyRequest::class, 'arr');
+        $property = PropertyManager::getProperty(DemoBodyRequest::class, 'arrClass');
         $this->assertSame('array', $property->phpSimpleType);
-        $this->assertSame(Address::class, trim($property->className, '\\'));
+        $this->assertSame(Address::class, trim($property->arrClassName, '\\'));
         $this->assertSame(false, $property->isSimpleType);
+        $this->assertSame(null, $property->arrSimpleType);
+
+        $property = PropertyManager::getProperty(DemoBodyRequest::class, 'arrInt');
+        $this->assertSame('array', $property->phpSimpleType);
+        $this->assertSame(null, $property->arrClassName);
+        $this->assertSame(null, $property->className);
+        $this->assertSame(false, $property->isSimpleType);
+        $this->assertSame('int', $property->arrSimpleType);
 
         $property = PropertyManager::getProperty(Address::class, 'user');
-        $this->assertSame(User::class, $property->phpSimpleType);
+        $this->assertSame(null, $property->phpSimpleType);
         $this->assertSame(User::class, trim($property->className, '\\'));
         $this->assertSame(false, $property->isSimpleType);
 
         //return
         $property = PropertyManager::getProperty(Activity::class, 'id');
         $this->assertSame('string', $property->phpSimpleType);
-        $this->assertSame('string', $property->className);
+        $this->assertSame(null, $property->className);
         $this->assertSame(true, $property->isSimpleType);
     }
 }

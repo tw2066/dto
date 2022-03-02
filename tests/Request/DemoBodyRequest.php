@@ -13,9 +13,14 @@ class DemoBodyRequest
     private string $string = 'string';
 
     /**
-     * @var \HyperfTest\DTO\Request\Address[]
+     * @var Address[]
      */
-    private array $arr;
+    private array $arrClass;
+
+    /**
+     * @var int[]
+     */
+    private array $arrInt;
 
     private object $obj;
 }
