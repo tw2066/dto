@@ -12,6 +12,8 @@ use Hyperf\Utils\Codec\Json;
 use Hyperf\Utils\Context;
 use Hyperf\Utils\Contracts\Arrayable;
 use Hyperf\Utils\Contracts\Jsonable;
+use Psr\Container\ContainerExceptionInterface;
+use Psr\Container\NotFoundExceptionInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -82,7 +84,8 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
     /**
      * @param string $callableName 'App\Controller\DemoController::index'
      * @param $obj
-     * @throws \JsonMapper_Exception
+     * @throws ContainerExceptionInterface
+     * @throws NotFoundExceptionInterface
      */
     private function validateAndMap(string $callableName, string $paramName, string $className, $obj): mixed
     {

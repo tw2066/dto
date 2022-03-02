@@ -14,14 +14,14 @@ use Hyperf\DTO\Annotation\Contracts\Valid;
 use Hyperf\DTO\Annotation\Validation\BaseValidation;
 use Hyperf\DTO\ApiAnnotation;
 use Hyperf\DTO\Exception\DtoException;
-use JsonMapper;
+use Hyperf\DTO\JsonMapperDto;
 use Psr\Container\ContainerInterface;
 use ReflectionException;
 use ReflectionMethod;
 use ReflectionProperty;
 use Throwable;
 
-class ScanAnnotation extends JsonMapper
+class ScanAnnotation extends JsonMapperDto
 {
     private static array $scanClassArray = [];
 
@@ -60,6 +60,9 @@ class ScanAnnotation extends JsonMapper
         self::$scanClassArray = [];
     }
 
+    /**
+     * 扫描类.
+     */
     public function scanClass(string $className)
     {
         if (in_array($className, self::$scanClassArray)) {
@@ -69,31 +72,40 @@ class ScanAnnotation extends JsonMapper
         $rc = ReflectionManager::reflectClass($className);
         $strNs = $rc->getNamespaceName();
         foreach ($rc->getProperties() ?? [] as $reflectionProperty) {
-            $propertyClassName = $type = $this->getTypeName($reflectionProperty);
             $fieldName = $reflectionProperty->getName();
             $isSimpleType = true;
+            $phpSimpleType = null;
+            $propertyClassName = null;
+            $arrSimpleType = null;
+            $arrClassName = null;
+            $type = $this->getTypeName($reflectionProperty);
+            //php简单类型
+            if ($this->isSimpleType($type)) {
+                $phpSimpleType = $type;
+            }
+            //数组类型
             if ($type == 'array') {
                 $docblock = $reflectionProperty->getDocComment();
-                $annotations = static::parseAnnotations($docblock);
+                $annotations = static::parseAnnotations2($rc, $docblock);
                 if (! empty($annotations)) {
                     //support "@var type description"
                     [$varType] = explode(' ', $annotations['var'][0]);
                     $varType = $this->getFullNamespace($varType, $strNs);
+                    //数组类型
                     if ($this->isArrayOfType($varType)) {
+                        $isSimpleType = false;
                         $arrType = substr($varType, 0, -2);
-                        $isSimpleType = $this->isSimpleType($arrType);
-                        if (! $this->isSimpleType($arrType) && $this->container->has($arrType)) {
-                            $propertyClassName = $arrType;
-                            $this->scanClass($arrType);
+                        //数组的简单类型 eg: int[]  string[]
+                        if ($this->isSimpleType($arrType)) {
+                            $arrSimpleType = $arrType;
+                        } elseif (class_exists($arrType)) {
+                            $arrClassName = $arrType;
                             PropertyManager::setNotSimpleClass($className);
-                        } elseif ($this->isSimpleType($arrType)) {
-                            $propertyClassName = $arrType;
+                            $this->scanClass($arrType);
                         }
                     }
                 }
-//                $propertyClassName = $arrType;
-            }
-            if (! $this->isSimpleType($type)) {
+            } elseif (class_exists($type)) {
                 $this->scanClass($type);
                 $isSimpleType = false;
                 $propertyClassName = $type;
@@ -101,19 +113,21 @@ class ScanAnnotation extends JsonMapper
             }
 
             $property = new Property();
-            $property->phpType = $type;
+            $property->phpSimpleType = $phpSimpleType;
             $property->isSimpleType = $isSimpleType;
+            $property->arrSimpleType = $arrSimpleType;
+            $property->arrClassName = $arrClassName ? trim($arrClassName, '\\') : null;
             $property->className = $propertyClassName ? trim($propertyClassName, '\\') : null;
-            PropertyManager::setProperty($className, $fieldName, $property);
 
-            $this->generateValidation($className, $fieldName);
+            PropertyManager::setProperty($className, $fieldName, $property);
+            $this->generateValidation($className, $fieldName, $property);
         }
     }
 
     /**
      * generateValidation.
      */
-    protected function generateValidation(string $className, string $fieldName)
+    protected function generateValidation(string $className, string $fieldName, Property $property)
     {
         /** @var BaseValidation[] $validation */
         $validationArr = [];

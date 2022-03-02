@@ -15,7 +15,7 @@ class ValidationDto
 {
     public static bool $isValidationCustomAttributes = false;
 
-    private ValidatorFactoryInterface $validationFactory;
+    private ?ValidatorFactoryInterface $validationFactory = null;
 
     public function __construct()
     {
@@ -38,12 +38,7 @@ class ValidationDto
         if (! is_array($data)) {
             throw new DtoException('Class:' . $className . ' data must be object or array');
         }
-        $notSimplePropertyArr = PropertyManager::getPropertyAndNotSimpleType($className);
-        foreach ($notSimplePropertyArr as $fieldName => $property) {
-            if (! empty($data[$fieldName])) {
-                $this->validateResolved($property->className, $data[$fieldName]);
-            }
-        }
+
         $validArr = ValidationManager::getData($className);
         if (empty($validArr)) {
             return;
@@ -56,6 +51,19 @@ class ValidationDto
         );
         if ($validator->fails()) {
             throw new ValidationException($validator);
+        }
+        //递归校验判断
+        $notSimplePropertyArr = PropertyManager::getPropertyAndNotSimpleType($className);
+        foreach ($notSimplePropertyArr as $fieldName => $property) {
+            if (! empty($data[$fieldName])) {
+                if ($property->isClassArray()) {
+                    foreach ($data[$fieldName] as $item) {
+                        $this->validateResolved($property->arrClassName, $item);
+                    }
+                } elseif ($property->className != null) {
+                    $this->validateResolved($property->className, $data[$fieldName]);
+                }
+            }
         }
     }
 }

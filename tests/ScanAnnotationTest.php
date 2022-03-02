@@ -45,28 +45,28 @@ class ScanAnnotationTest extends TestCase
         $scanAnnotation->scan(DemoController::class, 'add');
 
         $property = PropertyManager::getProperty(DemoBodyRequest::class, 'int');
-        $this->assertSame('int', $property->phpType);
+        $this->assertSame('int', $property->phpSimpleType);
         $this->assertSame('int', $property->className);
         $this->assertSame(true, $property->isSimpleType);
 
         $property = PropertyManager::getProperty(DemoBodyRequest::class, 'string');
-        $this->assertSame('string', $property->phpType);
+        $this->assertSame('string', $property->phpSimpleType);
         $this->assertSame('string', $property->className);
         $this->assertSame(true, $property->isSimpleType);
 
         $property = PropertyManager::getProperty(DemoBodyRequest::class, 'arr');
-        $this->assertSame('array', $property->phpType);
+        $this->assertSame('array', $property->phpSimpleType);
         $this->assertSame(Address::class, trim($property->className, '\\'));
         $this->assertSame(false, $property->isSimpleType);
 
         $property = PropertyManager::getProperty(Address::class, 'user');
-        $this->assertSame(User::class, $property->phpType);
+        $this->assertSame(User::class, $property->phpSimpleType);
         $this->assertSame(User::class, trim($property->className, '\\'));
         $this->assertSame(false, $property->isSimpleType);
 
         //return
         $property = PropertyManager::getProperty(Activity::class, 'id');
-        $this->assertSame('string', $property->phpType);
+        $this->assertSame('string', $property->phpSimpleType);
         $this->assertSame('string', $property->className);
         $this->assertSame(true, $property->isSimpleType);
     }

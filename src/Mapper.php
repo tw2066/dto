@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO;
 
+use Hyperf\DTO\JsonMapperDto as JsonMapper;
 use Hyperf\Utils\Contracts\Arrayable;
-use JsonMapper;
 
 class Mapper
 {

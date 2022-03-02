@@ -10,6 +10,11 @@ class PropertyManager
 
     protected static array $notSimpleClass = [];
 
+    public static function getAll(): array
+    {
+        return [static::$content, static::$notSimpleClass];
+    }
+
     public static function setNotSimpleClass($className)
     {
         $className = trim($className, '\\');
@@ -52,7 +57,7 @@ class PropertyManager
         foreach (static::$content[$className] as $fieldName => $propertyArr) {
             /** @var Property $property */
             foreach ($propertyArr as $property) {
-                if ($property->phpType == $type
+                if ($property->phpSimpleType == $type
                     && $property->isSimpleType == $isSimpleType
                 ) {
                     $data[$fieldName] = $property;

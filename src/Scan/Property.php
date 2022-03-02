@@ -6,13 +6,42 @@ namespace Hyperf\DTO\Scan;
 
 class Property
 {
-    public bool $isSimpleType;
+    public bool $isSimpleType = true;
 
-    public ?string $phpType = null;
+    //             $type == 'string'
+    //            || $type == 'boolean' || $type == 'bool'
+    //            || $type == 'integer' || $type == 'int'
+    //            || $type == 'double' || $type == 'float'
+    //            || $type == 'array' || $type == 'object'
+    public ?string $phpSimpleType = null;
 
-    /**
-     * 1. $phpType为数组时,对应的类型  eg: int[]  Hyperf\DTO\Scan\Property[]
-     * 2. 对应一般类  eg:Hyperf\DTO\Scan\Property.
-     */
     public ?string $className = null;
+
+    public ?string $arrClassName = null;
+
+    public ?string $arrSimpleType = null;
+
+    public function isSimpleArray(): bool
+    {
+        if ($this->isSimpleType == true && $this->phpSimpleType == 'array') {
+            return true;
+        }
+        return false;
+    }
+
+    public function isSimpleTypeArray(): bool
+    {
+        if ($this->isSimpleType == false && $this->phpSimpleType == 'array' && $this->arrSimpleType != null) {
+            return true;
+        }
+        return false;
+    }
+
+    public function isClassArray(): bool
+    {
+        if ($this->isSimpleType == false && $this->phpSimpleType == 'array' && $this->arrClassName != null) {
+            return true;
+        }
+        return false;
+    }
 }
