@@ -83,7 +83,10 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
 
     /**
      * @param string $callableName 'App\Controller\DemoController::index'
+     * @param string $paramName
+     * @param string $className
      * @param $obj
+     * @return mixed
      * @throws ContainerExceptionInterface
      * @throws NotFoundExceptionInterface
      */
