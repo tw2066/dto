@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO;
 
+use Hyperf\ApiDocs\Annotation\ArrayType;
 use JsonMapper;
 use phpDocumentor\Reflection\DocBlock\Tags\Var_;
 use phpDocumentor\Reflection\DocBlockFactory;
 use phpDocumentor\Reflection\Types\ContextFactory;
+use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionNamedType;
+use ReflectionProperty;
 use ReflectionUnionType;
 
 class JsonMapperDto extends JsonMapper
@@ -94,7 +97,8 @@ class JsonMapperDto extends JsonMapper
         if ($rprop !== null) {
             if ($rprop->isPublic() || $this->bIgnoreVisibility) {
                 $docblock = $rprop->getDocComment();
-                $annotations = static::parseAnnotations2($rc, $docblock);
+                // 修改源码
+                $annotations = $this->parseAnnotations2($rc, $rprop, $docblock);
 
                 if (! isset($annotations['var'][0])) {
                     // If there is no annotations (higher priority) inspect
@@ -145,8 +149,23 @@ class JsonMapperDto extends JsonMapper
      *               Key is the "@"-name like "param",
      *               each value is an array of the rest of the @-lines
      */
-    protected static function parseAnnotations2(ReflectionClass $rc, $docblock): array
+    protected function parseAnnotations2(ReflectionClass $rc, ReflectionProperty $reflectionProperty, $docblock): array
     {
+        $annotations = [];
+        /** @var ReflectionAttribute $data */
+        $arrayType = $reflectionProperty->getAttributes(ArrayType::class)[0] ?? [];
+        if (! empty($arrayType)) {
+            $type = $arrayType->getArguments()[0] ?? null;
+            if (! empty($type)) {
+                $isSimpleType = $this->isSimpleType($type);
+                if ($isSimpleType) {
+                    $annotations['var'][] = $type . '[]';
+                } else {
+                    $annotations['var'][] = '\\' . $type . '[]';
+                }
+                return $annotations;
+            }
+        }
         if (! is_string($docblock)) {
             return [];
         }
@@ -154,7 +173,6 @@ class JsonMapperDto extends JsonMapper
         $contextFactory = new ContextFactory();
         $context = $contextFactory->createForNamespace($rc->getNamespaceName(), file_get_contents($rc->getFileName()));
         $block = $factory->create($docblock, $context);
-        $annotations = [];
         /** @var Var_ $tag */
         foreach ($block->getTags() as $tag) {
             $annotations[$tag->getName()][] = $tag->getType()->__toString();

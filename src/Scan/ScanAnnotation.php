@@ -87,7 +87,7 @@ class ScanAnnotation extends JsonMapperDto
             // 数组类型
             if ($type == 'array') {
                 $docblock = $reflectionProperty->getDocComment();
-                $annotations = static::parseAnnotations2($rc, $docblock);
+                $annotations = $this->parseAnnotations2($rc, $reflectionProperty, $docblock);
                 if (! empty($annotations)) {
                     // support "@var type description"
                     [$varType] = explode(' ', $annotations['var'][0]);
