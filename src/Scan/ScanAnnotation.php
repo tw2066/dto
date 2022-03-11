@@ -79,23 +79,23 @@ class ScanAnnotation extends JsonMapperDto
             $arrSimpleType = null;
             $arrClassName = null;
             $type = $this->getTypeName($reflectionProperty);
-            //php简单类型
+            // php简单类型
             if ($this->isSimpleType($type)) {
                 $phpSimpleType = $type;
             }
-            //数组类型
+            // 数组类型
             if ($type == 'array') {
                 $docblock = $reflectionProperty->getDocComment();
                 $annotations = static::parseAnnotations2($rc, $docblock);
                 if (! empty($annotations)) {
-                    //support "@var type description"
+                    // support "@var type description"
                     [$varType] = explode(' ', $annotations['var'][0]);
                     $varType = $this->getFullNamespace($varType, $strNs);
-                    //数组类型
+                    // 数组类型
                     if ($this->isArrayOfType($varType)) {
                         $isSimpleType = false;
                         $arrType = substr($varType, 0, -2);
-                        //数组的简单类型 eg: int[]  string[]
+                        // 数组的简单类型 eg: int[]  string[]
                         if ($this->isSimpleType($arrType)) {
                             $arrSimpleType = $arrType;
                         } elseif (class_exists($arrType)) {

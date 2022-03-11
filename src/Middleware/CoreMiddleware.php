@@ -47,7 +47,7 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
                 ->withAddedHeader('content-type', 'application/json')
                 ->withBody(new SwooleStream((string) $response));
         }
-        //object
+        // object
         if (is_object($response)) {
             return $this->response()
                 ->withAddedHeader('content-type', 'application/json')
@@ -83,10 +83,7 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
 
     /**
      * @param string $callableName 'App\Controller\DemoController::index'
-     * @param string $paramName
-     * @param string $className
      * @param $obj
-     * @return mixed
      * @throws ContainerExceptionInterface
      * @throws NotFoundExceptionInterface
      */
@@ -107,7 +104,7 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
         } elseif ($methodParameter->isRequestFormData()) {
             $param = $request->getParsedBody();
         }
-        //validate
+        // validate
         if ($methodParameter->isValid()) {
             $validationDTO->validate($className, $param);
         }

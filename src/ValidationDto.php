@@ -52,7 +52,7 @@ class ValidationDto
         if ($validator->fails()) {
             throw new ValidationException($validator);
         }
-        //递归校验判断
+        // 递归校验判断
         $notSimplePropertyArr = PropertyManager::getPropertyAndNotSimpleType($className);
         foreach ($notSimplePropertyArr as $fieldName => $property) {
             if (! empty($data[$fieldName])) {

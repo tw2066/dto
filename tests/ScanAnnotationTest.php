@@ -72,7 +72,7 @@ class ScanAnnotationTest extends TestCase
         $this->assertSame(User::class, trim($property->className, '\\'));
         $this->assertSame(false, $property->isSimpleType);
 
-        //return
+        // return
         $property = PropertyManager::getProperty(Activity::class, 'id');
         $this->assertSame('string', $property->phpSimpleType);
         $this->assertSame(null, $property->className);

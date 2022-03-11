@@ -29,7 +29,7 @@ class JsonMapperDto extends JsonMapper
      */
     protected function inspectProperty(ReflectionClass $rc, $name)
     {
-        //try setter method first
+        // try setter method first
         $setter = 'set' . $this->getCamelCaseName($name);
 
         if ($rc->hasMethod($setter)) {
@@ -49,7 +49,7 @@ class JsonMapperDto extends JsonMapper
                         ) {
                             $typeName = '\\' . $typeName;
                         }
-                        //allow overriding an "array" type hint
+                        // allow overriding an "array" type hint
                         // with a more specific class in the docblock
                         if ($typeName !== 'array') {
                             return [
@@ -72,8 +72,8 @@ class JsonMapperDto extends JsonMapper
             }
         }
 
-        //now try to set the property directly
-        //we have to look it up in the class hierarchy
+        // now try to set the property directly
+        // we have to look it up in the class hierarchy
         $class = $rc;
         $rprop = null;
         do {
@@ -83,7 +83,7 @@ class JsonMapperDto extends JsonMapper
         } while ($rprop === null && $class = $class->getParentClass());
 
         if ($rprop === null) {
-            //case-insensitive property matching
+            // case-insensitive property matching
             foreach ($rc->getProperties() as $p) {
                 if ((strcasecmp($p->name, $name) === 0)) {
                     $rprop = $p;
@@ -123,16 +123,16 @@ class JsonMapperDto extends JsonMapper
                     return [true, $rprop, null, false];
                 }
 
-                //support "@var type description"
+                // support "@var type description"
                 [$type] = explode(' ', $annotations['var'][0]);
 
                 return [true, $rprop, $type, $this->isNullable($type)];
             }
-            //no setter, private property
+            // no setter, private property
             return [true, null, null, false];
         }
 
-        //no setter, no property
+        // no setter, no property
         return [false, null, null, false];
     }
 
