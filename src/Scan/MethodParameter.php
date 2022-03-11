@@ -12,6 +12,8 @@ class MethodParameter
 
     private bool $isRequestQuery = false;
 
+    private bool $isRequestHeader = false;
+
     private bool $isValid = false;
 
     public function isValid(): bool
@@ -55,5 +57,15 @@ class MethodParameter
     {
         $this->isRequestQuery = $isRequestQuery;
         return $this;
+    }
+
+    public function isRequestHeader(): bool
+    {
+        return $this->isRequestHeader;
+    }
+
+    public function setIsRequestHeader(bool $isRequestHeader): void
+    {
+        $this->isRequestHeader = $isRequestHeader;
     }
 }

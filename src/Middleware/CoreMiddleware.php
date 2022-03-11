@@ -83,7 +83,10 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
 
     /**
      * @param string $callableName 'App\Controller\DemoController::index'
+     * @param string $paramName
+     * @param string $className
      * @param $obj
+     * @return mixed
      * @throws ContainerExceptionInterface
      * @throws NotFoundExceptionInterface
      */
@@ -95,6 +98,7 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
             return $obj;
         }
         $validationDTO = $this->container->get(ValidationDto::class);
+        /** @var ServerRequestInterface $request */
         $request = Context::get(ServerRequestInterface::class);
         $param = [];
         if ($methodParameter->isRequestBody()) {
@@ -103,6 +107,10 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
             $param = $request->getQueryParams();
         } elseif ($methodParameter->isRequestFormData()) {
             $param = $request->getParsedBody();
+        } elseif ($methodParameter->isRequestHeader()) {
+            $param = array_map(function ($value) {
+                return $value[0];
+            }, $request->getHeaders());
         }
         // validate
         if ($methodParameter->isValid()) {

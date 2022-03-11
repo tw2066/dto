@@ -9,6 +9,7 @@ use Hyperf\Di\MethodDefinitionCollectorInterface;
 use Hyperf\Di\ReflectionManager;
 use Hyperf\DTO\Annotation\Contracts\RequestBody;
 use Hyperf\DTO\Annotation\Contracts\RequestFormData;
+use Hyperf\DTO\Annotation\Contracts\RequestHeader;
 use Hyperf\DTO\Annotation\Contracts\RequestQuery;
 use Hyperf\DTO\Annotation\Contracts\Valid;
 use Hyperf\DTO\Annotation\Validation\BaseValidation;
@@ -184,6 +185,8 @@ class ScanAnnotation extends JsonMapperDto
         // 获取方法上指定名称的全部注解
         $attributes = $ref->getParameters();
         $methodMark = 0;
+        $headerMark = 0;
+        $total = 0;
         foreach ($attributes as $attribute) {
             $methodParameters = new MethodParameter();
             $paramName = $attribute->getName();
@@ -191,16 +194,24 @@ class ScanAnnotation extends JsonMapperDto
             if ($attribute->getAttributes(RequestQuery::class)) {
                 $methodParameters->setIsRequestQuery(true);
                 ++$mark;
+                ++$total;
             }
             if ($attribute->getAttributes(RequestFormData::class)) {
                 $methodParameters->setIsRequestFormData(true);
                 ++$mark;
                 ++$methodMark;
+                ++$total;
             }
             if ($attribute->getAttributes(RequestBody::class)) {
                 $methodParameters->setIsRequestBody(true);
                 ++$mark;
                 ++$methodMark;
+                ++$total;
+            }
+            if ($attribute->getAttributes(RequestHeader::class)) {
+                $methodParameters->setIsRequestHeader(true);
+                ++$headerMark;
+                ++$total;
             }
             if ($attribute->getAttributes(Valid::class)) {
                 $methodParameters->setIsValid(true);
@@ -208,7 +219,12 @@ class ScanAnnotation extends JsonMapperDto
             if ($mark > 1) {
                 throw new DtoException("Parameter annotation [RequestQuery RequestFormData RequestBody] cannot exist simultaneously [{$className}::{$methodName}:{$paramName}]");
             }
-            MethodParametersManager::setContent($className, $methodName, $paramName, $methodParameters);
+            if ($headerMark > 1) {
+                throw new DtoException("Parameter annotation [RequestHeader] can only exist [{$className}::{$methodName}:{$paramName}]");
+            }
+            if ($total > 0) {
+                MethodParametersManager::setContent($className, $methodName, $paramName, $methodParameters);
+            }
         }
         if ($methodMark > 1) {
             throw new DtoException("Method annotation [RequestFormData RequestBody] cannot exist simultaneously [{$className}::{$methodName}]");
