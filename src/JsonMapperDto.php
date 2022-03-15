@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO;
 
-use Hyperf\ApiDocs\Annotation\ArrayType;
+use Hyperf\DTO\Annotation\ArrayType;
 use JsonMapper;
 use phpDocumentor\Reflection\DocBlock\Tags\Var_;
 use phpDocumentor\Reflection\DocBlockFactory;
