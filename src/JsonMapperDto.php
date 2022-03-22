@@ -152,7 +152,7 @@ class JsonMapperDto extends JsonMapper
     protected function parseAnnotations2(ReflectionClass $rc, ReflectionProperty $reflectionProperty, $docblock): array
     {
         $annotations = [];
-        /** @var ReflectionAttribute $data */
+        /** @var ReflectionAttribute $arrayType */
         $arrayType = $reflectionProperty->getAttributes(ArrayType::class)[0] ?? [];
         if (! empty($arrayType)) {
             $type = $arrayType->getArguments()[0] ?? null;
