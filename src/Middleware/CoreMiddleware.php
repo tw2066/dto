@@ -9,7 +9,7 @@ use Hyperf\DTO\Scan\MethodParametersManager;
 use Hyperf\DTO\ValidationDto;
 use Hyperf\HttpMessage\Stream\SwooleStream;
 use Hyperf\Utils\Codec\Json;
-use Hyperf\Utils\Context;
+use Hyperf\Context\Context;
 use Hyperf\Utils\Contracts\Arrayable;
 use Hyperf\Utils\Contracts\Jsonable;
 use Psr\Container\ContainerExceptionInterface;
