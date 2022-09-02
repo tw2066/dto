@@ -85,6 +85,7 @@ class ScanAnnotation extends JsonMapperDto
                 $phpSimpleType = $type;
             }
             // 数组类型
+            $propertyEnum = PropertyEnum::get($type);
             if ($type == 'array') {
                 $docblock = $reflectionProperty->getDocComment();
                 $annotations = $this->parseAnnotations2($rc, $reflectionProperty, $docblock);
@@ -106,6 +107,9 @@ class ScanAnnotation extends JsonMapperDto
                         }
                     }
                 }
+            } elseif ($propertyEnum) {
+                $isSimpleType = false;
+                PropertyManager::setNotSimpleClass($className);
             } elseif (class_exists($type)) {
                 $this->scanClass($type);
                 $isSimpleType = false;
@@ -119,6 +123,7 @@ class ScanAnnotation extends JsonMapperDto
             $property->arrSimpleType = $arrSimpleType;
             $property->arrClassName = $arrClassName ? trim($arrClassName, '\\') : null;
             $property->className = $propertyClassName ? trim($propertyClassName, '\\') : null;
+            $property->enum = $propertyEnum;
 
             PropertyManager::setProperty($className, $fieldName, $property);
             $this->generateValidation($className, $fieldName, $property);
