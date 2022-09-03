@@ -79,7 +79,7 @@ class PropertyManager
             return [];
         }
         $data = [];
-        foreach (static::$content[$className] as $fieldName => $property) {
+        foreach (static::$content[$className] ?? [] as $fieldName => $property) {
             if (! $property->isSimpleType) {
                 $data[$fieldName] = $property;
             }

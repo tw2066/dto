@@ -179,4 +179,25 @@ class JsonMapperDto extends JsonMapper
         }
         return $annotations;
     }
+
+    protected function createInstance(
+        $class, $useParameter = false, $jvalue = null
+    ) {
+        if ($useParameter) {
+            if (PHP_VERSION_ID >= 80100 && is_subclass_of($class, \BackedEnum::class)) {
+                return ($class)::from($jvalue);
+            }
+            return new $class($jvalue);
+        } else {
+            $reflectClass = new ReflectionClass($class);
+            $constructor  = $reflectClass->getConstructor();
+            if (null === $constructor
+                || $constructor->getNumberOfRequiredParameters() > 0
+            ) {
+                return $reflectClass->newInstanceWithoutConstructor();
+            }
+            return $reflectClass->newInstance();
+        }
+    }
+
 }
