@@ -25,6 +25,7 @@
         "hyperf/rpc-server": "~2.2.0|~3.0.0",
         "hyperf/validation": "~2.2.0|~3.0.0",
         "symfony/serializer": "^5.0",
+        "phpdocumentor/reflection-docblock": "^5.0",
         "jetbrains/phpstorm-attributes": "^1.0"
     },
     "require-dev": {
