@@ -8,7 +8,7 @@ class MethodParametersManager
 {
     public static array $content = [];
 
-    public static function setContent(string $className, string $methodName, string $paramName, MethodParameter $method)
+    public static function setContent(string $className, string $methodName, string $paramName, MethodParameter $method): void
     {
         $className = trim($className, '\\');
         if (isset(static::$content[$className . $methodName . $paramName])) {

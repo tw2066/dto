@@ -18,7 +18,6 @@ use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\JsonMapperDto;
 use Psr\Container\ContainerInterface;
 use ReflectionException;
-use ReflectionMethod;
 use ReflectionProperty;
 use Throwable;
 
@@ -26,29 +25,23 @@ class ScanAnnotation extends JsonMapperDto
 {
     private static array $scanClassArray = [];
 
-    private MethodDefinitionCollectorInterface $methodDefinitionCollector;
 
-    private ContainerInterface $container;
-
-    public function __construct(ContainerInterface $container)
+    public function __construct(private ContainerInterface $container,private MethodDefinitionCollectorInterface $methodDefinitionCollector)
     {
-        $this->container = $container;
-        $this->methodDefinitionCollector = $this->container->get(MethodDefinitionCollectorInterface::class);
     }
 
     /**
      * 扫描控制器中的方法.
-     * @param $className
-     * @param $methodName
+     * @param string $className
+     * @param string $methodName
      * @throws ReflectionException
      */
-    public function scan($className, $methodName)
+    public function scan(string $className, string $methodName) :void
     {
         $this->setMethodParameters($className, $methodName);
-        $definitionParamArr = $this->methodDefinitionCollector->getParameters($className, $methodName);
-        $definitionReturn = $this->methodDefinitionCollector->getReturnType($className, $methodName);
-        array_push($definitionParamArr, $definitionReturn);
-        foreach ($definitionParamArr as $definition) {
+        $definitionArr = $this->methodDefinitionCollector->getParameters($className, $methodName);
+        $definitionArr[] = $this->methodDefinitionCollector->getReturnType($className, $methodName);
+        foreach ($definitionArr as $definition) {
             $parameterClassName = $definition->getName();
             if ($this->container->has($parameterClassName)) {
                 $this->scanClass($parameterClassName);
@@ -126,14 +119,18 @@ class ScanAnnotation extends JsonMapperDto
             $property->enum = $propertyEnum;
 
             PropertyManager::setProperty($className, $fieldName, $property);
-            $this->generateValidation($className, $fieldName, $property);
+            $this->generateValidation($className, $fieldName);
         }
     }
 
+
     /**
-     * generateValidation.
+     * 生成验证数据
+     * @param string $className
+     * @param string $fieldName
+     * @return void
      */
-    protected function generateValidation(string $className, string $fieldName, Property $property)
+    protected function generateValidation(string $className, string $fieldName): void
     {
         /** @var BaseValidation[] $validation */
         $validationArr = [];
@@ -167,6 +164,11 @@ class ScanAnnotation extends JsonMapperDto
         }
     }
 
+    /**
+     * 获取PHP类型
+     * @param ReflectionProperty $rp
+     * @return string
+     */
     protected function getTypeName(ReflectionProperty $rp): string
     {
         try {
@@ -186,7 +188,7 @@ class ScanAnnotation extends JsonMapperDto
     private function setMethodParameters($className, $methodName)
     {
         // 获取方法的反射对象
-        $ref = new ReflectionMethod($className . '::' . $methodName);
+        $ref = ReflectionManager::reflectMethod($className,$methodName);
         // 获取方法上指定名称的全部注解
         $attributes = $ref->getParameters();
         $methodMark = 0;
