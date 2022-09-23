@@ -16,9 +16,9 @@ class NotIn extends BaseValidation
     /**
      * In constructor.
      */
-    public function __construct(array $notIn, string $messages = '')
+    public function __construct(array $value, string $messages = '')
     {
         $this->messages = $messages;
-        $this->rule = Rule::notIn($notIn);
+        $this->rule = Rule::notIn($value);
     }
 }

@@ -15,7 +15,7 @@ trait DtoCommon
      *
      * @see isFlatType()
      */
-    protected static function isSimpleType($type)
+    protected static function isSimpleType(string $type): bool
     {
         return $type == 'string'
             || $type == 'boolean' || $type == 'bool'

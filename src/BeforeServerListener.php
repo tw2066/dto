@@ -42,7 +42,6 @@ class BeforeServerListener implements ListenerInterface
         $config = $container->get(ConfigInterface::class);
         $eventDispatcher = $container->get(EventDispatcherInterface::class);
         $scanAnnotation = $container->get(ScanAnnotation::class);
-        $container->get(Mapper::class);
 
         $serverConfig = collect($config->get('server.servers'))->where('name', $serverName)->first();
         if (isset($serverConfig['callbacks']['receive'][0]) && Str::contains($serverConfig['callbacks']['receive'][0], 'TcpServer')) {

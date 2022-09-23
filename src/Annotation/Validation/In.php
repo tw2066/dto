@@ -11,18 +11,11 @@ use Hyperf\Validation\Rule;
 class In extends BaseValidation
 {
     /**
-     * @var array
-     */
-    private $value;
-
-    /**
      * In constructor.
      */
-    public function __construct(array $in, string $messages = '')
+    public function __construct(private array $value,public string $messages = '')
     {
-        $this->messages = $messages;
-        $this->rule = Rule::in($in);
-        $this->value = $in;
+        $this->rule = Rule::in($this->value);
     }
 
     public function getValue(): array

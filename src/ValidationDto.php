@@ -25,7 +25,7 @@ class ValidationDto
         }
     }
 
-    public function validate(string $className, $data)
+    public function validate(string $className, $data): void
     {
         if ($this->validationFactory == null) {
             return;
@@ -33,7 +33,7 @@ class ValidationDto
         $this->validateResolved($className, $data);
     }
 
-    private function validateResolved(string $className, $data)
+    private function validateResolved(string $className, $data): void
     {
         if (! is_array($data)) {
             throw new DtoException('Class:' . $className . ' data must be object or array');

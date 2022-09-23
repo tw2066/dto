@@ -4,22 +4,28 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO;
 
+use Hyperf\Contract\Arrayable;
 use Hyperf\DTO\JsonMapperDto as JsonMapper;
-use Hyperf\Utils\Contracts\Arrayable;
 
 class Mapper
 {
-    protected static JsonMapper $jsonMapper;
+    protected static ?JsonMapper $jsonMapper = null;
 
-    public function __construct()
+    protected static function getJsonMapper(): JsonMapper
     {
-        self::$jsonMapper = new JsonMapper();
-        self::$jsonMapper->bEnforceMapType = false;
+        if(static::$jsonMapper === null){
+            static::$jsonMapper = new JsonMapper();
+            //将数组传递给映射
+            static::$jsonMapper->bEnforceMapType = false;
+            //私有属性和函数
+            static::$jsonMapper->bIgnoreVisibility = true;
+        }
+        return static::$jsonMapper;
     }
 
     public static function map($json, object $object)
     {
-        return self::$jsonMapper->map($json, $object);
+        return static::getJsonMapper()->map($json, $object);
     }
 
     public static function copyProperties($source, object $target)
@@ -28,9 +34,9 @@ class Mapper
             return null;
         }
         if ($source instanceof Arrayable) {
-            return self::$jsonMapper->map($source->toArray(), $target);
+            return static::getJsonMapper()->map($source->toArray(), $target);
         }
-        return self::$jsonMapper->map($source, $target);
+        return static::getJsonMapper()->map($source, $target);
     }
 
     public static function mapArray($json, string $className)
@@ -39,8 +45,8 @@ class Mapper
             return [];
         }
         if ($json instanceof Arrayable) {
-            return self::$jsonMapper->mapArray($json->toArray(), [], $className);
+            return static::getJsonMapper()->mapArray($json->toArray(), [], $className);
         }
-        return self::$jsonMapper->mapArray($json, [], $className);
+        return static::getJsonMapper()->mapArray($json, [], $className);
     }
 }
