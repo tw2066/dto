@@ -5,23 +5,16 @@ declare(strict_types=1);
 namespace Hyperf\DTO;
 
 use Hyperf\Contract\Arrayable;
+use Hyperf\Contract\StdoutLoggerInterface;
 use Hyperf\DTO\JsonMapperDto as JsonMapper;
+use Hyperf\Utils\ApplicationContext;
 
 class Mapper
 {
-    protected static ?JsonMapper $jsonMapper = null;
+//    protected static ?JsonMapper $jsonMapper = null;
+    protected static array $jsonMapper = [];
 
-    protected static function getJsonMapper(): JsonMapper
-    {
-        if(static::$jsonMapper === null){
-            static::$jsonMapper = new JsonMapper();
-            //将数组传递给映射
-            static::$jsonMapper->bEnforceMapType = false;
-            //私有属性和函数
-            static::$jsonMapper->bIgnoreVisibility = true;
-        }
-        return static::$jsonMapper;
-    }
+
 
     public static function map($json, object $object)
     {
@@ -48,5 +41,18 @@ class Mapper
             return static::getJsonMapper()->mapArray($json->toArray(), [], $className);
         }
         return static::getJsonMapper()->mapArray($json, [], $className);
+    }
+
+    public static function getJsonMapper($key = 'default'): JsonMapper
+    {
+        if (!isset(static::$jsonMapper[$key])) {
+            $jsonMapper = new JsonMapper();
+            $logger = ApplicationContext::getContainer()->get(StdoutLoggerInterface::class);
+            $jsonMapper->setLogger($logger);
+            // 将数组传递给映射
+            $jsonMapper->bEnforceMapType = false;
+            static::$jsonMapper[$key] = $jsonMapper;
+        }
+        return static::$jsonMapper[$key];
     }
 }
