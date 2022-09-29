@@ -15,13 +15,13 @@ use Hyperf\DTO\Annotation\Contracts\Valid;
 use Hyperf\DTO\Annotation\Validation\BaseValidation;
 use Hyperf\DTO\ApiAnnotation;
 use Hyperf\DTO\Exception\DtoException;
-use Hyperf\DTO\JsonMapperDto;
+use Hyperf\DTO\JsonMapper;
 use Psr\Container\ContainerInterface;
 use ReflectionException;
 use ReflectionProperty;
 use Throwable;
 
-class ScanAnnotation extends JsonMapperDto
+class ScanAnnotation extends JsonMapper
 {
     private static array $scanClassArray = [];
 

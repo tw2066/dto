@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Hyperf\DTO;
 
 use Hyperf\DTO\Annotation\ArrayType;
-use JsonMapper;
 use phpDocumentor\Reflection\DocBlock\Tags\Var_;
 use phpDocumentor\Reflection\DocBlockFactory;
 use phpDocumentor\Reflection\Types\ContextFactory;
@@ -15,7 +14,7 @@ use ReflectionNamedType;
 use ReflectionProperty;
 use ReflectionUnionType;
 
-class JsonMapperDto extends JsonMapper
+class JsonMapper extends \JsonMapper
 {
     /**
      * Try to find out if a property exists in a given class.

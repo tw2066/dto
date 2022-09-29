@@ -6,15 +6,11 @@ namespace Hyperf\DTO;
 
 use Hyperf\Contract\Arrayable;
 use Hyperf\Contract\StdoutLoggerInterface;
-use Hyperf\DTO\JsonMapperDto as JsonMapper;
 use Hyperf\Utils\ApplicationContext;
 
 class Mapper
 {
-//    protected static ?JsonMapper $jsonMapper = null;
     protected static array $jsonMapper = [];
-
-
 
     public static function map($json, object $object)
     {
