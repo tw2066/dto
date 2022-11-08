@@ -97,7 +97,7 @@ class JsonMapper extends \JsonMapper
             if ($rprop->isPublic() || $this->bIgnoreVisibility) {
                 $docblock = $rprop->getDocComment();
                 // 修改源码
-                $annotations = $this->parseAnnotations2($rc, $rprop, $docblock);
+                $annotations = $this->parseAnnotationsNew($rc, $rprop, $docblock);
 
                 if (! isset($annotations['var'][0])) {
                     // If there is no annotations (higher priority) inspect
@@ -148,7 +148,7 @@ class JsonMapper extends \JsonMapper
      *               Key is the "@"-name like "param",
      *               each value is an array of the rest of the @-lines
      */
-    protected function parseAnnotations2(ReflectionClass $rc, ReflectionProperty $reflectionProperty, $docblock): array
+    protected function parseAnnotationsNew(ReflectionClass $rc, ReflectionProperty $reflectionProperty, $docblock): array
     {
         $annotations = [];
         /** @var ReflectionAttribute $arrayType */
@@ -183,6 +183,7 @@ class JsonMapper extends \JsonMapper
         $class, $useParameter = false, $jvalue = null
     ) {
         if ($useParameter) {
+            /* @phpstan-ignore-next-line */
             if (PHP_VERSION_ID >= 80100 && is_subclass_of($class, \BackedEnum::class)) {
                 return ($class)::from($jvalue);
             }

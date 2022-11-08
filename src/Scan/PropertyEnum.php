@@ -23,11 +23,13 @@ class PropertyEnum
 
     public static function get(string $className): ?PropertyEnum
     {
+        /* @phpstan-ignore-next-line */
         if (PHP_VERSION_ID < 80100 || ! is_subclass_of($className, \BackedEnum::class)) {
             return null;
         }
         $propertyEnum = new PropertyEnum();
         try {
+            /* @phpstan-ignore-next-line */
             $rEnum = new \ReflectionEnum($className);
             $propertyEnum->backedType = (string) $rEnum->getBackingType();
         } catch (\ReflectionException) {

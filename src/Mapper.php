@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO;
 
-use Hyperf\Contract\Arrayable;
 use Hyperf\Contract\StdoutLoggerInterface;
 use Hyperf\Utils\ApplicationContext;
+use Hyperf\Utils\Contracts\Arrayable;
 
 class Mapper
 {
@@ -41,7 +41,7 @@ class Mapper
 
     public static function getJsonMapper($key = 'default'): JsonMapper
     {
-        if (!isset(static::$jsonMapper[$key])) {
+        if (! isset(static::$jsonMapper[$key])) {
             $jsonMapper = new JsonMapper();
             $logger = ApplicationContext::getContainer()->get(StdoutLoggerInterface::class);
             $jsonMapper->setLogger($logger);

@@ -25,18 +25,15 @@ class ScanAnnotation extends JsonMapper
 {
     private static array $scanClassArray = [];
 
-
-    public function __construct(private ContainerInterface $container,private MethodDefinitionCollectorInterface $methodDefinitionCollector)
+    public function __construct(private ContainerInterface $container, private MethodDefinitionCollectorInterface $methodDefinitionCollector)
     {
     }
 
     /**
      * 扫描控制器中的方法.
-     * @param string $className
-     * @param string $methodName
      * @throws ReflectionException
      */
-    public function scan(string $className, string $methodName) :void
+    public function scan(string $className, string $methodName): void
     {
         $this->setMethodParameters($className, $methodName);
         $definitionArr = $this->methodDefinitionCollector->getParameters($className, $methodName);
@@ -59,6 +56,7 @@ class ScanAnnotation extends JsonMapper
      */
     public function scanClass(string $className)
     {
+
         if (in_array($className, self::$scanClassArray)) {
             return;
         }
@@ -81,7 +79,7 @@ class ScanAnnotation extends JsonMapper
             $propertyEnum = PropertyEnum::get($type);
             if ($type == 'array') {
                 $docblock = $reflectionProperty->getDocComment();
-                $annotations = $this->parseAnnotations2($rc, $reflectionProperty, $docblock);
+                $annotations = $this->parseAnnotationsNew($rc, $reflectionProperty, $docblock);
                 if (! empty($annotations)) {
                     // support "@var type description"
                     [$varType] = explode(' ', $annotations['var'][0]);
@@ -117,18 +115,13 @@ class ScanAnnotation extends JsonMapper
             $property->arrClassName = $arrClassName ? trim($arrClassName, '\\') : null;
             $property->className = $propertyClassName ? trim($propertyClassName, '\\') : null;
             $property->enum = $propertyEnum;
-
             PropertyManager::setProperty($className, $fieldName, $property);
             $this->generateValidation($className, $fieldName);
         }
     }
 
-
     /**
-     * 生成验证数据
-     * @param string $className
-     * @param string $fieldName
-     * @return void
+     * 生成验证数据.
      */
     protected function generateValidation(string $className, string $fieldName): void
     {
@@ -150,7 +143,7 @@ class ScanAnnotation extends JsonMapper
             if (empty($validation->messages)) {
                 continue;
             }
-            [$messagesRule,] = explode(':', $validation->getRule());
+            [$messagesRule] = explode(':', $validation->getRule());
             $key = $fieldName . '.' . $messagesRule;
             ValidationManager::setMessages($className, $key, $validation->messages);
         }
@@ -165,9 +158,7 @@ class ScanAnnotation extends JsonMapper
     }
 
     /**
-     * 获取PHP类型
-     * @param ReflectionProperty $rp
-     * @return string
+     * 获取PHP类型.
      */
     protected function getTypeName(ReflectionProperty $rp): string
     {
@@ -188,7 +179,7 @@ class ScanAnnotation extends JsonMapper
     private function setMethodParameters($className, $methodName)
     {
         // 获取方法的反射对象
-        $ref = ReflectionManager::reflectMethod($className,$methodName);
+        $ref = ReflectionManager::reflectMethod($className, $methodName);
         // 获取方法上指定名称的全部注解
         $attributes = $ref->getParameters();
         $methodMark = 0;

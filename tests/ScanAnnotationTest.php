@@ -19,10 +19,6 @@ use Mockery as m;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 
-/**
- * @internal
- * @coversNothing
- */
 class ScanAnnotationTest extends TestCase
 {
     protected function tearDown(): void
@@ -37,7 +33,7 @@ class ScanAnnotationTest extends TestCase
         $container->shouldReceive('has')->andReturn(true);
         $container->shouldReceive('get')->with(MethodDefinitionCollectorInterface::class)->andReturn(new MethodDefinitionCollector());
 
-        $scanAnnotation = new ScanAnnotation($container);
+        $scanAnnotation = new ScanAnnotation($container, $container->get(MethodDefinitionCollectorInterface::class));
 
         /** @var ScanAnnotation $scanAnnotation */
         $scanAnnotation = new ClassInvoker($scanAnnotation);
