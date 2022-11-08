@@ -1,3 +1,5 @@
 parameters:
     excludes_analyse:
         - 'src/Router/TcpRouter.php'
+        - 'src/Scan/PropertyEnum.php'
+        - 'src/JsonMapper.php'
