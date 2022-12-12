@@ -172,9 +172,10 @@ class JsonMapper extends \JsonMapper
         $contextFactory = new ContextFactory();
         $context = $contextFactory->createForNamespace($rc->getNamespaceName(), file_get_contents($rc->getFileName()));
         $block = $factory->create($docblock, $context);
-        /** @var Var_ $tag */
         foreach ($block->getTags() as $tag) {
-            $annotations[$tag->getName()][] = $tag->getType()->__toString();
+            if ($tag instanceof Var_) {
+                $annotations[$tag->getName()][] = $tag->getType()->__toString();
+            }
         }
         return $annotations;
     }
