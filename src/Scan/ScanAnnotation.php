@@ -12,13 +12,12 @@ use Hyperf\DTO\Annotation\Contracts\RequestFormData;
 use Hyperf\DTO\Annotation\Contracts\RequestHeader;
 use Hyperf\DTO\Annotation\Contracts\RequestQuery;
 use Hyperf\DTO\Annotation\Contracts\Valid;
+use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\Annotation\Validation\BaseValidation;
 use Hyperf\DTO\ApiAnnotation;
 use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\JsonMapper;
 use Psr\Container\ContainerInterface;
-use ReflectionException;
-use ReflectionProperty;
 use Throwable;
 
 class ScanAnnotation extends JsonMapper
@@ -31,7 +30,7 @@ class ScanAnnotation extends JsonMapper
 
     /**
      * 扫描控制器中的方法.
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     public function scan(string $className, string $methodName): void
     {
@@ -56,7 +55,6 @@ class ScanAnnotation extends JsonMapper
      */
     public function scanClass(string $className)
     {
-
         if (in_array($className, self::$scanClassArray)) {
             return;
         }
@@ -117,6 +115,23 @@ class ScanAnnotation extends JsonMapper
             $property->enum = $propertyEnum;
             PropertyManager::setProperty($className, $fieldName, $property);
             $this->generateValidation($className, $fieldName);
+            $this->propertyAliasMappingManager($className, $fieldName);
+        }
+    }
+
+    /**
+     * 生成验证数据.
+     */
+    protected function propertyAliasMappingManager(string $className, string $fieldName): void
+    {
+        $annotationArray = ApiAnnotation::getClassProperty($className, $fieldName);
+
+        foreach ($annotationArray as $annotation) {
+            if ($annotation instanceof JSONField) {
+                if (! empty($annotation->name)) {
+                    PropertyAliasMappingManager::setAliasMapping($className, $annotation->name, $fieldName);
+                }
+            }
         }
     }
 
@@ -160,7 +175,7 @@ class ScanAnnotation extends JsonMapper
     /**
      * 获取PHP类型.
      */
-    protected function getTypeName(ReflectionProperty $rp): string
+    protected function getTypeName(\ReflectionProperty $rp): string
     {
         try {
             $type = $rp->getType()->getName();
@@ -172,9 +187,7 @@ class ScanAnnotation extends JsonMapper
 
     /**
      * 设置方法中的参数.
-     * @param $className
-     * @param $methodName
-     * @throws ReflectionException
+     * @throws \ReflectionException
      */
     private function setMethodParameters($className, $methodName)
     {

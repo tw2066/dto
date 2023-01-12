@@ -17,6 +17,11 @@ class Mapper
         return static::getJsonMapper()->map($json, $object);
     }
 
+    public static function mapDto($json, object $object)
+    {
+        return static::getJsonMapper()->mapDto($json, $object);
+    }
+
     public static function copyProperties($source, object $target)
     {
         if ($source == null) {

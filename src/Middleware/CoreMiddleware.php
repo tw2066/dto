@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Middleware;
 
+use Hyperf\Context\Context;
 use Hyperf\DTO\Mapper;
 use Hyperf\DTO\Scan\MethodParametersManager;
+use Hyperf\DTO\Scan\PropertyAliasMappingManager;
 use Hyperf\DTO\ValidationDto;
 use Hyperf\HttpMessage\Stream\SwooleStream;
 use Hyperf\Utils\Codec\Json;
-use Hyperf\Context\Context;
 use Hyperf\Utils\Contracts\Arrayable;
 use Hyperf\Utils\Contracts\Jsonable;
 use Psr\Container\ContainerExceptionInterface;
@@ -83,10 +84,6 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
 
     /**
      * @param string $callableName 'App\Controller\DemoController::index'
-     * @param string $paramName
-     * @param string $className
-     * @param $obj
-     * @return mixed
      * @throws ContainerExceptionInterface
      * @throws NotFoundExceptionInterface
      */
@@ -115,6 +112,9 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
         // validate
         if ($methodParameter->isValid()) {
             $validationDTO->validate($className, $param);
+        }
+        if (PropertyAliasMappingManager::isAliasMapping()) {
+            return Mapper::mapDto($param, make($className));
         }
         return Mapper::map($param, make($className));
     }
