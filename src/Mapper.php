@@ -52,6 +52,7 @@ class Mapper
             $jsonMapper->setLogger($logger);
             // 将数组传递给映射
             $jsonMapper->bEnforceMapType = false;
+            $jsonMapper->bStrictNullTypes = false;
             static::$jsonMapper[$key] = $jsonMapper;
         }
         return static::$jsonMapper[$key];
