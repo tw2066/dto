@@ -158,7 +158,7 @@ class ScanAnnotation extends JsonMapper
             if (empty($validation->messages)) {
                 continue;
             }
-            [$messagesRule] = explode(':', $validation->getRule());
+            [$messagesRule] = explode(':', (string) $validation->getRule());
             $key = $fieldName . '.' . $messagesRule;
             ValidationManager::setMessages($className, $key, $validation->messages);
         }
@@ -187,6 +187,8 @@ class ScanAnnotation extends JsonMapper
 
     /**
      * 设置方法中的参数.
+     * @param mixed $className
+     * @param mixed $methodName
      * @throws \ReflectionException
      */
     private function setMethodParameters($className, $methodName)
