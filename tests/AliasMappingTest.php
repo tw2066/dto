@@ -25,7 +25,7 @@ class AliasMappingTest extends TestCase
         $jsonMapper->bEnforceMapType = false;
         PropertyAliasMappingManager::setAliasMapping(Address::class, 'username', 'name');
         $arr = ['username' => 'phpDto'];
-        $address = $jsonMapper->mapDto($arr, new Address());
+        $address = $jsonMapper->map($arr, new Address());
         $this->assertSame('phpDto', $address->name);
     }
 }
