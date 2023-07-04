@@ -9,13 +9,10 @@
 - 支持数组，递归，嵌套
 - 支持框架数据验证器
 
-##### 缺点
-
-- 模型类需要手工编写
-
 ## 注意
 
-> php >= 8.0
+- 模型类需要手工编写
+- php >= 8.0
 
 ## 安装
 
@@ -67,7 +64,7 @@ public function fromData(#[RequestFormData] DemoFormData $formData){}
 public function add(#[RequestBody] DemoBodyRequest $request, #[RequestQuery] DemoQuery $query){}
 ```
 
-> 注意: 一个方法，不能同时注入RequestBody和RequestFormData
+> 注意: 同一个方法不能同时存在RequestBody和RequestFormData注解
 
 ## 示例
 
@@ -154,18 +151,3 @@ class Image extends BaseValidation
     protected $rule = 'image';
 }
 ```
-
-## 注意
-
-```php
-    /**
-     * 需要绝对路径.
-     * @var \App\DTO\Address[]
-     */
-    #[ApiModelProperty('地址')]
-    public array $addressArr;
-```
-
-- 映射数组类时,`@var`需要写绝对路径
-- 控制器中使用了框架`AutoController`注解,只收集了`POST`方法
-
