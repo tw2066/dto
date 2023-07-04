@@ -7,7 +7,6 @@ namespace Hyperf\DTO\Middleware;
 use Hyperf\Context\Context;
 use Hyperf\DTO\Mapper;
 use Hyperf\DTO\Scan\MethodParametersManager;
-use Hyperf\DTO\Scan\PropertyAliasMappingManager;
 use Hyperf\DTO\ValidationDto;
 use Hyperf\HttpMessage\Stream\SwooleStream;
 use Hyperf\Utils\Codec\Json;
@@ -112,9 +111,6 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
         // validate
         if ($methodParameter->isValid()) {
             $validationDTO->validate($className, $param);
-        }
-        if (PropertyAliasMappingManager::isAliasMapping()) {
-            return Mapper::mapDto($param, make($className));
         }
         return Mapper::map($param, make($className));
     }

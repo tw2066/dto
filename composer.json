@@ -18,7 +18,7 @@
     ],
     "require": {
         "php": ">=8.0",
-        "netresearch/jsonmapper": "~4.0.0",
+        "netresearch/jsonmapper": "~4.2.0",
         "hyperf/http-server": "~2.2.0|~3.0.0",
         "hyperf/di": "~2.2.0|~3.0.0",
         "hyperf/validation": "~2.2.0|~3.0.0",
