@@ -2,27 +2,66 @@
 
 declare(strict_types=1);
 
-namespace Hyperf\DTO\Middleware;
+namespace Hyperf\DTO\Aspect;
 
 use Hyperf\Context\Context;
+use Hyperf\Di\Aop\AbstractAspect;
+use Hyperf\Di\Aop\ProceedingJoinPoint;
 use Hyperf\DTO\Mapper;
 use Hyperf\DTO\Scan\MethodParametersManager;
 use Hyperf\DTO\ValidationDto;
 use Hyperf\HttpMessage\Stream\SwooleStream;
+use Hyperf\HttpServer\CoreMiddleware;
 use Hyperf\Utils\Codec\Json;
 use Hyperf\Utils\Contracts\Arrayable;
 use Hyperf\Utils\Contracts\Jsonable;
 use Psr\Container\ContainerExceptionInterface;
+use Psr\Container\ContainerInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
-class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
+class CoreMiddlewareAspect extends AbstractAspect
 {
-    protected function parseMethodParameters(string $controller, string $action, array $arguments): array
+    public array $classes = [
+        CoreMiddleware::class . '::getInjections',
+        CoreMiddleware::class . '::transferToResponse',
+    ];
+
+    protected CoreMiddleware $coreMiddleware;
+
+    public function __construct(private ContainerInterface $container)
     {
-        $definitions = $this->getMethodDefinitionCollector()->getParameters($controller, $action);
-        return $this->getInjections($definitions, "{$controller}::{$action}", $arguments);
+    }
+
+    /**
+     * @return mixed
+     */
+    public function process(ProceedingJoinPoint $proceedingJoinPoint)
+    {
+        /* @var CoreMiddleware $this->coreMiddleware */
+        $this->coreMiddleware = $proceedingJoinPoint->getInstance();
+        if ($proceedingJoinPoint->methodName === 'transferToResponse') {
+            $response = $proceedingJoinPoint->arguments['keys']['response'];
+            $request = $proceedingJoinPoint->arguments['keys']['request'];
+            return $this->transferToResponse($response, $request);
+        }
+
+        if ($proceedingJoinPoint->methodName === 'getInjections') {
+            $definitions = $proceedingJoinPoint->arguments['keys']['definitions'];
+            $callableName = $proceedingJoinPoint->arguments['keys']['callableName'];
+            $arguments = $proceedingJoinPoint->arguments['keys']['arguments'];
+            return $this->getInjections($definitions, $callableName, $arguments);
+        }
+        return $proceedingJoinPoint->process();
+    }
+
+    /**
+     * Get response instance from context.
+     */
+    protected function response(): ResponseInterface
+    {
+        return Context::get(ResponseInterface::class);
     }
 
     /**
@@ -54,6 +93,10 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
                 ->withBody(new SwooleStream(Json::encode($response)));
         }
 
+        if ($this->response()->hasHeader('content-type')) {
+            return $this->response()->withBody(new SwooleStream((string) $response));
+        }
+
         return $this->response()->withAddedHeader('content-type', 'text/plain')->withBody(new SwooleStream((string) $response));
     }
 
@@ -68,6 +111,7 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
                 } elseif ($definition->allowsNull()) {
                     $injections[] = null;
                 } elseif ($this->container->has($definition->getName())) {
+                    //修改
                     $obj = $this->container->get($definition->getName());
                     $injections[] = $this->validateAndMap($callableName, $definition->getMeta('name'), $definition->getName(), $obj);
                 } else {
@@ -75,7 +119,8 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
                         . "of {$callableName} should not be null");
                 }
             } else {
-                $injections[] = $this->getNormalizer()->denormalize($value, $definition->getName());
+                //标记
+                $injections[] = $this->coreMiddleware->getNormalizer()->denormalize($value, $definition->getName());
             }
         }
         return $injections;
@@ -83,6 +128,7 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
 
     /**
      * @param string $callableName 'App\Controller\DemoController::index'
+     * @param mixed $obj
      * @throws ContainerExceptionInterface
      * @throws NotFoundExceptionInterface
      */

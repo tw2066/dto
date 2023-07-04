@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO;
 
+use Hyperf\DTO\Aspect\CoreMiddlewareAspect;
 use Hyperf\HttpServer\CoreMiddleware;
 
 class ConfigProvider
@@ -11,8 +12,8 @@ class ConfigProvider
     public function __invoke(): array
     {
         return [
-            'dependencies' => [
-                CoreMiddleware::class => Middleware\CoreMiddleware::class,
+            'aspects' => [
+                CoreMiddlewareAspect::class,
             ],
             'listeners' => [
                 BeforeServerListener::class,
