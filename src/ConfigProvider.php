@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Hyperf\DTO;
 
 use Hyperf\DTO\Aspect\CoreMiddlewareAspect;
-use Hyperf\HttpServer\CoreMiddleware;
 
 class ConfigProvider
 {

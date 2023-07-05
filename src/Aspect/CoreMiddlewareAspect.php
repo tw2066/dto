@@ -21,14 +21,12 @@ use Psr\Container\NotFoundExceptionInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
-class CoreMiddlewareAspect extends AbstractAspect
+class CoreMiddlewareAspect
 {
     public array $classes = [
         CoreMiddleware::class . '::getInjections',
         CoreMiddleware::class . '::transferToResponse',
     ];
-
-    protected CoreMiddleware $coreMiddleware;
 
     public function __construct(private ContainerInterface $container)
     {
@@ -39,8 +37,8 @@ class CoreMiddlewareAspect extends AbstractAspect
      */
     public function process(ProceedingJoinPoint $proceedingJoinPoint)
     {
-        /* @var CoreMiddleware $this->coreMiddleware */
-        $this->coreMiddleware = $proceedingJoinPoint->getInstance();
+        /* @var CoreMiddleware $coreMiddleware */
+        $coreMiddleware = $proceedingJoinPoint->getInstance();
         if ($proceedingJoinPoint->methodName === 'transferToResponse') {
             $response = $proceedingJoinPoint->arguments['keys']['response'];
             $request = $proceedingJoinPoint->arguments['keys']['request'];
@@ -51,7 +49,7 @@ class CoreMiddlewareAspect extends AbstractAspect
             $definitions = $proceedingJoinPoint->arguments['keys']['definitions'];
             $callableName = $proceedingJoinPoint->arguments['keys']['callableName'];
             $arguments = $proceedingJoinPoint->arguments['keys']['arguments'];
-            return $this->getInjections($definitions, $callableName, $arguments);
+            return $this->getInjections($definitions, $callableName, $arguments, $coreMiddleware);
         }
         return $proceedingJoinPoint->process();
     }
@@ -100,7 +98,7 @@ class CoreMiddlewareAspect extends AbstractAspect
         return $this->response()->withAddedHeader('content-type', 'text/plain')->withBody(new SwooleStream((string) $response));
     }
 
-    private function getInjections(array $definitions, string $callableName, array $arguments): array
+    private function getInjections(array $definitions, string $callableName, array $arguments, $coreMiddleware): array
     {
         $injections = [];
         foreach ($definitions ?? [] as $pos => $definition) {
@@ -120,7 +118,7 @@ class CoreMiddlewareAspect extends AbstractAspect
                 }
             } else {
                 //标记
-                $injections[] = $this->coreMiddleware->getNormalizer()->denormalize($value, $definition->getName());
+                $injections[] = $coreMiddleware->getNormalizer()->denormalize($value, $definition->getName());
             }
         }
         return $injections;
