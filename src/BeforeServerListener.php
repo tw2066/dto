@@ -45,8 +45,12 @@ class BeforeServerListener implements ListenerInterface
 
         $serverConfig = collect($config->get('server.servers'))->where('name', $serverName)->first();
         if (isset($serverConfig['callbacks']['receive'][0]) && Str::contains($serverConfig['callbacks']['receive'][0], 'TcpServer')) {
-            $tcpRouter = $container->get(TcpRouter::class);
-            $router = $tcpRouter->getRouter($serverName);
+            try {
+                $tcpRouter = $container->get(TcpRouter::class);
+                $router = $tcpRouter->getRouter($serverName);
+            }catch (\Throwable $throwable){
+                return;
+            }
         } else {
             $router = $container->get(DispatcherFactory::class)->getRouter($serverName);
         }
