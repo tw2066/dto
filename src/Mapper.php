@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO;
 
+use Hyperf\Context\ApplicationContext;
+use Hyperf\Contract\Arrayable;
 use Hyperf\Contract\StdoutLoggerInterface;
-use Hyperf\Utils\ApplicationContext;
-use Hyperf\Utils\Contracts\Arrayable;
 
 class Mapper
 {

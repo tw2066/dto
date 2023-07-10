@@ -3,3 +3,5 @@ parameters:
         - 'src/Router/TcpRouter.php'
         - 'src/Scan/PropertyEnum.php'
         - 'src/JsonMapper.php'
+        - 'src/Serializer/ObjectDtoNormalizer.php'
+        - 'src/Aspect/CoreMiddlewareAspect.php'

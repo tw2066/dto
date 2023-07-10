@@ -4,22 +4,26 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Aspect;
 
+use Hyperf\Codec\Json;
 use Hyperf\Context\Context;
-use Hyperf\Di\Aop\AbstractAspect;
+use Hyperf\Contract\Arrayable;
+use Hyperf\Contract\Jsonable;
 use Hyperf\Di\Aop\ProceedingJoinPoint;
 use Hyperf\DTO\Mapper;
 use Hyperf\DTO\Scan\MethodParametersManager;
 use Hyperf\DTO\ValidationDto;
+use Hyperf\HttpMessage\Server\ResponsePlusProxy;
 use Hyperf\HttpMessage\Stream\SwooleStream;
 use Hyperf\HttpServer\CoreMiddleware;
-use Hyperf\Utils\Codec\Json;
-use Hyperf\Utils\Contracts\Arrayable;
-use Hyperf\Utils\Contracts\Jsonable;
+use Hyperf\Stringable\Str;
+use Hyperf\Support\Composer;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Swow\Psr7\Message\ResponsePlusInterface;
+use function Hyperf\Support\make;
 
 class CoreMiddlewareAspect
 {
@@ -28,8 +32,15 @@ class CoreMiddlewareAspect
         CoreMiddleware::class . '::transferToResponse',
     ];
 
+    protected int $hyperfVersion = 31;
+
     public function __construct(private ContainerInterface $container)
     {
+        //hyperf/http-server version
+        $version = Composer::getVersions()['hyperf/http-server'] ?? '';
+        if (Str::startsWith($version, 'v3.0.')) {
+            $this->hyperfVersion = 30;
+        }
     }
 
     /**
@@ -42,6 +53,9 @@ class CoreMiddlewareAspect
         if ($proceedingJoinPoint->methodName === 'transferToResponse') {
             $response = $proceedingJoinPoint->arguments['keys']['response'];
             $request = $proceedingJoinPoint->arguments['keys']['request'];
+            if ($this->hyperfVersion === 30) {
+                return $this->transferToResponse30($response, $request);
+            }
             return $this->transferToResponse($response, $request);
         }
 
@@ -67,7 +81,7 @@ class CoreMiddlewareAspect
      *
      * @param null|array|Arrayable|Jsonable|string $response
      */
-    protected function transferToResponse($response, ServerRequestInterface $request): ResponseInterface
+    protected function transferToResponse30($response, ServerRequestInterface $request): ResponseInterface
     {
         if (is_string($response)) {
             return $this->response()->withAddedHeader('content-type', 'text/plain')->withBody(new SwooleStream($response));
@@ -96,6 +110,47 @@ class CoreMiddlewareAspect
         }
 
         return $this->response()->withAddedHeader('content-type', 'text/plain')->withBody(new SwooleStream((string) $response));
+    }
+
+    /**
+     * Transfer the non-standard response content to a standard response object.
+     *
+     * @param null|array|Arrayable|Jsonable|ResponseInterface|string $response
+     */
+    protected function transferToResponse($response, ServerRequestInterface $request): ResponsePlusInterface
+    {
+        if (is_string($response)) {
+            return $this->response()->addHeader('content-type', 'text/plain')->setBody(new SwooleStream($response));
+        }
+
+        if (is_array($response) || $response instanceof Arrayable) {
+            return $this->response()
+                ->addHeader('content-type', 'application/json')
+                ->setBody(new SwooleStream(Json::encode($response)));
+        }
+
+        if ($response instanceof Jsonable) {
+            return $this->response()
+                ->addHeader('content-type', 'application/json')
+                ->setBody(new SwooleStream((string) $response));
+        }
+
+        if ($response instanceof ResponseInterface) {
+            return new ResponsePlusProxy($response);
+        }
+
+        // object
+        if (is_object($response)) {
+            return $this->response()
+                ->addHeader('content-type', 'application/json')
+                ->setBody(new SwooleStream(Json::encode($response)));
+        }
+
+        if ($this->response()->hasHeader('content-type')) {
+            return $this->response()->setBody(new SwooleStream((string) $response));
+        }
+
+        return $this->response()->addHeader('content-type', 'text/plain')->setBody(new SwooleStream((string) $response));
     }
 
     private function getInjections(array $definitions, string $callableName, array $arguments, $coreMiddleware): array

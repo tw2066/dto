@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO;
 
+use Hyperf\Context\ApplicationContext;
 use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Scan\ValidationManager;
-use Hyperf\Utils\ApplicationContext;
 use Hyperf\Validation\Contract\ValidatorFactoryInterface;
 use Hyperf\Validation\ValidationException;
 

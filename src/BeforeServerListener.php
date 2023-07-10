@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Hyperf\DTO;
 
 use Closure;
+use Hyperf\Context\ApplicationContext;
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\DTO\Event\AfterDtoStart;
 use Hyperf\DTO\Router\TcpRouter;
@@ -14,8 +15,7 @@ use Hyperf\Framework\Event\BeforeServerStart;
 use Hyperf\HttpServer\Router\DispatcherFactory;
 use Hyperf\HttpServer\Router\Handler;
 use Hyperf\Server\Event\MainCoroutineServerStart;
-use Hyperf\Utils\ApplicationContext;
-use Hyperf\Utils\Str;
+use Hyperf\Stringable\Str;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use RuntimeException;
 
@@ -48,7 +48,7 @@ class BeforeServerListener implements ListenerInterface
             try {
                 $tcpRouter = $container->get(TcpRouter::class);
                 $router = $tcpRouter->getRouter($serverName);
-            }catch (\Throwable $throwable){
+            } catch (\Throwable $throwable) {
                 return;
             }
         } else {
