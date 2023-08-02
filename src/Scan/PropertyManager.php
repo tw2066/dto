@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Scan;
 
+use Hyperf\Utils\ApplicationContext;
+
 class PropertyManager
 {
     protected static array $content = [];
@@ -37,12 +39,16 @@ class PropertyManager
      * 获取类中字段的属性.
      * @param $className
      * @param $fieldName
-     * @return Property|null
      */
     public static function getProperty($className, $fieldName): ?Property
     {
         $className = trim($className, '\\');
         if (! isset(static::$content[$className][$fieldName])) {
+            $di = ApplicationContext::getContainer();
+            if ($di->has($className)) {
+                $di->get(ScanAnnotation::class)->scanClass($className);
+                return self::getProperty($className, $fieldName);
+            }
             return null;
         }
         return static::$content[$className][$fieldName];
