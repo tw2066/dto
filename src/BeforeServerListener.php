@@ -18,7 +18,7 @@ use Hyperf\Server\Event\MainCoroutineServerStart;
 use Hyperf\Stringable\Str;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use RuntimeException;
-
+use function Hyperf\Collection\collect;
 class BeforeServerListener implements ListenerInterface
 {
     public function listen(): array
@@ -42,7 +42,6 @@ class BeforeServerListener implements ListenerInterface
         $config = $container->get(ConfigInterface::class);
         $eventDispatcher = $container->get(EventDispatcherInterface::class);
         $scanAnnotation = $container->get(ScanAnnotation::class);
-
         $serverConfig = collect($config->get('server.servers'))->where('name', $serverName)->first();
         if (isset($serverConfig['callbacks']['receive'][0]) && Str::contains($serverConfig['callbacks']['receive'][0], 'TcpServer')) {
             try {

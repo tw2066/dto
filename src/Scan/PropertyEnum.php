@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Scan;
 
+use function Hyperf\Collection\collect;
+
 class PropertyEnum
 {
     /**
