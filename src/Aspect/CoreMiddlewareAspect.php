@@ -165,7 +165,7 @@ class CoreMiddlewareAspect
         return Json::encode($response);
     }
 
-    private function aliasHandle( $response)
+    private function aliasHandle($response)
     {
         $convertedArray = [];
 
