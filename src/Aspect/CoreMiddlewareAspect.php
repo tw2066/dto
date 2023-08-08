@@ -162,7 +162,7 @@ class CoreMiddlewareAspect
             $response = $this->aliasHandle($response);
         }
 
-        return Json::encode($response, JSON_UNESCAPED_UNICODE);
+        return Json::encode($response);
     }
 
     private function aliasHandle( $response)
