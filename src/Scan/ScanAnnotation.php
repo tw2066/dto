@@ -128,6 +128,7 @@ class ScanAnnotation extends JsonMapper
      */
     protected function propertyAliasMappingManager(string $className, string $fieldName): void
     {
+        $className = trim($className,'\\');
         $annotationArray = ApiAnnotation::getClassProperty($className, $fieldName);
 
         foreach ($annotationArray as $annotation) {
