@@ -62,14 +62,7 @@ class ScanAnnotation extends JsonMapper
         $rc = ReflectionManager::reflectClass($className);
         $strNs = $rc->getNamespaceName();
         foreach ($rc->getProperties() ?? [] as $reflectionProperty) {
-            // 字段名称（处理别名）
-            $alias = ApiAnnotation::getProperty($className, $reflectionProperty->getName(), JSONField::class);
-            if ($alias !== null) {
-                $fieldName = $alias->name;
-            } else {
-                $fieldName = $reflectionProperty->getName();
-            }
-
+            $fieldName = $reflectionProperty->getName();
             $isSimpleType = true;
             $phpSimpleType = null;
             $propertyClassName = null;
@@ -122,11 +115,11 @@ class ScanAnnotation extends JsonMapper
             $property->enum = $propertyEnum;
 
             // 类型管理
-            PropertyManager::setProperty($className, $reflectionProperty->getName(), $property);
+            PropertyManager::setProperty($className, $fieldName, $property);
             // 创建验证规则
             $this->generateValidation($className, $fieldName);
             // 别名管理
-            $this->propertyAliasMappingManager($className, $reflectionProperty->getName());
+            $this->propertyAliasMappingManager($className, $fieldName);
         }
     }
 
@@ -154,6 +147,12 @@ class ScanAnnotation extends JsonMapper
         /** @var BaseValidation[] $validation */
         $validationArr = [];
         $annotationArray = ApiAnnotation::getClassProperty($className, $fieldName);
+
+        // 字段名称（别名处理）
+        $alias = ApiAnnotation::getProperty($className, $fieldName, JSONField::class);
+        if ($alias !== null) {
+            $fieldName = $alias->name;
+        }
 
         foreach ($annotationArray as $annotation) {
             if ($annotation instanceof BaseValidation) {
