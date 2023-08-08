@@ -62,7 +62,14 @@ class ScanAnnotation extends JsonMapper
         $rc = ReflectionManager::reflectClass($className);
         $strNs = $rc->getNamespaceName();
         foreach ($rc->getProperties() ?? [] as $reflectionProperty) {
-            $fieldName = $reflectionProperty->getName();
+            // 字段名称（处理别名）
+            $alias = ApiAnnotation::getProperty($className, $reflectionProperty->getName(), JSONField::class);
+            if ($alias !== null) {
+                $fieldName = $alias->name;
+            } else {
+                $fieldName = $reflectionProperty->getName();
+            }
+
             $isSimpleType = true;
             $phpSimpleType = null;
             $propertyClassName = null;
@@ -113,9 +120,13 @@ class ScanAnnotation extends JsonMapper
             $property->arrClassName = $arrClassName ? trim($arrClassName, '\\') : null;
             $property->className = $propertyClassName ? trim($propertyClassName, '\\') : null;
             $property->enum = $propertyEnum;
-            PropertyManager::setProperty($className, $fieldName, $property);
+
+            // 类型管理
+            PropertyManager::setProperty($className, $reflectionProperty->getName(), $property);
+            // 创建验证规则
             $this->generateValidation($className, $fieldName);
-            $this->propertyAliasMappingManager($className, $fieldName);
+            // 别名管理
+            $this->propertyAliasMappingManager($className, $reflectionProperty->getName());
         }
     }
 
