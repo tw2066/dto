@@ -158,7 +158,7 @@ class CoreMiddlewareAspect
     private function jsonEncode($response)
     {
         // 处理对象中自定义的JSONField别名
-        if (count(get_object_vars($response)) !== 0) {
+        if (PropertyAliasMappingManager::isAliasMapping() && count(get_object_vars($response)) !== 0) {
             $response = $this->aliasHandle($response);
         }
 
@@ -173,11 +173,7 @@ class CoreMiddlewareAspect
             // 处理别名
             if (is_object($response) && count(get_object_vars($response)) !== 0) {
                 $alias = PropertyAliasMappingManager::getPropertyMapping($response::class, $key);
-                if ($alias !== null) {
-                    $convertedKey = $alias;
-                } else {
-                    $convertedKey = $key;
-                }
+                $convertedKey = $alias ?? $key;
             } else {
                 $convertedKey = $key;
             }
