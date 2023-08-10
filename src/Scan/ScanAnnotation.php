@@ -144,6 +144,12 @@ class ScanAnnotation extends JsonMapper
         $validationArr = [];
         $annotationArray = ApiAnnotation::getClassProperty($className, $fieldName);
 
+        // 字段名称（别名处理）
+        $alias = ApiAnnotation::getProperty($className, $fieldName, JSONField::class);
+        if ($alias !== null) {
+            $fieldName = $alias->name;
+        }
+
         foreach ($annotationArray as $annotation) {
             if ($annotation instanceof BaseValidation) {
                 $validationArr[] = $annotation;
