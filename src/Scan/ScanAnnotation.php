@@ -18,7 +18,7 @@ use Hyperf\DTO\Annotation\Validation\BaseValidation;
 use Hyperf\DTO\ApiAnnotation;
 use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\JsonMapper;
-use Hyperf\Stringable\Str;
+use Hyperf\Utils\Str;
 use Psr\Container\ContainerInterface;
 use Throwable;
 
