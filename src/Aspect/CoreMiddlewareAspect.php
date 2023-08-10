@@ -11,6 +11,7 @@ use Hyperf\Contract\Jsonable;
 use Hyperf\Di\Aop\ProceedingJoinPoint;
 use Hyperf\DTO\Mapper;
 use Hyperf\DTO\Scan\MethodParametersManager;
+use Hyperf\DTO\Scan\PropertyAliasMappingManager;
 use Hyperf\DTO\ValidationDto;
 use Hyperf\HttpMessage\Server\ResponsePlusProxy;
 use Hyperf\HttpMessage\Stream\SwooleStream;
@@ -102,7 +103,7 @@ class CoreMiddlewareAspect
         if (is_object($response)) {
             return $this->response()
                 ->withAddedHeader('content-type', 'application/json')
-                ->withBody(new SwooleStream(Json::encode($response)));
+                ->withBody(new SwooleStream($this->jsonEncode($response)));
         }
 
         if ($this->response()->hasHeader('content-type')) {
@@ -143,7 +144,7 @@ class CoreMiddlewareAspect
         if (is_object($response)) {
             return $this->response()
                 ->addHeader('content-type', 'application/json')
-                ->setBody(new SwooleStream(Json::encode($response)));
+                ->setBody(new SwooleStream($this->jsonEncode($response)));
         }
 
         if ($this->response()->hasHeader('content-type')) {
@@ -151,6 +152,39 @@ class CoreMiddlewareAspect
         }
 
         return $this->response()->addHeader('content-type', 'text/plain')->setBody(new SwooleStream((string) $response));
+    }
+
+    private function jsonEncode($response)
+    {
+        // 处理对象中自定义的JSONField别名
+        if (PropertyAliasMappingManager::isAliasMapping() && count(get_object_vars($response)) !== 0) {
+            $response = $this->aliasHandle($response);
+        }
+
+        return Json::encode($response);
+    }
+
+    private function aliasHandle($response)
+    {
+        $convertedArray = [];
+
+        foreach ($response as $key => $value) {
+            // 处理别名
+            if (is_object($response) && count(get_object_vars($response)) !== 0) {
+                $alias = PropertyAliasMappingManager::getPropertyMapping($response::class, $key);
+                $convertedKey = $alias ?? $key;
+            } else {
+                $convertedKey = $key;
+            }
+
+            if (is_array($value) || is_object($value)) {
+                $convertedArray[$convertedKey] = $this->aliasHandle($value);
+            } else {
+                $convertedArray[$convertedKey] = $value;
+            }
+        }
+
+        return $convertedArray;
     }
 
     private function getInjections(array $definitions, string $callableName, array $arguments, $coreMiddleware): array
