@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Hyperf\DTO\Scan;
 
 use Hyperf\ApiDocs\Annotation\ApiModelProperty;
+use Hyperf\Di\Annotation\MultipleAnnotation;
 use Hyperf\Di\MethodDefinitionCollectorInterface;
 use Hyperf\Di\ReflectionManager;
 use Hyperf\DTO\Annotation\Contracts\RequestBody;
@@ -17,6 +18,7 @@ use Hyperf\DTO\Annotation\Validation\BaseValidation;
 use Hyperf\DTO\ApiAnnotation;
 use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\JsonMapper;
+use Hyperf\Stringable\Str;
 use Psr\Container\ContainerInterface;
 use Throwable;
 
@@ -142,29 +144,53 @@ class ScanAnnotation extends JsonMapper
     {
         /** @var BaseValidation[] $validation */
         $validationArr = [];
-        $annotationArray = ApiAnnotation::getClassProperty($className, $fieldName);
+        $allAnnotationArray = ApiAnnotation::getClassProperty($className, $fieldName);
 
-        foreach ($annotationArray as $annotation) {
-            if ($annotation instanceof BaseValidation) {
-                $validationArr[] = $annotation;
+        /** @var MultipleAnnotation $multipleAnnotation */
+        foreach ($allAnnotationArray as $multipleAnnotation) {
+            if (! $multipleAnnotation instanceof MultipleAnnotation) {
+                continue;
+            }
+            $annotationArray = $multipleAnnotation->toAnnotations();
+            foreach ($annotationArray as $annotation) {
+                if ($annotation instanceof BaseValidation) {
+                    $validationArr[] = $annotation;
+                }
             }
         }
+        if (empty($validationArr)) {
+            return;
+        }
+
         $ruleArray = [];
         foreach ($validationArr as $validation) {
             if (empty($validation->getRule())) {
                 continue;
             }
-            $ruleArray[] = $validation->getRule();
+            //支持自定义key eg: required|date|after:start_date
+            $customKey = $validation->getCustomKey() ?: $fieldName;
+            $rule = $validation->getRule();
+            if (is_string($rule) && Str::contains($rule, '|')) {
+                $ruleArr = explode('|', $rule);
+                foreach ($ruleArr as $item) {
+                    $ruleArray[$customKey][] = $item;
+                }
+            } else {
+                $ruleArray[$customKey][] = $rule;
+            }
+
             if (empty($validation->messages)) {
                 continue;
             }
             [$messagesRule] = explode(':', (string) $validation->getRule());
-            $key = $fieldName . '.' . $messagesRule;
+            $key = $customKey . '.' . $messagesRule;
             ValidationManager::setMessages($className, $key, $validation->messages);
         }
         if (! empty($ruleArray)) {
-            ValidationManager::setRule($className, $fieldName, $ruleArray);
-            foreach ($annotationArray as $annotation) {
+            foreach ($ruleArray as $fieldKey => $rule) {
+                ValidationManager::setRule($className, $fieldKey, $rule);
+            }
+            foreach ($allAnnotationArray as $annotation) {
                 if (class_exists(ApiModelProperty::class) && $annotation instanceof ApiModelProperty && ! empty($annotation->value)) {
                     ValidationManager::setAttributes($className, $fieldName, $annotation->value);
                 }
