@@ -363,13 +363,13 @@ class JsonMapper extends \JsonMapper
         /** @var ReflectionAttribute $arrayType */
         $arrayType = $reflectionProperty->getAttributes(ArrayType::class)[0] ?? [];
         if (! empty($arrayType)) {
-            $type = $arrayType->getArguments()[0] ?? null;
+            $type = $arrayType->getArguments()[0] ?? $arrayType->getArguments()['value'] ?? null;
             if (! empty($type)) {
                 $isSimpleType = $this->isSimpleType($type);
                 if ($isSimpleType) {
                     $annotations['var'][] = $type . '[]';
                 } else {
-                    $annotations['var'][] = '\\' . $type . '[]';
+                    $annotations['var'][] = '\\' . trim($type,'\\') . '[]';
                 }
                 return $annotations;
             }
