@@ -19,6 +19,7 @@ use Hyperf\Stringable\Str;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use RuntimeException;
 use function Hyperf\Collection\collect;
+
 class BeforeServerListener implements ListenerInterface
 {
     public function listen(): array
