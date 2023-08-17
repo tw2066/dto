@@ -17,8 +17,9 @@ use PhpParser\NodeTraverser;
 use PhpParser\ParserFactory;
 use PhpParser\PrettyPrinter;
 use SplFileInfo;
+use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
-
+use function \Hyperf\Support\make;
 class DtoProxyClass
 {
     protected ?array $classJSONFieldArr = null;
@@ -26,6 +27,12 @@ class DtoProxyClass
     public function __construct(protected DtoConfig $dtoConfig)
     {
         $this->getGenericClass();
+        $outputDir = $this->dtoConfig->getProxyDir();
+        if (file_exists($outputDir) === false) {
+            if (mkdir($outputDir, 0755, true) === false) {
+                throw new \Exception("Failed to create a directory : {$outputDir}");
+            }
+        }
     }
 
     public function getGenericClass()
@@ -66,6 +73,8 @@ class DtoProxyClass
             $classLoader->addClassMap($classMap);
             $classLoader->register(true);
         } else {
+            $proxyDir = $this->dtoConfig->getProxyDir();
+            $this->removeProxies($proxyDir);
             $this->genProxyFile();
             exit;
         }
@@ -92,7 +101,7 @@ class DtoProxyClass
                 if ($rc->hasMethod($getMethodName)) {
                     $propertyInfo->getMethodName = $getMethodName;
                 }
-                if ($convert = $dtoAnnotation->requestType) {
+                if ($convert = $dtoAnnotation->requestConvert) {
                     $propertyInfo->alias = $convert->getValue($propertyName);
                 }
                 if (isset($this->classJSONFieldArr[$class][$propertyName])) {
@@ -109,7 +118,7 @@ class DtoProxyClass
                     $isCreateJsonSerialize = true;
                     $propertyInfo->jsonArrKey = $convert->getValue($propertyName);
                 }
-                if ($convert = $dtoAnnotation->responseType) {
+                if ($convert = $dtoAnnotation->responseConvert) {
                     $isCreateJsonSerialize = true;
                     $propertyInfo->jsonArrKey = $convert->getValue($propertyName);
                 }
@@ -132,11 +141,6 @@ class DtoProxyClass
     protected function putContents($generateNamespaceClassName, $content): void
     {
         $outputDir = $this->dtoConfig->getProxyDir();
-        if (file_exists($outputDir) === false) {
-            if (mkdir($outputDir, 0755, true) === false) {
-                throw new \Exception("Failed to create a directory : {$outputDir}");
-            }
-        }
         $generateClassName = str_replace('\\', '_', $generateNamespaceClassName);
         $filename = $outputDir . $generateClassName . '.dto.proxy.php';
         file_put_contents($filename, $content);
@@ -154,10 +158,20 @@ class DtoProxyClass
         }
 
         $traverser = new NodeTraverser();
-        $resVisitor = \Hyperf\Support\make(DtoVisitor::class, [$classname, $propertyArr, $isCreateJsonSerialize]);
+        $resVisitor = make(DtoVisitor::class, [$classname, $propertyArr, $isCreateJsonSerialize,$this->dtoConfig->isIsSetDefaultValue()]);
         $traverser->addVisitor($resVisitor);
         $ast = $traverser->traverse($ast);
         $prettyPrinter = new PrettyPrinter\Standard();
         return $prettyPrinter->prettyPrintFile($ast);
+    }
+
+    private function removeProxies($dir)
+    {
+        $filesystem = new Filesystem();
+        if (! $filesystem->exists($dir)) {
+            return;
+        }
+        $finder = (new Finder())->files()->name('*.dto.proxy.php')->in($dir);
+        $filesystem->remove($finder);
     }
 }

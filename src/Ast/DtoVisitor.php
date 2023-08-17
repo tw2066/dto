@@ -4,14 +4,20 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Ast;
 
-use PhpParser\BuilderFactory;
 use PhpParser\Node;
 use PhpParser\NodeVisitorAbstract;
 use function Hyperf\Support\setter;
 
 class DtoVisitor extends NodeVisitorAbstract
 {
-    public BuilderFactory $factory;
+    protected array $dataTypeDefaultValue = [
+        'int' => 0,
+        'float' => 0,
+        'string' => '',
+        'array' => [],
+        'bool' => false,
+        'mixed' => null,
+    ];
 
     /**
      * @param string $classname
@@ -21,9 +27,35 @@ class DtoVisitor extends NodeVisitorAbstract
     public function __construct(
         protected string $classname,
         protected array $propertyArr,
-        private bool $isCreateJsonSerialize
+        private bool $isCreateJsonSerialize,
+        private bool $isIsSetDefaultValue,
     ) {
-        $this->factory = new BuilderFactory();
+    }
+
+    public function leaveNode(Node $node)
+    {
+        // 设置默认值
+        if ($this->isIsSetDefaultValue) {
+            if ($node instanceof Node\Stmt\Property) {
+                $prop = $node->props[0];
+                $type = $node->type;
+                if (empty($prop->default)) {
+                    if ($type instanceof Node\NullableType) {
+                        $default = new Node\Expr\ConstFetch(
+                            new Node\Name(['null'])
+                        );
+                        $node->props[0]->default = $default;
+                    } else {
+                        $dataTypeKey = $type->name;
+                        if (array_key_exists($dataTypeKey, $this->dataTypeDefaultValue)) {
+                            $value = $this->dataTypeDefaultValue[$dataTypeKey];
+                            $default = \PhpParser\BuilderHelpers::normalizeValue($value);
+                            $node->props[0]->default = $default;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     public function afterTraverse(array $nodes)
@@ -55,7 +87,8 @@ class DtoVisitor extends NodeVisitorAbstract
                             //增加set方法
                             $setter = setter($alias);
                             $stmts = $this->createSetter($setter, $alias, $propertyName);
-
+                            //删除原有注解
+                            $stmt->attrGroups = [];
                             $class->stmts[] = $stmts;
                         }
                     }

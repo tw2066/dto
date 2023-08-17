@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Scan;
 
-use Hyperf\Utils\ApplicationContext;
+use Hyperf\Context\ApplicationContext;
 
 class PropertyManager
 {

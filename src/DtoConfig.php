@@ -10,6 +10,7 @@ use Hyperf\DTO\Type\Convert;
 class DtoConfig
 {
     private string $proxy_dir;
+    private bool $is_set_default_value = false;
 
     private ?Convert $responses_global_convert = null;
 
@@ -36,4 +37,14 @@ class DtoConfig
     {
         $this->proxy_dir = rtrim($proxy_dir, '/') . '/';
     }
+
+    /**
+     * @return bool
+     */
+    public function isIsSetDefaultValue(): bool
+    {
+        return $this->is_set_default_value;
+    }
+
+
 }
