@@ -19,7 +19,7 @@ use PhpParser\PrettyPrinter;
 use SplFileInfo;
 use Symfony\Component\Finder\Finder;
 
-class DtoVisitorProxyClass
+class DtoProxyClass
 {
     protected ?array $classJSONFieldArr = null;
 
@@ -101,25 +101,28 @@ class DtoVisitorProxyClass
                     if ($JSONField->name != $propertyName) {
                         $propertyInfo->alias = $JSONField->name;
                     }
+                } elseif (! $property->isPublic()) {
+                    $propertyInfo->isJsonSerialize = false;
                 }
-                $propertyInfo->arrKey = $propertyName;
+                $propertyInfo->jsonArrKey = $propertyName;
                 if ($convert = $this->dtoConfig->getResponsesGlobalConvert()) {
                     $isCreateJsonSerialize = true;
-                    $propertyInfo->arrKey = $convert->getValue($propertyName);
+                    $propertyInfo->jsonArrKey = $convert->getValue($propertyName);
                 }
                 if ($convert = $dtoAnnotation->responseType) {
                     $isCreateJsonSerialize = true;
-                    $propertyInfo->arrKey = $convert->getValue($propertyName);
+                    $propertyInfo->jsonArrKey = $convert->getValue($propertyName);
                 }
                 if ($propertyInfo->alias) {
                     $isCreateJsonSerialize = true;
-                    $propertyInfo->arrKey = $propertyInfo->alias;
-                }
-                if ($rc->hasMethod('jsonSerialize')) {
-                    $isCreateJsonSerialize = false;
+                    $propertyInfo->jsonArrKey = $propertyInfo->alias;
                 }
 
                 $arr[$propertyName] = $propertyInfo;
+            }
+
+            if ($rc->hasMethod('jsonSerialize')) {
+                $isCreateJsonSerialize = false;
             }
             $content = $this->phpParser($class, $files->getRealPath(), $arr, $isCreateJsonSerialize);
             $this->putContents($class, $content);
@@ -131,7 +134,7 @@ class DtoVisitorProxyClass
         $outputDir = $this->dtoConfig->getProxyDir();
         if (file_exists($outputDir) === false) {
             if (mkdir($outputDir, 0755, true) === false) {
-                throw new ApiDocsException("Failed to create a directory : {$outputDir}");
+                throw new \Exception("Failed to create a directory : {$outputDir}");
             }
         }
         $generateClassName = str_replace('\\', '_', $generateNamespaceClassName);

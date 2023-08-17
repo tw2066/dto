@@ -13,7 +13,6 @@ use Hyperf\DTO\Annotation\Contracts\RequestFormData;
 use Hyperf\DTO\Annotation\Contracts\RequestHeader;
 use Hyperf\DTO\Annotation\Contracts\RequestQuery;
 use Hyperf\DTO\Annotation\Contracts\Valid;
-use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\Annotation\Validation\BaseValidation;
 use Hyperf\DTO\ApiAnnotation;
 use Hyperf\DTO\Exception\DtoException;
@@ -117,23 +116,6 @@ class ScanAnnotation extends JsonMapper
             $property->enum = $propertyEnum;
             PropertyManager::setProperty($className, $fieldName, $property);
             $this->generateValidation($className, $fieldName);
-            $this->propertyAliasMappingManager($className, $fieldName);
-        }
-    }
-
-    /**
-     * 生成验证数据.
-     */
-    protected function propertyAliasMappingManager(string $className, string $fieldName): void
-    {
-        $annotationArray = ApiAnnotation::getClassProperty($className, $fieldName);
-
-        foreach ($annotationArray as $annotation) {
-            if ($annotation instanceof JSONField) {
-                if (! empty($annotation->name)) {
-                    PropertyAliasMappingManager::setAliasMapping($className, $annotation->name, $fieldName);
-                }
-            }
         }
     }
 

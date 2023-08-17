@@ -50,6 +50,7 @@ class DtoVisitor extends NodeVisitorAbstract
                             $name->name = $alias;
                             $prop->name = $name;
                             $aliasStmt->props[0] = $prop;
+                            $aliasStmt->flags = Node\Stmt\Class_::MODIFIER_PRIVATE;
                             $class->stmts[] = $aliasStmt;
                             //增加set方法
                             $setter = setter($alias);
@@ -111,7 +112,11 @@ class DtoVisitor extends NodeVisitorAbstract
         foreach ($this->propertyArr as $property) {
             $propertyName = $property->propertyName;
             $methodName = $property->getMethodName;
-            $keyName = $property->arrKey;
+            $keyName = $property->jsonArrKey;
+
+            if (! $property->isJsonSerialize) {
+                continue;
+            }
 
             if ($methodName) {
                 //方法
