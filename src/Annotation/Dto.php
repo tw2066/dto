@@ -12,9 +12,9 @@ use Hyperf\DTO\Type\Convert;
 class Dto extends AbstractAnnotation
 {
     public string $value;
-    public ?Convert $requestType = null;
+    public ?Convert $requestConvert = null;
     public function __construct(
-        public ?Convert $responseType = null,
+        public ?Convert $responseConvert = null,
     ) {
     }
 }
