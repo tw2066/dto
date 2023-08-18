@@ -37,6 +37,11 @@ class Property
      */
     public ?PropertyEnum $enum = null;
 
+    /**
+     * 别名
+     */
+    public ?string $alias = null;
+
     public function isSimpleArray(): bool
     {
         if ($this->isSimpleType && $this->phpSimpleType == 'array') {
@@ -60,4 +65,5 @@ class Property
         }
         return false;
     }
+
 }

@@ -9,7 +9,7 @@ use Hyperf\Context\ApplicationContext;
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\DTO\Event\AfterDtoStart;
 use Hyperf\DTO\Router\TcpRouter;
-use Hyperf\DTO\Scan\ScanAnnotation;
+use Hyperf\DTO\Scan\Scan;
 use Hyperf\Event\Contract\ListenerInterface;
 use Hyperf\Framework\Event\BeforeServerStart;
 use Hyperf\HttpServer\Router\DispatcherFactory;
@@ -42,7 +42,7 @@ class BeforeServerListener implements ListenerInterface
         $container = ApplicationContext::getContainer();
         $config = $container->get(ConfigInterface::class);
         $eventDispatcher = $container->get(EventDispatcherInterface::class);
-        $scanAnnotation = $container->get(ScanAnnotation::class);
+        $scanAnnotation = $container->get(Scan::class);
         $serverConfig = collect($config->get('server.servers'))->where('name', $serverName)->first();
         if (isset($serverConfig['callbacks']['receive'][0]) && Str::contains($serverConfig['callbacks']['receive'][0], 'TcpServer')) {
             try {

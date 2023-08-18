@@ -11,8 +11,8 @@ use Hyperf\DTO\Type\Convert;
 #[Attribute(Attribute::TARGET_CLASS)]
 class Dto extends AbstractAnnotation
 {
-    public string $value;
-    public ?Convert $requestConvert = null;
+//    public ?Convert $requestConvert = null;
+
     public function __construct(
         public ?Convert $responseConvert = null,
     ) {

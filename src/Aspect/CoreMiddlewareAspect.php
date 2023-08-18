@@ -9,9 +9,9 @@ use Hyperf\Context\Context;
 use Hyperf\Contract\Arrayable;
 use Hyperf\Contract\Jsonable;
 use Hyperf\Di\Aop\ProceedingJoinPoint;
+use Hyperf\DTO\DtoValidation;
 use Hyperf\DTO\Mapper;
 use Hyperf\DTO\Scan\MethodParametersManager;
-use Hyperf\DTO\ValidationDto;
 use Hyperf\HttpMessage\Server\ResponsePlusProxy;
 use Hyperf\HttpMessage\Stream\SwooleStream;
 use Hyperf\HttpServer\CoreMiddleware;
@@ -192,7 +192,7 @@ class CoreMiddlewareAspect
         if ($methodParameter == null) {
             return $obj;
         }
-        $validationDTO = $this->container->get(ValidationDto::class);
+        $validationDTO = $this->container->get(DtoValidation::class);
         /** @var ServerRequestInterface $request */
         $request = Context::get(ServerRequestInterface::class);
         $param = [];

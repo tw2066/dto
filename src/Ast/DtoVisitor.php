@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace Hyperf\DTO\Ast;
 
 use PhpParser\Node;
+use PhpParser\Node\Expr;
+use PhpParser\Node\Name;
 use PhpParser\NodeVisitorAbstract;
 use function Hyperf\Support\setter;
 
 class DtoVisitor extends NodeVisitorAbstract
 {
+    public array $jsonSerializeNotDefaultValue = [];
+
     protected array $dataTypeDefaultValue = [
         'int' => 0,
         'float' => 0,
@@ -34,26 +38,29 @@ class DtoVisitor extends NodeVisitorAbstract
 
     public function leaveNode(Node $node)
     {
-        // 设置默认值
-        if ($this->isIsSetDefaultValue) {
-            if ($node instanceof Node\Stmt\Property) {
-                $prop = $node->props[0];
-                $type = $node->type;
-                if (empty($prop->default)) {
-                    if ($type instanceof Node\NullableType) {
-                        $default = new Node\Expr\ConstFetch(
-                            new Node\Name(['null'])
-                        );
-                        $node->props[0]->default = $default;
-                    } else {
-                        $dataTypeKey = $type->name;
-                        if (array_key_exists($dataTypeKey, $this->dataTypeDefaultValue)) {
-                            $value = $this->dataTypeDefaultValue[$dataTypeKey];
-                            $default = \PhpParser\BuilderHelpers::normalizeValue($value);
-                            $node->props[0]->default = $default;
-                        }
+        if ($node instanceof Node\Stmt\Property) {
+            $prop = $node->props[0];
+            $fieldName = $prop->name->name;
+            $type = $node->type;
+            if (empty($prop->default)) {
+                if ($type instanceof Node\NullableType) {
+                    $default = new Node\Expr\ConstFetch(
+                        new Node\Name(['null'])
+                    );
+                    ! $this->isIsSetDefaultValue && $this->jsonSerializeNotDefaultValue[$fieldName] = null;
+                } else {
+                    $dataTypeKey = $type?->name;
+                    if (array_key_exists($dataTypeKey, $this->dataTypeDefaultValue)) {
+                        $value = $this->dataTypeDefaultValue[$dataTypeKey];
+                        $default = $this->normalizeValue($value);
                     }
+                    ! $this->isIsSetDefaultValue && $this->jsonSerializeNotDefaultValue[$fieldName] = $dataTypeKey;
                 }
+            }
+
+            // 设置变量默认值
+            if ($this->isIsSetDefaultValue && ! empty($default)) {
+                $node->props[0]->default = $default;
             }
         }
     }
@@ -86,9 +93,9 @@ class DtoVisitor extends NodeVisitorAbstract
                             $class->stmts[] = $aliasStmt;
                             //增加set方法
                             $setter = setter($alias);
-                            $stmts = $this->createSetter($setter, $alias, $propertyName);
+                            $stmts = $this->createSetter($setter, $alias, $propertyName,$stmt->props[0]->default,$stmt->type);
                             //删除原有注解
-                            $stmt->attrGroups = [];
+                            //$stmt->attrGroups = [];
                             $class->stmts[] = $stmts;
                         }
                     }
@@ -106,11 +113,67 @@ class DtoVisitor extends NodeVisitorAbstract
         return $nodes;
     }
 
-    protected function createSetter(string $method, string $alias, string $propertyName): Node\Stmt\ClassMethod
+    public function normalizeValue($value): Expr
+    {
+        if ($value instanceof Node\Expr) {
+            return $value;
+        }
+
+        if (is_null($value)) {
+            return new Expr\ConstFetch(
+                new Name('null')
+            );
+        }
+
+        if (is_bool($value)) {
+            return new Expr\ConstFetch(
+                new Name($value ? 'true' : 'false')
+            );
+        }
+
+        if (is_int($value)) {
+            return new Node\Scalar\LNumber($value);
+        }
+
+        if (is_float($value)) {
+            return new Node\Scalar\DNumber($value);
+        }
+
+        if (is_string($value)) {
+            return new Node\Scalar\String_($value);
+        }
+
+        if (is_array($value)) {
+            $items = [];
+            $lastKey = -1;
+            foreach ($value as $itemKey => $itemValue) {
+                // for consecutive, numeric keys don't generate keys
+                if ($lastKey !== null && ++$lastKey === $itemKey) {
+                    $items[] = new Expr\ArrayItem(
+                        self::normalizeValue($itemValue)
+                    );
+                } else {
+                    $lastKey = null;
+                    $items[] = new Expr\ArrayItem(
+                        self::normalizeValue($itemValue),
+                        self::normalizeValue($itemKey)
+                    );
+                }
+            }
+
+            return new Expr\Array_($items);
+        }
+
+        return new Expr\ConstFetch(
+            new Name('null')
+        );
+    }
+
+    protected function createSetter(string $method, string $alias, string $propertyName,$default,$type): Node\Stmt\ClassMethod
     {
         $node = new Node\Stmt\ClassMethod($method, [
             'flags' => Node\Stmt\Class_::MODIFIER_PUBLIC,
-            'params' => [new Node\Param(new Node\Expr\Variable($alias))],
+            'params' => [new Node\Param(new Node\Expr\Variable($alias),$default,$type)],
         ]);
         $node->stmts[] = new Node\Stmt\Expression(
             new Node\Expr\Assign(
@@ -163,6 +226,16 @@ class DtoVisitor extends NodeVisitorAbstract
                     new Node\Expr\Variable('this'),
                     new Node\Identifier($propertyName)
                 );
+                // 未设置默认值
+                if (array_key_exists($propertyName, $this->jsonSerializeNotDefaultValue)) {
+                    $dataTypeKey = $this->jsonSerializeNotDefaultValue[$propertyName] ?? null;
+                    $value = $this->dataTypeDefaultValue[$dataTypeKey] ?? null;
+                    $default = $this->normalizeValue($value);
+                    $propertyFetch = new Node\Expr\BinaryOp\Coalesce(
+                        $propertyFetch,
+                        $default
+                    );
+                }
             }
             $key = new Node\Scalar\String_($keyName);
             $arrayItem[] = new Node\Expr\ArrayItem($propertyFetch, $key);

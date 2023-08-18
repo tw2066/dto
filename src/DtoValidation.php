@@ -11,7 +11,7 @@ use Hyperf\DTO\Scan\ValidationManager;
 use Hyperf\Validation\Contract\ValidatorFactoryInterface;
 use Hyperf\Validation\ValidationException;
 
-class ValidationDto
+class DtoValidation
 {
     public static bool $isValidationCustomAttributes = false;
 

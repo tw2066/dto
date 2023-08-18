@@ -13,6 +13,7 @@ use Hyperf\DTO\Annotation\Contracts\RequestFormData;
 use Hyperf\DTO\Annotation\Contracts\RequestHeader;
 use Hyperf\DTO\Annotation\Contracts\RequestQuery;
 use Hyperf\DTO\Annotation\Contracts\Valid;
+use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\Annotation\Validation\BaseValidation;
 use Hyperf\DTO\ApiAnnotation;
 use Hyperf\DTO\Exception\DtoException;
@@ -21,7 +22,7 @@ use Hyperf\Stringable\Str;
 use Psr\Container\ContainerInterface;
 use Throwable;
 
-class ScanAnnotation extends JsonMapper
+class Scan extends JsonMapper
 {
     private static array $scanClassArray = [];
 
@@ -106,6 +107,9 @@ class ScanAnnotation extends JsonMapper
                 $propertyClassName = $type;
                 PropertyManager::setNotSimpleClass($className);
             }
+            /** @var JSONField $JSONField */
+            $JSONField = ApiAnnotation::getProperty($className, $fieldName, JSONField::class);
+            $JSONFieldName = $JSONField?->name;
 
             $property = new Property();
             $property->phpSimpleType = $phpSimpleType;
@@ -114,6 +118,7 @@ class ScanAnnotation extends JsonMapper
             $property->arrClassName = $arrClassName ? trim($arrClassName, '\\') : null;
             $property->className = $propertyClassName ? trim($propertyClassName, '\\') : null;
             $property->enum = $propertyEnum;
+            $property->alias = $JSONFieldName;
             PropertyManager::setProperty($className, $fieldName, $property);
             $this->generateValidation($className, $fieldName);
         }

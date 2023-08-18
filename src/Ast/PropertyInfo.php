@@ -34,4 +34,10 @@ class PropertyInfo
      * @var bool
      */
     public bool $isJsonSerialize = true;
+
+//    /**
+//     * json数组的key默认返回值
+//     * @var mixed|null
+//     */
+//    public mixed $jsonSerializeDefaultValue = null;
 }

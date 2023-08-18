@@ -46,13 +46,14 @@ class PropertyManager
         if (! isset(static::$content[$className][$fieldName])) {
             $di = ApplicationContext::getContainer();
             if ($di->has($className)) {
-                $di->get(ScanAnnotation::class)->scanClass($className);
+                $di->get(Scan::class)->scanClass($className);
                 return self::getProperty($className, $fieldName);
             }
             return null;
         }
         return static::$content[$className][$fieldName];
     }
+
 
     public static function getPropertyByType($className, $type, bool $isSimpleType): array
     {

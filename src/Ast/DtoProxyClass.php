@@ -80,7 +80,7 @@ class DtoProxyClass
         }
     }
 
-    public function genProxyFile()
+    public function genProxyFile(): void
     {
         $classes = AnnotationCollector::getClassesByAnnotation(Dto::class);
         /**
@@ -101,9 +101,9 @@ class DtoProxyClass
                 if ($rc->hasMethod($getMethodName)) {
                     $propertyInfo->getMethodName = $getMethodName;
                 }
-                if ($convert = $dtoAnnotation->requestConvert) {
-                    $propertyInfo->alias = $convert->getValue($propertyName);
-                }
+//                if ($convert = $dtoAnnotation->requestConvert) {
+//                    $propertyInfo->alias = $convert->getValue($propertyName);
+//                }
                 if (isset($this->classJSONFieldArr[$class][$propertyName])) {
                     /** @var JSONField $JSONField */
                     $JSONField = $this->classJSONFieldArr[$class][$propertyName];
