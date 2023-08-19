@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Ast;
 
-use Hyperf\ApiDocs\Exception\ApiDocsException;
 use Hyperf\Di\Annotation\AnnotationCollector;
 use Hyperf\Di\Exception\Exception;
 use Hyperf\Di\ReflectionManager;
 use Hyperf\DTO\Annotation\Dto;
 use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\DtoConfig;
+use Hyperf\Stringable\Str;
 use Hyperf\Support\Composer;
 use PhpParser\Error;
 use PhpParser\NodeTraverser;
@@ -19,7 +19,8 @@ use PhpParser\PrettyPrinter;
 use SplFileInfo;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
-use function \Hyperf\Support\make;
+use function Hyperf\Support\make;
+
 class DtoProxyClass
 {
     protected ?array $classJSONFieldArr = null;
@@ -134,15 +135,21 @@ class DtoProxyClass
                 $isCreateJsonSerialize = false;
             }
             $content = $this->phpParser($class, $files->getRealPath(), $arr, $isCreateJsonSerialize);
-            $this->putContents($class, $content);
+            $this->putContents($class, $content, $files->getRealPath());
         }
     }
 
-    protected function putContents($generateNamespaceClassName, $content): void
+    protected function putContents($generateNamespaceClassName, $content, $realPath): void
     {
-        $outputDir = $this->dtoConfig->getProxyDir();
-        $generateClassName = str_replace('\\', '_', $generateNamespaceClassName);
-        $filename = $outputDir . $generateClassName . '.dto.proxy.php';
+        // 适配PhpAccessor组件
+        if (Str::contains($realPath, '@')) {
+            $filename = $realPath;
+        } else {
+            $outputDir = $this->dtoConfig->getProxyDir();
+            $generateClassName = str_replace('\\', '_', $generateNamespaceClassName);
+            $filename = $outputDir . $generateClassName . '.dto.proxy.php';
+        }
+
         file_put_contents($filename, $content);
     }
 
@@ -158,7 +165,7 @@ class DtoProxyClass
         }
 
         $traverser = new NodeTraverser();
-        $resVisitor = make(DtoVisitor::class, [$classname, $propertyArr, $isCreateJsonSerialize,$this->dtoConfig->isIsSetDefaultValue()]);
+        $resVisitor = make(DtoVisitor::class, [$classname, $propertyArr, $isCreateJsonSerialize, $this->dtoConfig->isIsSetDefaultValue()]);
         $traverser->addVisitor($resVisitor);
         $ast = $traverser->traverse($ast);
         $prettyPrinter = new PrettyPrinter\Standard();
