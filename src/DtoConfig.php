@@ -9,6 +9,7 @@ use Hyperf\DTO\Type\Convert;
 
 class DtoConfig
 {
+    const SET_DTO_METHOD_PREFIX = 'set_dto_alias_';
     private string $proxy_dir;
     private bool $is_set_default_value = false;
 

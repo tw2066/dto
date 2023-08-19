@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Hyperf\DTO;
 
 use Hyperf\DTO\Annotation\ArrayType;
-use Hyperf\DTO\Scan\PropertyAliasMappingManager;
-use JsonMapper_Exception;
 use phpDocumentor\Reflection\DocBlock\Tags\Var_;
 use phpDocumentor\Reflection\DocBlockFactory;
 use phpDocumentor\Reflection\Types\ContextFactory;
@@ -47,12 +45,18 @@ class JsonMapper extends \JsonMapper
      */
     protected function inspectProperty(ReflectionClass $rc, $name)
     {
-        //try setter method first
-        $setter = 'set' . $this->getCamelCaseName($name);
+        //修改
+        $isSetDtoMethod = true;
+        $setter = DtoConfig::SET_DTO_METHOD_PREFIX . $name;
+        if(! $rc->hasMethod($setter)){
+            $isSetDtoMethod = false;
+            //try setter method first
+            $setter = 'set' . $this->getCamelCaseName($name);
+        }
 
         if ($rc->hasMethod($setter)) {
             $rmeth = $rc->getMethod($setter);
-            if ($rmeth->isPublic() || $this->bIgnoreVisibility) {
+            if ($rmeth->isPublic() || $this->bIgnoreVisibility || $isSetDtoMethod) {
                 $isNullable = false;
                 $rparams = $rmeth->getParameters();
                 if (count($rparams) > 0) {

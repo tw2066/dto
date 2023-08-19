@@ -142,7 +142,7 @@ class DtoProxyClass
     protected function putContents($generateNamespaceClassName, $content, $realPath): void
     {
         // 适配PhpAccessor组件
-        if (Str::contains($realPath, '@')) {
+        if (Str::contains($realPath, '/@')) {
             $filename = $realPath;
         } else {
             $outputDir = $this->dtoConfig->getProxyDir();

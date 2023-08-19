@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Ast;
 
+use Hyperf\DTO\DtoConfig;
 use PhpParser\Node;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Name;
 use PhpParser\NodeVisitorAbstract;
-use function Hyperf\Support\setter;
 
 class DtoVisitor extends NodeVisitorAbstract
 {
@@ -92,8 +92,8 @@ class DtoVisitor extends NodeVisitorAbstract
                             $aliasStmt->flags = Node\Stmt\Class_::MODIFIER_PRIVATE;
                             $class->stmts[] = $aliasStmt;
                             //增加set方法
-                            $setter = setter($alias);
-                            $stmts = $this->createSetter($setter, $alias, $propertyName,$stmt->props[0]->default,$stmt->type);
+                            $setter = DtoConfig::SET_DTO_METHOD_PREFIX . $alias;
+                            $stmts = $this->createSetter($setter, $alias, $propertyName, $stmt->props[0]->default, $stmt->type);
                             //删除原有注解
                             //$stmt->attrGroups = [];
                             $class->stmts[] = $stmts;
@@ -169,12 +169,13 @@ class DtoVisitor extends NodeVisitorAbstract
         );
     }
 
-    protected function createSetter(string $method, string $alias, string $propertyName,$default,$type): Node\Stmt\ClassMethod
+    protected function createSetter(string $method, string $alias, string $propertyName, $default, $type): Node\Stmt\ClassMethod
     {
         $node = new Node\Stmt\ClassMethod($method, [
-            'flags' => Node\Stmt\Class_::MODIFIER_PUBLIC,
-            'params' => [new Node\Param(new Node\Expr\Variable($alias),$default,$type)],
+            'flags' => Node\Stmt\Class_::MODIFIER_PRIVATE,
+            'params' => [new Node\Param(new Node\Expr\Variable($alias), $default, $type)],
         ]);
+        $node->returnType = new Node\Identifier('void');
         $node->stmts[] = new Node\Stmt\Expression(
             new Node\Expr\Assign(
                 new Node\Expr\PropertyFetch(
@@ -192,9 +193,6 @@ class DtoVisitor extends NodeVisitorAbstract
                 ),
                 new Node\Expr\Variable($alias)
             )
-        );
-        $node->stmts[] = new Node\Stmt\Return_(
-            new Node\Expr\Variable('this')
         );
 
         return $node;
