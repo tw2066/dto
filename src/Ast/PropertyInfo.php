@@ -7,32 +7,27 @@ namespace Hyperf\DTO\Ast;
 class PropertyInfo
 {
     /**
-     * 属性名称
-     * @var string
+     * 属性名称.
      */
     public string $propertyName = '';
 
     /**
-     * get方法名称
-     * @var string
+     * get方法名称.
      */
     public string $getMethodName = '';
 
     /**
-     * 别名 通过JSONField生成
-     * @var string
+     * 别名 通过JSONField生成.
      */
     public string $alias = '';
 
     /**
-     * 生成json数组的key
-     * @var string
+     * 生成json数组的key.
      */
     public string $jsonArrKey = '';
+
     /**
-     * 是否生成json数组的key
-     * @var bool
+     * 是否生成json数组的key.
      */
     public bool $isJsonSerialize = true;
-
 }

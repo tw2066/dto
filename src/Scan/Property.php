@@ -38,7 +38,7 @@ class Property
     public ?PropertyEnum $enum = null;
 
     /**
-     * 别名
+     * 别名.
      */
     public ?string $alias = null;
 
@@ -65,5 +65,4 @@ class Property
         }
         return false;
     }
-
 }

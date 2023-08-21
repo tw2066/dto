@@ -17,12 +17,14 @@ use Hyperf\HttpMessage\Stream\SwooleStream;
 use Hyperf\HttpServer\CoreMiddleware;
 use Hyperf\Stringable\Str;
 use Hyperf\Support\Composer;
+use InvalidArgumentException;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Swow\Psr7\Message\ResponsePlusInterface;
+
 use function Hyperf\Support\make;
 
 class CoreMiddlewareAspect
@@ -36,7 +38,7 @@ class CoreMiddlewareAspect
 
     public function __construct(private ContainerInterface $container)
     {
-        //hyperf/http-server version
+        // hyperf/http-server version
         $version = Composer::getVersions()['hyperf/http-server'] ?? '';
         if (Str::startsWith($version, 'v3.0.')) {
             $this->hyperfVersion = 30;
@@ -164,15 +166,15 @@ class CoreMiddlewareAspect
                 } elseif ($definition->allowsNull()) {
                     $injections[] = null;
                 } elseif ($this->container->has($definition->getName())) {
-                    //修改
+                    // 修改
                     $obj = $this->container->get($definition->getName());
                     $injections[] = $this->validateAndMap($callableName, $definition->getMeta('name'), $definition->getName(), $obj);
                 } else {
-                    throw new \InvalidArgumentException("Parameter '{$definition->getMeta('name')}' "
+                    throw new InvalidArgumentException("Parameter '{$definition->getMeta('name')}' "
                         . "of {$callableName} should not be null");
                 }
             } else {
-                //标记
+                // 标记
                 $injections[] = $coreMiddleware->getNormalizer()->denormalize($value, $definition->getName());
             }
         }

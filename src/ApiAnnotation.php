@@ -10,9 +10,9 @@ class ApiAnnotation
 {
     /**
      * 获取属性.
-     * @param $className
-     * @param $propertyName
-     * @param $annotationClassName
+     * @param mixed $className
+     * @param mixed $propertyName
+     * @param mixed $annotationClassName
      * @return null|object $annotationClassName
      */
     public static function getProperty($className, $propertyName, $annotationClassName): ?object
@@ -21,10 +21,6 @@ class ApiAnnotation
         return $propertyAnnotations[$annotationClassName] ?? null;
     }
 
-    /**
-     * @param $className
-     * @param $propertyName
-     */
     public static function getClassProperty($className, $propertyName): array
     {
         return AnnotationCollector::getClassPropertyAnnotation($className, $propertyName) ?? [];

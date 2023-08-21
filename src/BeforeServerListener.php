@@ -18,6 +18,8 @@ use Hyperf\Server\Event\MainCoroutineServerStart;
 use Hyperf\Stringable\Str;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use RuntimeException;
+use Throwable;
+
 use function Hyperf\Collection\collect;
 
 class BeforeServerListener implements ListenerInterface
@@ -48,7 +50,7 @@ class BeforeServerListener implements ListenerInterface
             try {
                 $tcpRouter = $container->get(TcpRouter::class);
                 $router = $tcpRouter->getRouter($serverName);
-            } catch (\Throwable $throwable) {
+            } catch (Throwable $throwable) {
                 return;
             }
         } else {

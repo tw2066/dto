@@ -37,8 +37,8 @@ class PropertyManager
 
     /**
      * 获取类中字段的属性.
-     * @param $className
-     * @param $fieldName
+     * @param mixed $className
+     * @param mixed $fieldName
      */
     public static function getProperty($className, $fieldName): ?Property
     {
@@ -53,7 +53,6 @@ class PropertyManager
         }
         return static::$content[$className][$fieldName];
     }
-
 
     public static function getPropertyByType($className, $type, bool $isSimpleType): array
     {
@@ -76,7 +75,7 @@ class PropertyManager
     }
 
     /**
-     * @param $className
+     * @param mixed $className
      * @return Property[]
      */
     public static function getPropertyAndNotSimpleType($className): array

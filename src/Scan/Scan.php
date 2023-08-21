@@ -20,6 +20,8 @@ use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\JsonMapper;
 use Hyperf\Stringable\Str;
 use Psr\Container\ContainerInterface;
+use ReflectionException;
+use ReflectionProperty;
 
 class Scan extends JsonMapper
 {
@@ -31,7 +33,7 @@ class Scan extends JsonMapper
 
     /**
      * 扫描控制器中的方法.
-     * @throws \ReflectionException
+     * @throws ReflectionException
      */
     public function scan(string $className, string $methodName): void
     {
@@ -128,7 +130,7 @@ class Scan extends JsonMapper
     /**
      * 获取PHP类型.
      */
-    public function getTypeName(\ReflectionProperty $rprop): string
+    public function getTypeName(ReflectionProperty $rprop): string
     {
         if ($rprop->hasType()) {
             $rPropType = $rprop->getType();
@@ -206,7 +208,7 @@ class Scan extends JsonMapper
      * 设置方法中的参数.
      * @param mixed $className
      * @param mixed $methodName
-     * @throws \ReflectionException
+     * @throws ReflectionException
      */
     private function setMethodParameters($className, $methodName)
     {

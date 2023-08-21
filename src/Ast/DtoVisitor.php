@@ -24,9 +24,7 @@ class DtoVisitor extends NodeVisitorAbstract
     ];
 
     /**
-     * @param string $classname
      * @param PropertyInfo[] $propertyArr
-     * @param bool $isCreateJsonSerialize
      */
     public function __construct(
         protected string $classname,
@@ -89,7 +87,7 @@ class DtoVisitor extends NodeVisitorAbstract
                         $property = $this->propertyArr[$propertyName];
                         if (! empty($property->alias)) {
                             $alias = $property->alias;
-                            //增加别名属性
+                            // 增加别名属性
                             $aliasStmt = clone $stmt;
                             $name = clone $stmt->props[0]->name;
                             $prop = clone $stmt->props[0];
@@ -98,11 +96,11 @@ class DtoVisitor extends NodeVisitorAbstract
                             $aliasStmt->props[0] = $prop;
                             $aliasStmt->flags = Node\Stmt\Class_::MODIFIER_PRIVATE;
                             $class->stmts[] = $aliasStmt;
-                            //增加set属性方法
+                            // 增加set属性方法
                             $setter = DtoConfig::getDtoAliasMethodName($alias);
                             $stmts = $this->createSetter($setter, $alias, $propertyName, $stmt->props[0]->default, $stmt->type);
-                            //删除原有注解
-                            //$stmt->attrGroups = [];
+                            // 删除原有注解
+                            // $stmt->attrGroups = [];
                             $class->stmts[] = $stmts;
                         }
                     }
@@ -220,13 +218,13 @@ class DtoVisitor extends NodeVisitorAbstract
             }
 
             if ($methodName) {
-                //方法
+                // 方法
                 $propertyFetch = new Node\Expr\MethodCall(
                     new Node\Expr\Variable('this'),
                     new Node\Identifier($methodName)
                 );
             } else {
-                //$this
+                // $this
                 $propertyFetch = new Node\Expr\PropertyFetch(
                     new Node\Expr\Variable('this'),
                     new Node\Identifier($propertyName)

@@ -6,6 +6,7 @@ namespace Hyperf\DTO\Serializer;
 
 use Hyperf\DTO\Mapper;
 use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
+
 use function Hyperf\Support\make;
 
 class ObjectDtoNormalizer extends ObjectNormalizer

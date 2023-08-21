@@ -15,15 +15,13 @@ use ReflectionProperty;
 class JsonMapper extends \JsonMapper
 {
     /**
-     * Log a message to the $logger object
+     * Log a message to the $logger object.
      *
-     * @param string $level   Logging level
+     * @param string $level Logging level
      * @param string $message Text to log
-     * @param array  $context Additional information
-     *
-     * @return null
+     * @param array $context Additional information
      */
-    protected function log($level, $message, array $context = array())
+    protected function log($level, $message, array $context = [])
     {
         if ($this->logger) {
             $this->logger->log('debug', $message, $context);
@@ -34,23 +32,23 @@ class JsonMapper extends \JsonMapper
      * Try to find out if a property exists in a given class.
      * Checks property first, falls back to setter method.
      *
-     * @param ReflectionClass $rc   Reflection class to check
-     * @param string          $name Property name
+     * @param ReflectionClass $rc Reflection class to check
+     * @param string $name Property name
      *
      * @return array First value: if the property exists
      *               Second value: the accessor to use (
-     *                 ReflectionMethod or ReflectionProperty, or null)
+     *               ReflectionMethod or ReflectionProperty, or null)
      *               Third value: type of the property
      *               Fourth value: if the property is nullable
      */
     protected function inspectProperty(ReflectionClass $rc, $name)
     {
-        //修改
+        // 修改
         $isSetDtoMethod = true;
         $setter = DtoConfig::getDtoAliasMethodName($name);
-        if(! $rc->hasMethod($setter)){
+        if (! $rc->hasMethod($setter)) {
             $isSetDtoMethod = false;
-            //try setter method first
+            // try setter method first
             $setter = 'set' . $this->getCamelCaseName($name);
         }
 
@@ -61,34 +59,34 @@ class JsonMapper extends \JsonMapper
                 $rparams = $rmeth->getParameters();
                 if (count($rparams) > 0) {
                     $isNullable = $rparams[0]->allowsNull();
-                    $ptype      = $rparams[0]->getType();
+                    $ptype = $rparams[0]->getType();
                     if ($ptype !== null) {
                         $typeName = $this->stringifyReflectionType($ptype);
-                        //allow overriding an "array" type hint
+                        // allow overriding an "array" type hint
                         // with a more specific class in the docblock
                         if ($typeName !== 'array') {
-                            return array(
+                            return [
                                 true, $rmeth,
                                 $typeName,
                                 $isNullable,
-                            );
+                            ];
                         }
                     }
                 }
 
-                $docblock    = $rmeth->getDocComment();
+                $docblock = $rmeth->getDocComment();
                 $annotations = static::parseAnnotations($docblock);
 
-                if (!isset($annotations['param'][0])) {
-                    return array(true, $rmeth, null, $isNullable);
+                if (! isset($annotations['param'][0])) {
+                    return [true, $rmeth, null, $isNullable];
                 }
-                list($type) = explode(' ', trim($annotations['param'][0]));
-                return array(true, $rmeth, $type, $this->isNullable($type));
+                [$type] = explode(' ', trim($annotations['param'][0]));
+                return [true, $rmeth, $type, $this->isNullable($type)];
             }
         }
 
-        //now try to set the property directly
-        //we have to look it up in the class hierarchy
+        // now try to set the property directly
+        // we have to look it up in the class hierarchy
         $class = $rc;
         $rprop = null;
         do {
@@ -98,9 +96,9 @@ class JsonMapper extends \JsonMapper
         } while ($rprop === null && $class = $class->getParentClass());
 
         if ($rprop === null) {
-            //case-insensitive property matching
+            // case-insensitive property matching
             foreach ($rc->getProperties() as $p) {
-                if ((strcasecmp($p->name, $name) === 0)) {
+                if (strcasecmp($p->name, $name) === 0) {
                     $rprop = $p;
                     break;
                 }
@@ -108,48 +106,47 @@ class JsonMapper extends \JsonMapper
         }
         if ($rprop !== null) {
             if ($rprop->isPublic() || $this->bIgnoreVisibility) {
-                $docblock    = $rprop->getDocComment();
+                $docblock = $rprop->getDocComment();
                 // 修改
                 $annotations = $this->parseAnnotationsNew($rc, $rprop, $docblock);
 
-                if (!isset($annotations['var'][0])) {
+                if (! isset($annotations['var'][0])) {
                     // If there is no annotations (higher priority) inspect
                     // if there's a scalar type being defined
                     if (PHP_VERSION_ID >= 70400 && $rprop->hasType()) {
                         $rPropType = $rprop->getType();
                         $propTypeName = $this->stringifyReflectionType($rPropType);
                         if ($this->isSimpleType($propTypeName)) {
-                            return array(
+                            return [
                                 true,
                                 $rprop,
                                 $propTypeName,
-                                $rPropType->allowsNull()
-                            );
+                                $rPropType->allowsNull(),
+                            ];
                         }
 
-                        return array(
+                        return [
                             true,
                             $rprop,
                             '\\' . ltrim($propTypeName, '\\'),
-                            $rPropType->allowsNull()
-                        );
+                            $rPropType->allowsNull(),
+                        ];
                     }
 
-                    return array(true, $rprop, null, false);
+                    return [true, $rprop, null, false];
                 }
 
-                //support "@var type description"
-                list($type) = explode(' ', $annotations['var'][0]);
+                // support "@var type description"
+                [$type] = explode(' ', $annotations['var'][0]);
 
-                return array(true, $rprop, $type, $this->isNullable($type));
-            } else {
-                //no setter, private property
-                return array(true, null, null, false);
+                return [true, $rprop, $type, $this->isNullable($type)];
             }
+            // no setter, private property
+            return [true, null, null, false];
         }
 
-        //no setter, no property
-        return array(false, null, null, false);
+        // no setter, no property
+        return [false, null, null, false];
     }
 
     /**
@@ -173,7 +170,7 @@ class JsonMapper extends \JsonMapper
                 if ($isSimpleType) {
                     $annotations['var'][] = $type . '[]';
                 } else {
-                    $annotations['var'][] = '\\' . trim($type,'\\') . '[]';
+                    $annotations['var'][] = '\\' . trim($type, '\\') . '[]';
                 }
                 return $annotations;
             }

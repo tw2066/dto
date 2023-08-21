@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Ast;
 
+use Hyperf\Collection\Arr;
 use Hyperf\Di\Annotation\AnnotationCollector;
 use Hyperf\Di\Exception\Exception;
 use Hyperf\Di\ReflectionManager;
@@ -12,13 +13,13 @@ use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\DtoConfig;
 use Hyperf\Stringable\Str;
 use Hyperf\Support\Composer;
-use PhpParser\Error;
 use PhpParser\NodeTraverser;
 use PhpParser\ParserFactory;
 use PhpParser\PrettyPrinter;
 use SplFileInfo;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
+
 use function Hyperf\Support\make;
 
 class DtoProxyClass
@@ -27,7 +28,7 @@ class DtoProxyClass
 
     public function __construct(protected DtoConfig $dtoConfig)
     {
-        $this->getGenericClass();
+        $this->getJSONFieldClass();
         $proxyDir = $this->dtoConfig->getProxyDir();
         if (file_exists($proxyDir) === false) {
             if (mkdir($proxyDir, 0755, true) === false) {
@@ -36,7 +37,7 @@ class DtoProxyClass
         }
     }
 
-    public function getGenericClass()
+    public function getJSONFieldClass()
     {
         if ($this->classJSONFieldArr === null) {
             $arr = [];
@@ -81,14 +82,13 @@ class DtoProxyClass
         }
     }
 
-    public function genProxyFile(): void
+    protected function genProxyFile(): void
     {
-        $classes = AnnotationCollector::getClassesByAnnotation(Dto::class);
-        /**
-         * @var string $class
-         * @var Dto $dtoAnnotation
-         */
-        foreach ($classes as $class => $dtoAnnotation) {
+        $classes = $this->getScanClass();
+
+        foreach ($classes as $class) {
+            /** @var Dto $dtoAnnotation */
+            $dtoAnnotation = AnnotationCollector::getClassPropertyAnnotation($class, Dto::class);
             $rc = ReflectionManager::reflectClass($class);
             $files = new SplFileInfo($rc->getFileName());
             $arr = [];
@@ -102,9 +102,6 @@ class DtoProxyClass
                 if ($rc->hasMethod($getMethodName)) {
                     $propertyInfo->getMethodName = $getMethodName;
                 }
-//                if ($convert = $dtoAnnotation->requestConvert) {
-//                    $propertyInfo->alias = $convert->getValue($propertyName);
-//                }
                 if (isset($this->classJSONFieldArr[$class][$propertyName])) {
                     /** @var JSONField $JSONField */
                     $JSONField = $this->classJSONFieldArr[$class][$propertyName];
@@ -119,7 +116,7 @@ class DtoProxyClass
                     $isCreateJsonSerialize = true;
                     $propertyInfo->jsonArrKey = $convert->getValue($propertyName);
                 }
-                if ($convert = $dtoAnnotation->responseConvert) {
+                if ($convert = $dtoAnnotation?->responseConvert) {
                     $isCreateJsonSerialize = true;
                     $propertyInfo->jsonArrKey = $convert->getValue($propertyName);
                 }
@@ -137,6 +134,14 @@ class DtoProxyClass
             $content = $this->phpParser($class, $files->getRealPath(), $arr, $isCreateJsonSerialize);
             $this->putContents($class, $content, $files->getRealPath());
         }
+    }
+
+    protected function getScanClass(): array
+    {
+        $dtoClasses = AnnotationCollector::getClassesByAnnotation(Dto::class);
+        $jsonFieldClass = $this->getJSONFieldClass();
+
+        return Arr::merge(array_keys($dtoClasses), array_keys($jsonFieldClass));
     }
 
     protected function putContents($generateNamespaceClassName, $content, $realPath): void

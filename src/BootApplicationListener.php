@@ -16,9 +16,8 @@ class BootApplicationListener implements ListenerInterface
 {
     public function __construct(
         private ContainerInterface $container,
-        private DtoProxyClass      $dtoProxyClass
-    )
-    {
+        private DtoProxyClass $dtoProxyClass
+    ) {
     }
 
     public function listen(): array
