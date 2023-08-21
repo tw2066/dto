@@ -32,7 +32,7 @@ class DtoVisitor extends NodeVisitorAbstract
         protected string $classname,
         protected array $propertyArr,
         private bool $isCreateJsonSerialize,
-        private bool $isIsSetDefaultValue,
+        private int $dtoDefaultValueLevel,
     ) {
     }
 
@@ -43,23 +43,30 @@ class DtoVisitor extends NodeVisitorAbstract
             $fieldName = $prop->name->name;
             $type = $node->type;
             if (empty($prop->default)) {
-                if ($type instanceof Node\NullableType) {
+                // 简单类型
+                if ($type instanceof Node\Identifier && array_key_exists($dataTypeKey = $type->name, $this->dataTypeDefaultValue)) {
+                    $value = $this->dataTypeDefaultValue[$dataTypeKey];
+                    $default = $this->normalizeValue($value);
+                    $this->dtoDefaultValueLevel == 0 && $this->jsonSerializeNotDefaultValue[$fieldName] = $dataTypeKey;
+                } elseif ($type instanceof Node\NullableType) {
                     $default = new Node\Expr\ConstFetch(
                         new Node\Name(['null'])
                     );
-                    ! $this->isIsSetDefaultValue && $this->jsonSerializeNotDefaultValue[$fieldName] = null;
-                } else {
-                    $dataTypeKey = $type?->name;
-                    if (array_key_exists($dataTypeKey, $this->dataTypeDefaultValue)) {
-                        $value = $this->dataTypeDefaultValue[$dataTypeKey];
-                        $default = $this->normalizeValue($value);
+                    $this->dtoDefaultValueLevel == 0 && $this->jsonSerializeNotDefaultValue[$fieldName] = null;
+                } elseif ($type instanceof Node\Name || $type instanceof Node\Identifier) {
+                    if ($this->dtoDefaultValueLevel == 2) {
+                        $node->type = new Node\NullableType($type);
+                        $default = new Node\Expr\ConstFetch(
+                            new Node\Name(['null'])
+                        );
+                    } else {
+                        $this->jsonSerializeNotDefaultValue[$fieldName] = null;
                     }
-                    ! $this->isIsSetDefaultValue && $this->jsonSerializeNotDefaultValue[$fieldName] = $dataTypeKey;
                 }
             }
 
             // 设置变量默认值
-            if ($this->isIsSetDefaultValue && ! empty($default)) {
+            if ($this->dtoDefaultValueLevel > 0 && ! empty($default)) {
                 $node->props[0]->default = $default;
             }
         }
@@ -91,8 +98,8 @@ class DtoVisitor extends NodeVisitorAbstract
                             $aliasStmt->props[0] = $prop;
                             $aliasStmt->flags = Node\Stmt\Class_::MODIFIER_PRIVATE;
                             $class->stmts[] = $aliasStmt;
-                            //增加set方法
-                            $setter = DtoConfig::SET_DTO_METHOD_PREFIX . $alias;
+                            //增加set属性方法
+                            $setter = DtoConfig::getDtoAliasMethodName($alias);
                             $stmts = $this->createSetter($setter, $alias, $propertyName, $stmt->props[0]->default, $stmt->type);
                             //删除原有注解
                             //$stmt->attrGroups = [];

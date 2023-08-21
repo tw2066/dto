@@ -47,7 +47,7 @@ class JsonMapper extends \JsonMapper
     {
         //修改
         $isSetDtoMethod = true;
-        $setter = DtoConfig::SET_DTO_METHOD_PREFIX . $name;
+        $setter = DtoConfig::getDtoAliasMethodName($name);
         if(! $rc->hasMethod($setter)){
             $isSetDtoMethod = false;
             //try setter method first

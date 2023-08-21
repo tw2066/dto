@@ -20,7 +20,6 @@ use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\JsonMapper;
 use Hyperf\Stringable\Str;
 use Psr\Container\ContainerInterface;
-use Throwable;
 
 class Scan extends JsonMapper
 {
@@ -36,6 +35,7 @@ class Scan extends JsonMapper
      */
     public function scan(string $className, string $methodName): void
     {
+        // 设置方法中的参数.
         $this->setMethodParameters($className, $methodName);
         $definitionArr = $this->methodDefinitionCollector->getParameters($className, $methodName);
         $definitionArr[] = $this->methodDefinitionCollector->getReturnType($className, $methodName);
@@ -71,6 +71,7 @@ class Scan extends JsonMapper
             $arrSimpleType = null;
             $arrClassName = null;
             $type = $this->getTypeName($reflectionProperty);
+
             // php简单类型
             if ($this->isSimpleType($type)) {
                 $phpSimpleType = $type;
@@ -125,6 +126,22 @@ class Scan extends JsonMapper
     }
 
     /**
+     * 获取PHP类型.
+     */
+    public function getTypeName(\ReflectionProperty $rprop): string
+    {
+        if ($rprop->hasType()) {
+            $rPropType = $rprop->getType();
+            $propTypeName = $this->stringifyReflectionType($rPropType);
+            if ($this->isSimpleType($propTypeName)) {
+                return $propTypeName;
+            }
+            return '\\' . ltrim(explode('|', $propTypeName)[0], '\\');
+        }
+        return 'string';
+    }
+
+    /**
      * 生成验证数据.
      */
     protected function generateValidation(string $className, string $fieldName): void
@@ -154,7 +171,7 @@ class Scan extends JsonMapper
             if (empty($validation->getRule())) {
                 continue;
             }
-            //支持自定义key eg: required|date|after:start_date
+            // 支持自定义key eg: required|date|after:start_date
             $customKey = $validation->getCustomKey() ?: $fieldName;
             $rule = $validation->getRule();
             if (is_string($rule) && Str::contains($rule, '|')) {
@@ -183,19 +200,6 @@ class Scan extends JsonMapper
                 }
             }
         }
-    }
-
-    /**
-     * 获取PHP类型.
-     */
-    protected function getTypeName(\ReflectionProperty $rp): string
-    {
-        try {
-            $type = $rp->getType()->getName();
-        } catch (Throwable) {
-            $type = 'string';
-        }
-        return $type;
     }
 
     /**

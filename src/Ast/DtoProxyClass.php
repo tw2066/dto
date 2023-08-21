@@ -28,10 +28,10 @@ class DtoProxyClass
     public function __construct(protected DtoConfig $dtoConfig)
     {
         $this->getGenericClass();
-        $outputDir = $this->dtoConfig->getProxyDir();
-        if (file_exists($outputDir) === false) {
-            if (mkdir($outputDir, 0755, true) === false) {
-                throw new \Exception("Failed to create a directory : {$outputDir}");
+        $proxyDir = $this->dtoConfig->getProxyDir();
+        if (file_exists($proxyDir) === false) {
+            if (mkdir($proxyDir, 0755, true) === false) {
+                throw new \Exception("Failed to create a directory : {$proxyDir}");
             }
         }
     }
@@ -157,15 +157,10 @@ class DtoProxyClass
     {
         $code = file_get_contents($filePath);
         $parser = (new ParserFactory())->create(ParserFactory::PREFER_PHP7);
-
-        try {
-            $ast = $parser->parse($code);
-        } catch (Error $error) {
-            echo "Parse error: {$error->getMessage()}\n";
-        }
+        $ast = $parser->parse($code);
 
         $traverser = new NodeTraverser();
-        $resVisitor = make(DtoVisitor::class, [$classname, $propertyArr, $isCreateJsonSerialize, $this->dtoConfig->isIsSetDefaultValue()]);
+        $resVisitor = make(DtoVisitor::class, [$classname, $propertyArr, $isCreateJsonSerialize, $this->dtoConfig->getDtoDefaultValueLevel()]);
         $traverser->addVisitor($resVisitor);
         $ast = $traverser->traverse($ast);
         $prettyPrinter = new PrettyPrinter\Standard();

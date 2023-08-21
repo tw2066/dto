@@ -9,9 +9,11 @@ use Hyperf\DTO\Type\Convert;
 
 class DtoConfig
 {
-    const SET_DTO_METHOD_PREFIX = 'set_dto_alias_';
+    private static string $dto_alias_method_prefix = '_set_dto_alias_';
+
     private string $proxy_dir;
-    private bool $is_set_default_value = false;
+
+    private int $dto_default_value_level = 0;
 
     private ?Convert $responses_global_convert = null;
 
@@ -39,13 +41,13 @@ class DtoConfig
         $this->proxy_dir = rtrim($proxy_dir, '/') . '/';
     }
 
-    /**
-     * @return bool
-     */
-    public function isIsSetDefaultValue(): bool
+    public function getDtoDefaultValueLevel(): int
     {
-        return $this->is_set_default_value;
+        return $this->dto_default_value_level;
     }
 
-
+    public static function getDtoAliasMethodName(string $fieldName): string
+    {
+        return static::$dto_alias_method_prefix . $fieldName;
+    }
 }
