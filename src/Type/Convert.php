@@ -19,7 +19,7 @@ enum Convert: string
      */
     case SNAKE = 'snake';
     case NONE = 'none';
-//    case CUSTOM = 'custom';
+    case CUSTOM = 'custom';
 
     public function getValue(string $data): string
     {
@@ -28,6 +28,7 @@ enum Convert: string
             Convert::STUDLY => Str::studly($data),
             Convert::SNAKE => Str::snake($data),
             Convert::NONE => $data,
+            Convert::CUSTOM => ConvertCustom::getClosure()($data),
         };
     }
 }
