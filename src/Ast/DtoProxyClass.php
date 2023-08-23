@@ -11,6 +11,7 @@ use Hyperf\Di\ReflectionManager;
 use Hyperf\DTO\Annotation\Dto;
 use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\DtoConfig;
+use Hyperf\DTO\Exception\DtoException;
 use Hyperf\Stringable\Str;
 use Hyperf\Support\Composer;
 use PhpParser\NodeTraverser;
@@ -32,12 +33,12 @@ class DtoProxyClass
         $proxyDir = $this->dtoConfig->getProxyDir();
         if (file_exists($proxyDir) === false) {
             if (mkdir($proxyDir, 0755, true) === false) {
-                throw new \Exception("Failed to create a directory : {$proxyDir}");
+                throw new DtoException("Failed to create a directory : {$proxyDir}");
             }
         }
     }
 
-    public function getJSONFieldClass()
+    public function getJSONFieldClass(): ?array
     {
         if ($this->classJSONFieldArr === null) {
             $arr = [];
@@ -51,7 +52,7 @@ class DtoProxyClass
         return $this->classJSONFieldArr;
     }
 
-    public function generic()
+    public function generic(): void
     {
         $pid = pcntl_fork();
         if ($pid == -1) {
@@ -172,7 +173,7 @@ class DtoProxyClass
         return $prettyPrinter->prettyPrintFile($ast);
     }
 
-    private function removeProxies($dir)
+    private function removeProxies($dir): void
     {
         $filesystem = new Filesystem();
         if (! $filesystem->exists($dir)) {

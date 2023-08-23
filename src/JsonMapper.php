@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Hyperf\DTO;
 
 use Hyperf\DTO\Annotation\ArrayType;
+use Hyperf\DTO\Type\PhpType;
 use phpDocumentor\Reflection\DocBlock\Tags\Var_;
 use phpDocumentor\Reflection\DocBlockFactory;
 use phpDocumentor\Reflection\Types\ContextFactory;
@@ -166,6 +167,9 @@ class JsonMapper extends \JsonMapper
         if (! empty($arrayType)) {
             $type = $arrayType->getArguments()[0] ?? $arrayType->getArguments()['value'] ?? null;
             if (! empty($type)) {
+                if ($type instanceof PhpType) {
+                    $type = $type->getValue();
+                }
                 $isSimpleType = $this->isSimpleType($type);
                 if ($isSimpleType) {
                     $annotations['var'][] = $type . '[]';

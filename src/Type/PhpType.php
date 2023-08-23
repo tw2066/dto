@@ -12,4 +12,9 @@ enum PhpType: string
     case ARRAY = 'array';
     case OBJECT = 'object';
     case INT = 'int';
+
+    public function getValue()
+    {
+        return $this->value;
+    }
 }
