@@ -18,6 +18,20 @@ use ReflectionProperty;
 class JsonMapper extends \JsonMapper
 {
     /**
+     * Log a message to the $logger object.
+     *
+     * @param string $level Logging level
+     * @param string $message Text to log
+     * @param array $context Additional information
+     */
+    protected function log($level, $message, array $context = [])
+    {
+        if ($this->logger) {
+            $this->logger->log('debug', $message, $context);
+        }
+    }
+
+    /**
      * Map data all data in $json into the given $object instance.
      *
      * @param object|array        $json   JSON object structure from json_decode()
