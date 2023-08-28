@@ -12,5 +12,5 @@ use Attribute;
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class Arr extends BaseValidation
 {
-    public mixed $rule = 'array';
+    protected mixed $rule = 'array';
 }

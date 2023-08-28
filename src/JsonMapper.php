@@ -159,7 +159,7 @@ class JsonMapper extends \JsonMapper
      *               Key is the "@"-name like "param",
      *               each value is an array of the rest of the @-lines
      */
-    protected function parseAnnotationsNew(ReflectionClass $rc, ReflectionProperty $reflectionProperty, $docblock): array
+    public function parseAnnotationsNew(ReflectionClass $rc, ReflectionProperty $reflectionProperty, $docblock): array
     {
         $annotations = [];
         /** @var ReflectionAttribute $arrayType */

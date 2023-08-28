@@ -17,7 +17,7 @@ class DtoValidation
 
     private ?ValidatorFactoryInterface $validationFactory = null;
 
-    public function __construct()
+    public function __construct(protected PropertyManager $propertyManager,protected ValidationManager $validationManager)
     {
         $container = ApplicationContext::getContainer();
         if ($container->has(ValidatorFactoryInterface::class)) {
@@ -39,7 +39,7 @@ class DtoValidation
             throw new DtoException('Class:' . $className . ' data must be object or array');
         }
 
-        $validArr = ValidationManager::getData($className);
+        $validArr = $this->validationManager->getData($className);
         if (empty($validArr)) {
             return;
         }
@@ -53,7 +53,7 @@ class DtoValidation
             throw new ValidationException($validator);
         }
         // 递归校验判断
-        $notSimplePropertyArr = PropertyManager::getPropertyAndNotSimpleType($className);
+        $notSimplePropertyArr = $this->propertyManager->getPropertyAndNotSimpleType($className);
         foreach ($notSimplePropertyArr as $fieldName => $property) {
             if (! empty($data[$fieldName])) {
                 if ($property->isClassArray()) {

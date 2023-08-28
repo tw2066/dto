@@ -7,6 +7,7 @@ namespace Hyperf\DTO\Scan;
 use BackedEnum;
 use ReflectionEnum;
 
+use ReflectionException;
 use function Hyperf\Collection\collect;
 
 class PropertyEnum
@@ -26,18 +27,17 @@ class PropertyEnum
      */
     public ?array $valueList = null;
 
-    public static function get(string $className): ?PropertyEnum
+    public function get(string $className): ?PropertyEnum
     {
-        /* @phpstan-ignore-next-line */
-        if (PHP_VERSION_ID < 80100 || ! is_subclass_of($className, BackedEnum::class)) {
+        if (! is_subclass_of($className, BackedEnum::class)) {
             return null;
         }
-        $propertyEnum = new PropertyEnum();
+        $propertyEnum = new static();
         try {
             /* @phpstan-ignore-next-line */
             $rEnum = new ReflectionEnum($className);
             $propertyEnum->backedType = (string) $rEnum->getBackingType();
-        } catch (\ReflectionException) {
+        } catch (ReflectionException) {
             $propertyEnum->backedType = 'string';
         }
         $propertyEnum->className = trim($className, '\\');

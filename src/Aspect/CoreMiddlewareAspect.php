@@ -36,7 +36,7 @@ class CoreMiddlewareAspect
 
     protected int $hyperfVersion = 31;
 
-    public function __construct(private ContainerInterface $container)
+    public function __construct(private ContainerInterface $container,protected MethodParametersManager $methodParametersManager)
     {
         // hyperf/http-server version
         $version = Composer::getVersions()['hyperf/http-server'] ?? '';
@@ -190,7 +190,7 @@ class CoreMiddlewareAspect
     private function validateAndMap(string $callableName, string $paramName, string $className, $obj): mixed
     {
         [$controllerName, $methodName] = explode('::', $callableName);
-        $methodParameter = MethodParametersManager::getMethodParameter($controllerName, $methodName, $paramName);
+        $methodParameter = $this->methodParametersManager->getMethodParameter($controllerName, $methodName, $paramName);
         if ($methodParameter == null) {
             return $obj;
         }

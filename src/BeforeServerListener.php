@@ -50,7 +50,7 @@ class BeforeServerListener implements ListenerInterface
             try {
                 $tcpRouter = $container->get(TcpRouter::class);
                 $router = $tcpRouter->getRouter($serverName);
-            } catch (Throwable $throwable) {
+            } catch (Throwable) {
                 return;
             }
         } else {

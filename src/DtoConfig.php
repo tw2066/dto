@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Hyperf\DTO;
 
 use Hyperf\Contract\ConfigInterface;
+use Hyperf\Di\ScanHandler\PcntlScanHandler;
+use Hyperf\Di\ScanHandler\ScanHandlerInterface;
 use Hyperf\DTO\Type\Convert;
 
 class DtoConfig
@@ -16,6 +18,7 @@ class DtoConfig
     private int $dto_default_value_level = 0;
 
     private ?Convert $responses_global_convert = null;
+    private ?ScanHandlerInterface $scan_handler = null;
 
     public function __construct(ConfigInterface $config)
     {
@@ -50,4 +53,13 @@ class DtoConfig
     {
         return static::$dto_alias_method_prefix . $fieldName;
     }
+
+    /**
+     * @return ScanHandlerInterface
+     */
+    public function getScanHandler(): ScanHandlerInterface
+    {
+        return $this->scan_handler ?? new PcntlScanHandler();
+    }
+
 }

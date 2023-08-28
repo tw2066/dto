@@ -6,8 +6,8 @@ namespace Hyperf\DTO\Ast;
 
 use Hyperf\Collection\Arr;
 use Hyperf\Di\Annotation\AnnotationCollector;
-use Hyperf\Di\Exception\Exception;
 use Hyperf\Di\ReflectionManager;
+use Hyperf\Di\ScanHandler\ScanHandlerInterface;
 use Hyperf\DTO\Annotation\Dto;
 use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\DtoConfig;
@@ -27,6 +27,8 @@ class DtoProxyClass
 {
     protected ?array $classJSONFieldArr = null;
 
+    protected ScanHandlerInterface $handler;
+
     public function __construct(protected DtoConfig $dtoConfig)
     {
         $this->getJSONFieldClass();
@@ -36,6 +38,7 @@ class DtoProxyClass
                 throw new DtoException("Failed to create a directory : {$proxyDir}");
             }
         }
+        $this->handler = $this->dtoConfig->getScanHandler();
     }
 
     public function getJSONFieldClass(): ?array
@@ -54,13 +57,9 @@ class DtoProxyClass
 
     public function generic(): void
     {
-        $pid = pcntl_fork();
-        if ($pid == -1) {
-            throw new Exception('The process fork failed');
-        }
-        if ($pid) {
-            pcntl_wait($status);
-            $proxyDir = $this->dtoConfig->getProxyDir();
+        $scanned = $this->handler->scan();
+        $proxyDir = $this->dtoConfig->getProxyDir();
+        if ($scanned->isScanned()) {
             if (! is_dir($proxyDir)) {
                 return;
             }
@@ -75,12 +74,11 @@ class DtoProxyClass
             }
             $classLoader->addClassMap($classMap);
             $classLoader->register(true);
-        } else {
-            $proxyDir = $this->dtoConfig->getProxyDir();
-            $this->removeProxies($proxyDir);
-            $this->genProxyFile();
-            exit;
+            return;
         }
+        $this->removeProxies($proxyDir);
+        $this->genProxyFile();
+        exit;
     }
 
     protected function genProxyFile(): void

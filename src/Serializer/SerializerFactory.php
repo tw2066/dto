@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Serializer;
 
-use Hyperf\Utils\Serializer\ExceptionNormalizer;
-use Hyperf\Utils\Serializer\ScalarNormalizer;
+use Hyperf\Serializer\ExceptionNormalizer;
+use Hyperf\Serializer\ScalarNormalizer;
 use Symfony\Component\Serializer\Normalizer\ArrayDenormalizer;
 use Symfony\Component\Serializer\Serializer;
 

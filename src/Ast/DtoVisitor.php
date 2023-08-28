@@ -29,8 +29,8 @@ class DtoVisitor extends NodeVisitorAbstract
     public function __construct(
         protected string $classname,
         protected array $propertyArr,
-        private bool $isCreateJsonSerialize,
-        private int $dtoDefaultValueLevel,
+        protected bool $isCreateJsonSerialize,
+        protected int $dtoDefaultValueLevel,
     ) {
     }
 
