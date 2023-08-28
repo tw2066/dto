@@ -87,7 +87,7 @@ class DtoProxyClass
 
         foreach ($classes as $class) {
             /** @var Dto $dtoAnnotation */
-            $dtoAnnotation = AnnotationCollector::getClassPropertyAnnotation($class, Dto::class);
+            $dtoAnnotation = AnnotationCollector::getClassAnnotation($class, Dto::class);
             $rc = ReflectionManager::reflectClass($class);
             $files = new SplFileInfo($rc->getFileName());
             $arr = [];
