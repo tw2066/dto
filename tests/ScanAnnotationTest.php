@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace HyperfTest\DTO;
 
-use Hyperf\ApiDocs\Swagger\SwaggerCommon;
 use Hyperf\Di\Annotation\AnnotationCollector;
 use Hyperf\Di\MethodDefinitionCollector;
 use Hyperf\Di\MethodDefinitionCollectorInterface;
+use Hyperf\DTO\DtoCommon;
 use Hyperf\DTO\Scan\PropertyEnum;
 use Hyperf\DTO\Scan\PropertyManager;
 use HyperfTest\DTO\Request\Address;
@@ -36,9 +36,9 @@ class ScanAnnotationTest extends TestCase
         $container->shouldReceive('has')->andReturn(true);
         $container->shouldReceive('get')->with(MethodDefinitionCollectorInterface::class)->andReturn(new MethodDefinitionCollector());
 
-        $swaggerCommon = new SwaggerCommon();
+        $dtoCommon = new DtoCommon();
 
-        $propertyManager = new PropertyManager($swaggerCommon, new PropertyEnum());
+        $propertyManager = new PropertyManager($dtoCommon, new PropertyEnum());
 
         $property = $propertyManager->getProperty(DemoBodyRequest::class, 'int');
         $this->assertSame('int', $property->phpSimpleType);
