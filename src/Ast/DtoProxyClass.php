@@ -18,7 +18,6 @@ use PhpParser\NodeTraverser;
 use PhpParser\ParserFactory;
 use PhpParser\PrettyPrinter;
 use SplFileInfo;
-use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
 
 use function Hyperf\Support\make;
@@ -173,11 +172,14 @@ class DtoProxyClass
 
     private function removeProxies($dir): void
     {
-        $filesystem = new Filesystem();
-        if (! $filesystem->exists($dir)) {
+        if (! is_dir($dir)) {
             return;
         }
         $finder = (new Finder())->files()->name('*.dto.proxy.php')->in($dir);
-        $filesystem->remove($finder);
+        $files = $finder->files();
+        /** @var \Symfony\Component\Finder\SplFileInfo $file */
+        foreach ($files as $file) {
+            unlink($file->getRealPath());
+        }
     }
 }
