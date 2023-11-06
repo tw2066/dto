@@ -22,7 +22,7 @@ class TcpRouter
 
     public function getRouter($serverName)
     {
-        $data = make(DispatcherFactory::class, [
+        $data = \Hyperf\Support\make(DispatcherFactory::class, [
             'pathGenerator' => $this->getProtocol()->getPathGenerator(),
         ]);
         return $data->getRouter($serverName);

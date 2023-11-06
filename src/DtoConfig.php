@@ -13,7 +13,7 @@ class DtoConfig
 {
     private static string $dto_alias_method_prefix = '_set_dto_alias_';
 
-    private string $proxy_dir;
+    private string $proxy_dir = '';
 
     private int $dto_default_value_level = 0;
 
