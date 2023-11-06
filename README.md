@@ -1,5 +1,7 @@
-## PHP Swagger Api Docs
-
+## PHP Swagger DTO
+[![Latest Stable Version](https://img.shields.io/packagist/v/tangwei/dto)](https://packagist.org/packages/tangwei/dto)
+[![Total Downloads](https://img.shields.io/packagist/dt/tangwei/dto)](https://packagist.org/packages/tangwei/dto)
+[![License](https://img.shields.io/packagist/l/tangwei/dto)](https://github.com/tw2066/dto)
 基于 [Hyperf](https://github.com/hyperf/hyperf) 框架的 DTO 类映射
 
 ##### 优点
