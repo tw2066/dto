@@ -9,14 +9,13 @@ use Hyperf\Context\Context;
 use Hyperf\Contract\Arrayable;
 use Hyperf\Contract\Jsonable;
 use Hyperf\Di\Aop\ProceedingJoinPoint;
+use Hyperf\Di\ReflectionType;
 use Hyperf\DTO\DtoValidation;
 use Hyperf\DTO\Mapper;
 use Hyperf\DTO\Scan\MethodParametersManager;
 use Hyperf\HttpMessage\Server\ResponsePlusProxy;
 use Hyperf\HttpMessage\Stream\SwooleStream;
 use Hyperf\HttpServer\CoreMiddleware;
-use Hyperf\Stringable\Str;
-use Hyperf\Support\Composer;
 use InvalidArgumentException;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
@@ -34,15 +33,11 @@ class CoreMiddlewareAspect
         CoreMiddleware::class . '::transferToResponse',
     ];
 
-    protected int $hyperfVersion = 31;
+    protected bool $isExistsResponsePlusProxy;
 
     public function __construct(private ContainerInterface $container,protected MethodParametersManager $methodParametersManager)
     {
-        // hyperf/http-server version
-        $version = Composer::getVersions()['hyperf/http-server'] ?? '';
-        if (Str::startsWith($version, 'v3.0.')) {
-            $this->hyperfVersion = 30;
-        }
+        $this->isExistsResponsePlusProxy = class_exists(ResponsePlusProxy::class);
     }
 
     /**
@@ -55,9 +50,6 @@ class CoreMiddlewareAspect
         if ($proceedingJoinPoint->methodName === 'transferToResponse') {
             $response = $proceedingJoinPoint->arguments['keys']['response'];
             $request = $proceedingJoinPoint->arguments['keys']['request'];
-            if ($this->hyperfVersion === 30) {
-                return $this->transferToResponse30($response, $request);
-            }
             return $this->transferToResponse($response, $request);
         }
 
@@ -81,48 +73,17 @@ class CoreMiddlewareAspect
     /**
      * Transfer the non-standard response content to a standard response object.
      *
-     * @param null|array|Arrayable|Jsonable|string $response
-     */
-    protected function transferToResponse30($response, ServerRequestInterface $request): ResponseInterface
-    {
-        if (is_string($response)) {
-            return $this->response()->withAddedHeader('content-type', 'text/plain')->withBody(new SwooleStream($response));
-        }
-
-        if (is_array($response) || $response instanceof Arrayable) {
-            return $this->response()
-                ->withAddedHeader('content-type', 'application/json')
-                ->withBody(new SwooleStream(Json::encode($response)));
-        }
-
-        if ($response instanceof Jsonable) {
-            return $this->response()
-                ->withAddedHeader('content-type', 'application/json')
-                ->withBody(new SwooleStream((string) $response));
-        }
-        // object
-        if (is_object($response)) {
-            return $this->response()
-                ->withAddedHeader('content-type', 'application/json')
-                ->withBody(new SwooleStream(Json::encode($response)));
-        }
-
-        if ($this->response()->hasHeader('content-type')) {
-            return $this->response()->withBody(new SwooleStream((string) $response));
-        }
-
-        return $this->response()->withAddedHeader('content-type', 'text/plain')->withBody(new SwooleStream((string) $response));
-    }
-
-    /**
-     * Transfer the non-standard response content to a standard response object.
-     *
      * @param null|array|Arrayable|Jsonable|ResponseInterface|string $response
      */
     protected function transferToResponse($response, ServerRequestInterface $request): ResponsePlusInterface
     {
         if (is_string($response)) {
             return $this->response()->addHeader('content-type', 'text/plain')->setBody(new SwooleStream($response));
+        }
+
+        //isExistsResponsePlusProxy
+        if ($this->isExistsResponsePlusProxy && $response instanceof ResponseInterface) {
+            return new ResponsePlusProxy($response);
         }
 
         if (is_array($response) || $response instanceof Arrayable) {
@@ -135,10 +96,6 @@ class CoreMiddlewareAspect
             return $this->response()
                 ->addHeader('content-type', 'application/json')
                 ->setBody(new SwooleStream((string) $response));
-        }
-
-        if ($response instanceof ResponseInterface) {
-            return new ResponsePlusProxy($response);
         }
 
         // object
@@ -155,20 +112,23 @@ class CoreMiddlewareAspect
         return $this->response()->addHeader('content-type', 'text/plain')->setBody(new SwooleStream((string) $response));
     }
 
+    /**
+     * @param ReflectionType[] $definitions
+     */
     private function getInjections(array $definitions, string $callableName, array $arguments, $coreMiddleware): array
     {
         $injections = [];
-        foreach ($definitions ?? [] as $pos => $definition) {
+        foreach ($definitions as $pos => $definition) {
             $value = $arguments[$pos] ?? $arguments[$definition->getMeta('name')] ?? null;
             if ($value === null) {
                 if ($definition->getMeta('defaultValueAvailable')) {
                     $injections[] = $definition->getMeta('defaultValue');
-                } elseif ($definition->allowsNull()) {
-                    $injections[] = null;
                 } elseif ($this->container->has($definition->getName())) {
                     // 修改
                     $obj = $this->container->get($definition->getName());
                     $injections[] = $this->validateAndMap($callableName, $definition->getMeta('name'), $definition->getName(), $obj);
+                } elseif ($definition->allowsNull()) {
+                    $injections[] = null;
                 } else {
                     throw new InvalidArgumentException("Parameter '{$definition->getMeta('name')}' "
                         . "of {$callableName} should not be null");
@@ -187,7 +147,7 @@ class CoreMiddlewareAspect
      * @throws ContainerExceptionInterface
      * @throws NotFoundExceptionInterface
      */
-    private function validateAndMap(string $callableName, string $paramName, string $className, $obj): mixed
+    protected function validateAndMap(string $callableName, string $paramName, string $className, $obj): mixed
     {
         [$controllerName, $methodName] = explode('::', $callableName);
         $methodParameter = $this->methodParametersManager->getMethodParameter($controllerName, $methodName, $paramName);
