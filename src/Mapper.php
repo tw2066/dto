@@ -43,7 +43,7 @@ class Mapper
     {
         if (! isset(static::$jsonMapper[$key])) {
             $jsonMapper = new JsonMapper();
-            $logger = ApplicationContext::getContainer()->get(StdoutLoggerInterface::class);
+            $logger = ApplicationContext::hasContainer() ? ApplicationContext::getContainer()->get(StdoutLoggerInterface::class) : null;
             $jsonMapper->setLogger($logger);
             // 将数组传递给映射
             $jsonMapper->bEnforceMapType = false;

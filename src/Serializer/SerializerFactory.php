@@ -9,6 +9,9 @@ use Hyperf\Serializer\ScalarNormalizer;
 use Symfony\Component\Serializer\Normalizer\ArrayDenormalizer;
 use Symfony\Component\Serializer\Serializer;
 
+/**
+ * @deprecated
+ */
 class SerializerFactory
 {
     protected string $serializer;

@@ -9,6 +9,9 @@ use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
 
 use function Hyperf\Support\make;
 
+/**
+ * @deprecated
+ */
 class ObjectDtoNormalizer extends ObjectNormalizer
 {
     public function denormalize($data, string $type, string $format = null, array $context = [])

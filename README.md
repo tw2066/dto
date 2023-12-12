@@ -154,11 +154,17 @@ class Image extends BaseValidation
     protected $rule = 'image';
 }
 ```
-## RPC 返回PHP对象
+## RPC [返回PHP对象](https://hyperf.wiki/3.1/#/zh-cn/json-rpc?id=%e8%bf%94%e5%9b%9e-php-%e5%af%b9%e8%b1%a1)
+> aspects.php中配置
+```php
+return [
+    \Hyperf\DTO\Aspect\ObjectNormalizerAspect::class
+]
+```
 > 当框架导入 symfony/serializer (^5.0) 和 symfony/property-access (^5.0) 后，并在 dependencies.php 中配置一下映射关系
 ```php
-use Hyperf\DTO\Serializer\SerializerFactory;
-use Hyperf\Utils\Serializer\Serializer;
+use Hyperf\Serializer\SerializerFactory;
+use Hyperf\Serializer\Serializer;
 
 return [
     Hyperf\Contract\NormalizerInterface::class => new SerializerFactory(Serializer::class),
