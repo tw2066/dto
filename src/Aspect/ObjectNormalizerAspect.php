@@ -6,14 +6,13 @@ namespace Hyperf\DTO\Aspect;
 
 use Hyperf\Di\Aop\ProceedingJoinPoint;
 use Hyperf\DTO\Mapper;
-use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
 
 use function Hyperf\Support\make;
 
 class ObjectNormalizerAspect
 {
     public array $classes = [
-        AbstractObjectNormalizer::class . '::denormalize',
+        'Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer::denormalize',
     ];
 
     /**
