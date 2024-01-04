@@ -33,11 +33,13 @@ class CoreMiddlewareAspect
         CoreMiddleware::class . '::transferToResponse',
     ];
 
-    protected bool $isExistsResponsePlusProxy;
+    protected int $hyperfVersion = 31;
 
-    public function __construct(private ContainerInterface $container,protected MethodParametersManager $methodParametersManager)
+    public function __construct(private ContainerInterface $container, protected MethodParametersManager $methodParametersManager)
     {
-        $this->isExistsResponsePlusProxy = class_exists(ResponsePlusProxy::class);
+        if (! method_exists($this->response(), 'addHeader')) {
+            $this->hyperfVersion = 30;
+        }
     }
 
     /**
@@ -50,6 +52,9 @@ class CoreMiddlewareAspect
         if ($proceedingJoinPoint->methodName === 'transferToResponse') {
             $response = $proceedingJoinPoint->arguments['keys']['response'];
             $request = $proceedingJoinPoint->arguments['keys']['request'];
+            if ($this->hyperfVersion === 30) {
+                return $this->transferToResponse30($response, $request);
+            }
             return $this->transferToResponse($response, $request);
         }
 
@@ -81,8 +86,7 @@ class CoreMiddlewareAspect
             return $this->response()->addHeader('content-type', 'text/plain')->setBody(new SwooleStream($response));
         }
 
-        //isExistsResponsePlusProxy
-        if ($this->isExistsResponsePlusProxy && $response instanceof ResponseInterface) {
+        if ($response instanceof ResponseInterface) {
             return new ResponsePlusProxy($response);
         }
 
@@ -112,33 +116,36 @@ class CoreMiddlewareAspect
         return $this->response()->addHeader('content-type', 'text/plain')->setBody(new SwooleStream((string) $response));
     }
 
-    /**
-     * @param ReflectionType[] $definitions
-     */
-    private function getInjections(array $definitions, string $callableName, array $arguments, $coreMiddleware): array
+    protected function transferToResponse30($response, ServerRequestInterface $request): ResponseInterface
     {
-        $injections = [];
-        foreach ($definitions as $pos => $definition) {
-            $value = $arguments[$pos] ?? $arguments[$definition->getMeta('name')] ?? null;
-            if ($value === null) {
-                if ($definition->getMeta('defaultValueAvailable')) {
-                    $injections[] = $definition->getMeta('defaultValue');
-                } elseif ($this->container->has($definition->getName())) {
-                    // 修改
-                    $obj = $this->container->get($definition->getName());
-                    $injections[] = $this->validateAndMap($callableName, $definition->getMeta('name'), $definition->getName(), $obj);
-                } elseif ($definition->allowsNull()) {
-                    $injections[] = null;
-                } else {
-                    throw new InvalidArgumentException("Parameter '{$definition->getMeta('name')}' "
-                        . "of {$callableName} should not be null");
-                }
-            } else {
-                // 标记
-                $injections[] = $coreMiddleware->getNormalizer()->denormalize($value, $definition->getName());
-            }
+        if (is_string($response)) {
+            return $this->response()->withAddedHeader('content-type', 'text/plain')->withBody(new SwooleStream($response));
         }
-        return $injections;
+
+        if (is_array($response) || $response instanceof Arrayable) {
+            return $this->response()
+                ->withAddedHeader('content-type', 'application/json')
+                ->withBody(new SwooleStream(Json::encode($response)));
+        }
+
+        if ($response instanceof Jsonable) {
+            return $this->response()
+                ->withAddedHeader('content-type', 'application/json')
+                ->withBody(new SwooleStream((string) $response));
+        }
+
+        // object
+        if (is_object($response)) {
+            return $this->response()
+                ->addHeader('content-type', 'application/json')
+                ->setBody(new SwooleStream(Json::encode($response)));
+        }
+
+        if ($this->response()->hasHeader('content-type')) {
+            return $this->response()->withBody(new SwooleStream((string) $response));
+        }
+
+        return $this->response()->withHeader('content-type', 'text/plain')->withBody(new SwooleStream((string) $response));
     }
 
     /**
@@ -174,5 +181,35 @@ class CoreMiddlewareAspect
             $validationDTO->validate($className, $param);
         }
         return Mapper::map($param, make($className));
+    }
+
+    /**
+     * @param ReflectionType[] $definitions
+     * @param mixed $coreMiddleware
+     */
+    private function getInjections(array $definitions, string $callableName, array $arguments, $coreMiddleware): array
+    {
+        $injections = [];
+        foreach ($definitions as $pos => $definition) {
+            $value = $arguments[$pos] ?? $arguments[$definition->getMeta('name')] ?? null;
+            if ($value === null) {
+                if ($definition->getMeta('defaultValueAvailable')) {
+                    $injections[] = $definition->getMeta('defaultValue');
+                } elseif ($this->container->has($definition->getName())) {
+                    // 修改
+                    $obj = $this->container->get($definition->getName());
+                    $injections[] = $this->validateAndMap($callableName, $definition->getMeta('name'), $definition->getName(), $obj);
+                } elseif ($definition->allowsNull()) {
+                    $injections[] = null;
+                } else {
+                    throw new InvalidArgumentException("Parameter '{$definition->getMeta('name')}' "
+                        . "of {$callableName} should not be null");
+                }
+            } else {
+                // 标记
+                $injections[] = $coreMiddleware->getNormalizer()->denormalize($value, $definition->getName());
+            }
+        }
+        return $injections;
     }
 }
