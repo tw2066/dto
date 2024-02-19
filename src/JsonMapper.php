@@ -55,39 +55,40 @@ class JsonMapper extends \JsonMapper
 
         if ($rc->hasMethod($setter)) {
             $rmeth = $rc->getMethod($setter);
+            // 修改
             if ($rmeth->isPublic() || $this->bIgnoreVisibility || $isSetDtoMethod) {
                 $isNullable = false;
                 $rparams = $rmeth->getParameters();
                 if (count($rparams) > 0) {
                     $isNullable = $rparams[0]->allowsNull();
-                    $ptype = $rparams[0]->getType();
+                    $ptype      = $rparams[0]->getType();
                     if ($ptype !== null) {
                         $typeName = $this->stringifyReflectionType($ptype);
-                        // allow overriding an "array" type hint
+                        //allow overriding an "array" type hint
                         // with a more specific class in the docblock
                         if ($typeName !== 'array') {
-                            return [
+                            return array(
                                 true, $rmeth,
                                 $typeName,
                                 $isNullable,
-                            ];
+                            );
                         }
                     }
                 }
 
-                $docblock = $rmeth->getDocComment();
+                $docblock    = $rmeth->getDocComment();
                 $annotations = static::parseAnnotations($docblock);
 
-                if (! isset($annotations['param'][0])) {
-                    return [true, $rmeth, null, $isNullable];
+                if (!isset($annotations['param'][0])) {
+                    return array(true, $rmeth, null, $isNullable);
                 }
-                [$type] = explode(' ', trim($annotations['param'][0]));
-                return [true, $rmeth, $type, $this->isNullable($type)];
+                list($type) = explode(' ', trim($annotations['param'][0]));
+                return array(true, $rmeth, $type, $this->isNullable($type));
             }
         }
 
-        // now try to set the property directly
-        // we have to look it up in the class hierarchy
+        //now try to set the property directly
+        //we have to look it up in the class hierarchy
         $class = $rc;
         $rprop = null;
         do {
@@ -97,10 +98,11 @@ class JsonMapper extends \JsonMapper
         } while ($rprop === null && $class = $class->getParentClass());
 
         if ($rprop === null) {
-            // case-insensitive property matching
+            //case-insensitive property matching
             foreach ($rc->getProperties() as $p) {
-                if (strcasecmp($p->name, $name) === 0) {
+                if ((strcasecmp($p->name, $name) === 0)) {
                     $rprop = $p;
+                    $class = $rc;
                     break;
                 }
             }
@@ -108,46 +110,65 @@ class JsonMapper extends \JsonMapper
         if ($rprop !== null) {
             if ($rprop->isPublic() || $this->bIgnoreVisibility) {
                 $docblock = $rprop->getDocComment();
+                if (PHP_VERSION_ID >= 80000 && $docblock === false
+                    && $class->hasMethod('__construct')
+                ) {
+                    $docblock = $class->getMethod('__construct')->getDocComment();
+                }
                 // 修改
                 $annotations = $this->parseAnnotationsNew($rc, $rprop, $docblock);
 
-                if (! isset($annotations['var'][0])) {
+                if (!isset($annotations['var'][0])) {
+                    if (PHP_VERSION_ID >= 80000 && $rprop->hasType()
+                        && isset($annotations['param'])
+                    ) {
+                        foreach ($annotations['param'] as $param) {
+                            if (strpos($param, '$' . $rprop->getName()) !== false) {
+                                list($type) = explode(' ', $param);
+                                return array(
+                                    true, $rprop, $type, $this->isNullable($type)
+                                );
+                            }
+                        }
+                    }
+
                     // If there is no annotations (higher priority) inspect
                     // if there's a scalar type being defined
                     if (PHP_VERSION_ID >= 70400 && $rprop->hasType()) {
                         $rPropType = $rprop->getType();
                         $propTypeName = $this->stringifyReflectionType($rPropType);
                         if ($this->isSimpleType($propTypeName)) {
-                            return [
+                            return array(
                                 true,
                                 $rprop,
                                 $propTypeName,
-                                $rPropType->allowsNull(),
-                            ];
+                                $rPropType->allowsNull()
+                            );
                         }
 
-                        return [
+                        return array(
                             true,
                             $rprop,
                             '\\' . ltrim($propTypeName, '\\'),
-                            $rPropType->allowsNull(),
-                        ];
+                            $rPropType->allowsNull()
+                        );
                     }
 
-                    return [true, $rprop, null, false];
+                    return array(true, $rprop, null, false);
                 }
 
-                // support "@var type description"
-                [$type] = explode(' ', $annotations['var'][0]);
+                //support "@var type description"
+                list($type) = explode(' ', $annotations['var'][0]);
 
-                return [true, $rprop, $type, $this->isNullable($type)];
+                return array(true, $rprop, $type, $this->isNullable($type));
+            } else {
+                //no setter, private property
+                return array(true, null, null, false);
             }
-            // no setter, private property
-            return [true, null, null, false];
         }
 
-        // no setter, no property
-        return [false, null, null, false];
+        //no setter, no property
+        return array(false, null, null, false);
     }
 
     /**
