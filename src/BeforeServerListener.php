@@ -8,6 +8,7 @@ use Closure;
 use Hyperf\Context\ApplicationContext;
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\DTO\Event\AfterDtoStart;
+use Hyperf\DTO\Event\BeforeDtoStart;
 use Hyperf\DTO\Router\TcpRouter;
 use Hyperf\DTO\Scan\Scan;
 use Hyperf\Event\Contract\ListenerInterface;
@@ -27,6 +28,7 @@ class BeforeServerListener implements ListenerInterface
     public function listen(): array
     {
         return [
+            BeforeDtoStart::class,
             BeforeServerStart::class,
             MainCoroutineServerStart::class,
         ];
