@@ -24,7 +24,6 @@ class DtoConfig
 
     public function __construct(ConfigInterface $config)
     {
-        $this->scan_cacheable = $config->get('scan_cacheable',false);
         $data = $config->get('dto', []) ?: $config->get('api_docs', []);
         $jsonMapper = Mapper::getJsonMapper('bIgnoreVisibility');
         // 私有属性和函数
