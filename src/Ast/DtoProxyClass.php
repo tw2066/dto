@@ -75,8 +75,11 @@ class DtoProxyClass
             $classLoader->register(true);
             return;
         }
-        $this->removeProxies($proxyDir);
-        $this->genProxyFile();
+        if (! $this->dtoConfig->isScanCacheable()) {
+            $this->removeProxies($proxyDir);
+            $this->genProxyFile();
+        }
+
         exit;
     }
 

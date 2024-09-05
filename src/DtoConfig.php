@@ -17,11 +17,14 @@ class DtoConfig
 
     private int $dto_default_value_level = 0;
 
+    private bool $scan_cacheable = false;
+
     private ?Convert $responses_global_convert = null;
     private ?ScanHandlerInterface $scan_handler = null;
 
     public function __construct(ConfigInterface $config)
     {
+        $this->scan_cacheable = $config->get('scan_cacheable',false);
         $data = $config->get('dto', []) ?: $config->get('api_docs', []);
         $jsonMapper = Mapper::getJsonMapper('bIgnoreVisibility');
         // 私有属性和函数
@@ -60,6 +63,11 @@ class DtoConfig
     public function getScanHandler(): ScanHandlerInterface
     {
         return $this->scan_handler ?? new PcntlScanHandler();
+    }
+
+    public function isScanCacheable(): bool
+    {
+        return $this->scan_cacheable;
     }
 
 }
