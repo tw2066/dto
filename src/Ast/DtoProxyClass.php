@@ -69,7 +69,7 @@ class DtoProxyClass
             $classMap = [];
             foreach ($finder->getIterator() as $value) {
                 $classname = str_replace('_', '\\', $value->getBasename('.dto.proxy.php'));
-                $classMap[$classname] = $value->getRealPath();
+                $classMap[$classname] = $value->getPathname();
             }
             $classLoader->addClassMap($classMap);
             $classLoader->register(true);
