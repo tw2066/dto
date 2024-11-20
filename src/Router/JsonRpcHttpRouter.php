@@ -4,25 +4,27 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Router;
 
-use Hyperf\JsonRpc\TcpServer;
+use Hyperf\JsonRpc\HttpServer;
 use Hyperf\Rpc\Protocol;
 use Hyperf\RpcServer\Router\DispatcherFactory;
 use Psr\Container\ContainerInterface;
 
-class TcpRouter
+use function Hyperf\Support\make;
+
+class JsonRpcHttpRouter
 {
-    private TcpServer $tcpServer;
+    private HttpServer $server;
 
     private $protocol;
 
     public function __construct(ContainerInterface $container)
     {
-        $this->tcpServer = $container->get(TcpServer::class);
+        $this->server = $container->get(HttpServer::class);
     }
 
     public function getRouter($serverName)
     {
-        $data = \Hyperf\Support\make(DispatcherFactory::class, [
+        $data = make(DispatcherFactory::class, [
             'pathGenerator' => $this->getProtocol()->getPathGenerator(),
         ]);
         return $data->getRouter($serverName);
@@ -33,6 +35,6 @@ class TcpRouter
         $getResponseBuilder = function () {
             return $this->protocol;
         };
-        return $getResponseBuilder->call($this->tcpServer);
+        return $getResponseBuilder->call($this->server);
     }
 }

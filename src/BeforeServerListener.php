@@ -7,16 +7,19 @@ namespace Hyperf\DTO;
 use Closure;
 use Hyperf\Context\ApplicationContext;
 use Hyperf\Contract\ConfigInterface;
+use Hyperf\Contract\StdoutLoggerInterface;
 use Hyperf\DTO\Event\AfterDtoStart;
 use Hyperf\DTO\Event\BeforeDtoStart;
-use Hyperf\DTO\Router\TcpRouter;
+use Hyperf\DTO\Router\JsonRpcHttpRouter;
+use Hyperf\DTO\Router\JsonRpcTcpRouter;
 use Hyperf\DTO\Scan\Scan;
 use Hyperf\Event\Contract\ListenerInterface;
 use Hyperf\Framework\Event\BeforeServerStart;
 use Hyperf\HttpServer\Router\DispatcherFactory;
 use Hyperf\HttpServer\Router\Handler;
+use Hyperf\JsonRpc\HttpServer;
+use Hyperf\JsonRpc\TcpServer;
 use Hyperf\Server\Event\MainCoroutineServerStart;
-use Hyperf\Stringable\Str;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use RuntimeException;
 use Throwable;
@@ -45,21 +48,33 @@ class BeforeServerListener implements ListenerInterface
 
         $container = ApplicationContext::getContainer();
         $config = $container->get(ConfigInterface::class);
+        $logger = $container->get(StdoutLoggerInterface::class);
         $eventDispatcher = $container->get(EventDispatcherInterface::class);
         $scanAnnotation = $container->get(Scan::class);
         $serverConfig = collect($config->get('server.servers'))->where('name', $serverName)->first();
-        if (isset($serverConfig['callbacks']['receive'][0]) && Str::contains($serverConfig['callbacks']['receive'][0], 'TcpServer')) {
+
+        if (($serverConfig['callbacks']['receive'][0] ?? '') == TcpServer::class) {
             try {
-                $tcpRouter = $container->get(TcpRouter::class);
+                $tcpRouter = $container->get(JsonRpcTcpRouter::class);
                 $router = $tcpRouter->getRouter($serverName);
-            } catch (Throwable) {
+            } catch (Throwable $throwable) {
+                $logger->warning($throwable);
+                return;
+            }
+        } elseif (($serverConfig['callbacks']['request'][0] ?? '') == HttpServer::class) {
+            try {
+                $tcpRouter = $container->get(JsonRpcHttpRouter::class);
+                $router = $tcpRouter->getRouter($serverName);
+            } catch (Throwable $throwable) {
+                $logger->warning($throwable);
                 return;
             }
         } else {
             $router = $container->get(DispatcherFactory::class)->getRouter($serverName);
         }
-        $data = $router->getData();
-        array_walk_recursive($data, function ($item) use ($scanAnnotation) {
+
+        $routerData = $router->getData();
+        array_walk_recursive($routerData, function ($item) use ($scanAnnotation) {
             if ($item instanceof Handler && ! ($item->callback instanceof Closure)) {
                 $prepareHandler = $this->prepareHandler($item->callback);
                 if (count($prepareHandler) > 1) {
