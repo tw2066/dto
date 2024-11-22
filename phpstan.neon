@@ -1,6 +1,7 @@
 parameters:
     excludes_analyse:
-        - 'src/Router/TcpRouter.php'
+        - 'src/Router/JsonRpcHttpRouter.php'
+        - 'src/Router/JsonRpcTcpRouter.php'
         - 'src/Scan/PropertyEnum.php'
         - 'src/JsonMapper.php'
         - 'src/Serializer/ObjectDtoNormalizer.php'

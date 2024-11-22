@@ -17,8 +17,6 @@ use Hyperf\Event\Contract\ListenerInterface;
 use Hyperf\Framework\Event\BeforeServerStart;
 use Hyperf\HttpServer\Router\DispatcherFactory;
 use Hyperf\HttpServer\Router\Handler;
-use Hyperf\JsonRpc\HttpServer;
-use Hyperf\JsonRpc\TcpServer;
 use Hyperf\Server\Event\MainCoroutineServerStart;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use RuntimeException;
@@ -53,7 +51,7 @@ class BeforeServerListener implements ListenerInterface
         $scanAnnotation = $container->get(Scan::class);
         $serverConfig = collect($config->get('server.servers'))->where('name', $serverName)->first();
 
-        if (($serverConfig['callbacks']['receive'][0] ?? '') == TcpServer::class) {
+        if (($serverConfig['callbacks']['receive'][0] ?? '') == 'Hyperf\JsonRpc\TcpServer') {
             try {
                 $tcpRouter = $container->get(JsonRpcTcpRouter::class);
                 $router = $tcpRouter->getRouter($serverName);
@@ -61,7 +59,7 @@ class BeforeServerListener implements ListenerInterface
                 $logger->warning($throwable);
                 return;
             }
-        } elseif (($serverConfig['callbacks']['request'][0] ?? '') == HttpServer::class) {
+        } elseif (($serverConfig['callbacks']['request'][0] ?? '') == 'Hyperf\JsonRpc\HttpServer') {
             try {
                 $tcpRouter = $container->get(JsonRpcHttpRouter::class);
                 $router = $tcpRouter->getRouter($serverName);
