@@ -76,7 +76,7 @@ class DtoProxyClass
             return;
         }
         if (! $this->dtoConfig->isScanCacheable()) {
-            $this->removeProxies($proxyDir);
+            // $this->removeProxies($proxyDir);
             $this->genProxyFile();
         }
 
@@ -92,6 +92,10 @@ class DtoProxyClass
             $dtoAnnotation = AnnotationCollector::getClassAnnotation($class, Dto::class);
             $rc = ReflectionManager::reflectClass($class);
             $files = new SplFileInfo($rc->getFileName());
+            $proxyClassFilePath = $this->getProxyClassFilePath($class, $files->getRealPath());
+            if (file_exists($proxyClassFilePath) && filemtime($proxyClassFilePath) >= $files->getMTime()) {
+                continue;
+            }
             $arr = [];
             $isCreateJsonSerialize = false;
             foreach ($rc->getProperties() as $property) {
@@ -133,7 +137,7 @@ class DtoProxyClass
                 $isCreateJsonSerialize = false;
             }
             $content = $this->phpParser($class, $files->getRealPath(), $arr, $isCreateJsonSerialize);
-            $this->putContents($class, $content, $files->getRealPath());
+            file_put_contents($proxyClassFilePath, $content);
         }
     }
 
@@ -145,7 +149,7 @@ class DtoProxyClass
         return Arr::merge(array_keys($dtoClasses), array_keys($jsonFieldClass));
     }
 
-    protected function putContents($generateNamespaceClassName, $content, $realPath): void
+    protected function getProxyClassFilePath($generateNamespaceClassName, $realPath): string
     {
         // 适配PhpAccessor组件
         if (Str::contains($realPath, '/@')) {
@@ -155,8 +159,7 @@ class DtoProxyClass
             $generateClassName = str_replace('\\', '_', $generateNamespaceClassName);
             $filename = $outputDir . $generateClassName . '.dto.proxy.php';
         }
-
-        file_put_contents($filename, $content);
+        return $filename;
     }
 
     protected function phpParser(string $classname, $filePath, $propertyArr, $isCreateJsonSerialize): string
