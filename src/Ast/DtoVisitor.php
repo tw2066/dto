@@ -87,20 +87,9 @@ class DtoVisitor extends NodeVisitorAbstract
                         $property = $this->propertyArr[$propertyName];
                         if (! empty($property->alias)) {
                             $alias = $property->alias;
-                            // 增加别名属性
-                            $aliasStmt = clone $stmt;
-                            $name = clone $stmt->props[0]->name;
-                            $prop = clone $stmt->props[0];
-                            $name->name = $alias;
-                            $prop->name = $name;
-                            $aliasStmt->props[0] = $prop;
-                            $aliasStmt->flags = Node\Stmt\Class_::MODIFIER_PRIVATE;
-                            $class->stmts[] = $aliasStmt;
                             // 增加set属性方法
                             $setter = DtoConfig::getDtoAliasMethodName($alias);
                             $stmts = $this->createSetter($setter, $alias, $propertyName, $stmt->props[0]->default, $stmt->type);
-                            // 删除原有注解
-                            // $stmt->attrGroups = [];
                             $class->stmts[] = $stmts;
                         }
                     }
@@ -185,15 +174,6 @@ class DtoVisitor extends NodeVisitorAbstract
             new Node\Expr\Assign(
                 new Node\Expr\PropertyFetch(
                     new Node\Expr\Variable('this'),
-                    new Node\Identifier($alias)
-                ),
-                new Node\Expr\Variable($alias)
-            )
-        );
-        $node->stmts[] = new Node\Stmt\Expression(
-            new Node\Expr\Assign(
-                new Node\Expr\PropertyFetch(
-                    new Node\Expr\Variable('this'),
                     new Node\Identifier($propertyName)
                 ),
                 new Node\Expr\Variable($alias)
@@ -229,16 +209,14 @@ class DtoVisitor extends NodeVisitorAbstract
                     new Node\Expr\Variable('this'),
                     new Node\Identifier($propertyName)
                 );
-                // 未设置默认值
-                if (array_key_exists($propertyName, $this->jsonSerializeNotDefaultValue)) {
-                    $dataTypeKey = $this->jsonSerializeNotDefaultValue[$propertyName] ?? null;
-                    $value = $this->dataTypeDefaultValue[$dataTypeKey] ?? null;
-                    $default = $this->normalizeValue($value);
-                    $propertyFetch = new Node\Expr\BinaryOp\Coalesce(
-                        $propertyFetch,
-                        $default
-                    );
-                }
+                // 设置默认值
+                $dataTypeKey = $this->jsonSerializeNotDefaultValue[$propertyName] ?? null;
+                $value = $this->dataTypeDefaultValue[$dataTypeKey] ?? null;
+                $default = $this->normalizeValue($value);
+                $propertyFetch = new Node\Expr\BinaryOp\Coalesce(
+                    $propertyFetch,
+                    $default
+                );
             }
             $key = new Node\Scalar\String_($keyName);
             $arrayItem[] = new Node\Expr\ArrayItem($propertyFetch, $key);

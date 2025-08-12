@@ -30,15 +30,15 @@ class BootApplicationListener implements ListenerInterface
     public function process(object $event): void
     {
         $this->dtoProxyClass->generic();
-        $this->replaceAliasPropertyAnnotation();
+        //$this->replaceAliasPropertyAnnotation();
     }
 
-    public function replaceAliasPropertyAnnotation(): void
-    {
-        $classes = AnnotationCollector::getPropertiesByAnnotation(JSONField::class);
-        foreach ($classes as $class) {
-            $alias = $class['annotation']->name;
-            AnnotationCollector::replaceProperty($class['class'], $alias, $class['property']);
-        }
-    }
+    //public function replaceAliasPropertyAnnotation(): void
+    //{
+    //    $classes = AnnotationCollector::getPropertiesByAnnotation(JSONField::class);
+    //    foreach ($classes as $class) {
+    //        $alias = $class['annotation']->name;
+    //        AnnotationCollector::replaceProperty($class['class'], $alias, $class['property']);
+    //    }
+    //}
 }

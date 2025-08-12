@@ -6,6 +6,7 @@ namespace Hyperf\DTO\Scan;
 
 use Hyperf\ApiDocs\Annotation\ApiModelProperty;
 use Hyperf\Di\Annotation\MultipleAnnotation;
+use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\Annotation\Validation\BaseValidation;
 use Hyperf\DTO\ApiAnnotation;
 use Hyperf\Stringable\Str;
@@ -27,9 +28,11 @@ class ValidationManager
         /** @var BaseValidation[] $validation */
         $validationArr = [];
         $allAnnotationArray = ApiAnnotation::getClassProperty($className, $fieldName);
-
-        /** @var MultipleAnnotation $multipleAnnotation */
+        $aliasName = null;
         foreach ($allAnnotationArray as $multipleAnnotation) {
+            if ($multipleAnnotation instanceof JSONField){
+                $aliasName = $multipleAnnotation->name;
+            }
             if (! $multipleAnnotation instanceof MultipleAnnotation) {
                 continue;
             }
@@ -40,6 +43,7 @@ class ValidationManager
                 }
             }
         }
+
         if (empty($validationArr)) {
             return;
         }
@@ -50,7 +54,7 @@ class ValidationManager
                 continue;
             }
             // 支持自定义key eg: required|date|after:start_date
-            $customKey = $validation->getCustomKey() ?: $fieldName;
+            $customKey = $validation->getCustomKey() ?: ($aliasName ?? $fieldName);
             $rule = $validation->getRule();
             if (is_string($rule) && Str::contains($rule, '|')) {
                 $ruleArr = explode('|', $rule);
