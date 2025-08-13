@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Hyperf\DTO\Event;
 
 /**
- * 主要用于自动化测试时,手动触发DTO
+ * It is mainly used for manually triggering the DTO during automated testing
  */
 class BeforeDtoStart
 {
