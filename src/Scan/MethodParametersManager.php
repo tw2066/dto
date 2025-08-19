@@ -19,10 +19,11 @@ class MethodParametersManager
 
     public function getMethodParameter(string $className, string $methodName, string $paramName): ?MethodParameter
     {
-        if (! isset(static::$content[$className . $methodName . $paramName])) {
+        $key = $this->getKey($className, $methodName, $paramName);
+        if (! isset(static::$content[$key])) {
             return null;
         }
-        return static::$content[$className . $methodName . $paramName];
+        return static::$content[$key];
     }
 
     /**
@@ -84,9 +85,16 @@ class MethodParametersManager
 
     protected function setContent(string $className, string $methodName, string $paramName, MethodParameter $method): void
     {
-        if (isset(static::$content[$className . $methodName . $paramName])) {
+        $key = $this->getKey($className, $methodName, $paramName);
+        if (isset(static::$content[$key])) {
             return;
         }
-        static::$content[$className . $methodName . $paramName] = $method;
+        static::$content[$key] = $method;
+    }
+
+    protected function getKey(string $className, string $methodName, string $paramName): string
+    {
+        // high query efficiency
+        return $className . ':' . $methodName . ':' . $paramName;
     }
 }
