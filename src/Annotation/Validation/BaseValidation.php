@@ -14,9 +14,8 @@ abstract class BaseValidation extends AbstractMultipleAnnotation
 
     protected string $customKey = '';
 
-    /**
-     * BaseValidation constructor.
-     */
+    protected string $fieldName = '';
+
     public function __construct(string $messages = '')
     {
         $this->messages = $messages;
@@ -33,5 +32,15 @@ abstract class BaseValidation extends AbstractMultipleAnnotation
     public function getCustomKey(): string
     {
         return $this->customKey;
+    }
+
+    public function getFieldName(): string
+    {
+        return $this->fieldName;
+    }
+
+    public function setFieldName(string $fieldName): void
+    {
+        $this->fieldName = $fieldName;
     }
 }

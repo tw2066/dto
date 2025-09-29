@@ -15,11 +15,12 @@ class NotRegex extends BaseValidation
     protected mixed $rule = 'not_regex';
 
     /**
-     * Regex constructor.
+     * 验证字段不能匹配给定正则表达式
+     * 注：使用 regex/not_regex 模式时，规则必须放在数组中，而不能使用管道分隔符，尤其是正则表达式中包含管道符号时。
      */
     public function __construct(string $value, string $messages = '')
     {
-        $this->messages = $messages;
+        parent::__construct($messages);
         $this->rule = $this->rule . ':' . $value;
     }
 }

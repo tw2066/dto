@@ -10,4 +10,12 @@ use Attribute;
 class Numeric extends BaseValidation
 {
     protected mixed $rule = 'numeric';
+
+    /**
+     * 验证字段必须是数值
+     */
+    public function __construct(string $messages = '')
+    {
+        parent::__construct($messages);
+    }
 }

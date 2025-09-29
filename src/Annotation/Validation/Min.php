@@ -15,11 +15,11 @@ class Min extends BaseValidation
     protected mixed $rule = 'min';
 
     /**
-     * Max constructor.
+     * 验证字段必须大于等于最小值，对字符串、数值、数组、文件字段而言，和 size 规则使用方式一致.
      */
     public function __construct(int $value, string $messages = '')
     {
-        $this->messages = $messages;
+        parent::__construct($messages);
         $this->rule = $this->rule . ':' . $value;
     }
 }

@@ -10,4 +10,12 @@ use Attribute;
 class Integer extends BaseValidation
 {
     protected mixed $rule = 'integer';
+
+    /**
+     * 验证字段必须是整型（String 和 Integer 类型都可以通过验证）.
+     */
+    public function __construct(string $messages = '')
+    {
+        parent::__construct($messages);
+    }
 }

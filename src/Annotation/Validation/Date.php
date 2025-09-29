@@ -10,4 +10,12 @@ use Attribute;
 class Date extends BaseValidation
 {
     protected mixed $rule = 'date';
+
+    /**
+     * 验证字段必须是一个基于 PHP strtotime 函数的有效日期
+     */
+    public function __construct(string $messages = '')
+    {
+        parent::__construct($messages);
+    }
 }

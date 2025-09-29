@@ -10,4 +10,12 @@ use Attribute;
 class Email extends BaseValidation
 {
     protected mixed $rule = 'email';
+
+    /**
+     * 验证字段必须是格式正确的电子邮件地址
+     */
+    public function __construct(string $messages = '')
+    {
+        parent::__construct($messages);
+    }
 }

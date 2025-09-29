@@ -30,7 +30,7 @@ class ValidationManager
         $allAnnotationArray = ApiAnnotation::getClassProperty($className, $fieldName);
         $aliasName = null;
         foreach ($allAnnotationArray as $multipleAnnotation) {
-            if ($multipleAnnotation instanceof JSONField){
+            if ($multipleAnnotation instanceof JSONField) {
                 $aliasName = $multipleAnnotation->name;
             }
             if (! $multipleAnnotation instanceof MultipleAnnotation) {
@@ -53,9 +53,11 @@ class ValidationManager
             if (empty($validation->getRule())) {
                 continue;
             }
-            // 支持自定义key eg: required|date|after:start_date
-            $customKey = $validation->getCustomKey() ?: ($aliasName ?? $fieldName);
+            $validation->setFieldName($aliasName ?? $fieldName);
+            // 支持自定义key
+            $customKey = $validation->getCustomKey() ?: $validation->getFieldName();
             $rule = $validation->getRule();
+            // 适配规则 eg: required|date|after:start_date
             if (is_string($rule) && Str::contains($rule, '|')) {
                 $ruleArr = explode('|', $rule);
                 foreach ($ruleArr as $item) {
@@ -69,8 +71,14 @@ class ValidationManager
                 continue;
             }
             [$messagesRule] = explode(':', (string) $validation->getRule());
-            $key = $customKey . '.' . $messagesRule;
-            $this->setMessages($className, $key, $validation->messages);
+            $messageRuleArr = explode('|', $messagesRule);
+            $messageArr = explode('|', $validation->messages);
+            foreach ($messageRuleArr as $num => $messageRule) {
+                $key = $customKey . '.' . $messageRule;
+                if (! empty($messageArr[$num])) {
+                    $this->setMessages($className, $key, $messageArr[$num]);
+                }
+            }
         }
         if (! empty($ruleArray)) {
             foreach ($ruleArray as $fieldKey => $rule) {

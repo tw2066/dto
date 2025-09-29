@@ -14,11 +14,11 @@ use Hyperf\Validation\Rule;
 class NotIn extends BaseValidation
 {
     /**
-     * In constructor.
+     * 验证字段值不能在给定列表中.
      */
     public function __construct(array $value, string $messages = '')
     {
-        $this->messages = $messages;
+        parent::__construct($messages);
         $this->rule = Rule::notIn($value);
     }
 }

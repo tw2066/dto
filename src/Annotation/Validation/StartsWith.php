@@ -6,9 +6,6 @@ namespace Hyperf\DTO\Annotation\Validation;
 
 use Attribute;
 
-/**
- * 验证字段必须以某个给定值开头.
- */
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class StartsWith extends BaseValidation
 {
@@ -18,11 +15,11 @@ class StartsWith extends BaseValidation
     protected mixed $rule = 'starts_with';
 
     /**
-     * Max constructor.
+     * 验证字段必须以某个给定值开头.
      */
     public function __construct(string $value, string $messages = '')
     {
-        $this->messages = $messages;
+        parent::__construct($messages);
         $this->rule = $this->rule . ':' . $value;
     }
 }

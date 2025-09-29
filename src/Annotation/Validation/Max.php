@@ -15,11 +15,11 @@ class Max extends BaseValidation
     protected mixed $rule = 'max';
 
     /**
-     * Max constructor.
+     * 验证字段必须小于等于最大值，和字符串、数值、数组、文件字段的 size 规则使用方式一样.
      */
     public function __construct(int $value, string $messages = '')
     {
-        $this->messages = $messages;
+        parent::__construct($messages);
         $this->rule = $this->rule . ':' . $value;
     }
 }

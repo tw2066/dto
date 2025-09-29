@@ -18,11 +18,11 @@ class After extends BaseValidation
     protected mixed $rule = 'after';
 
     /**
-     * After constructor.
+     * 验证字段必须是给定日期之后的一个值，日期将会通过 PHP 函数 strtotime 传递.
      */
     public function __construct(string $date, string $messages = '')
     {
-        $this->messages = $messages;
+        parent::__construct($messages);
         $this->rule = $this->rule . ':' . $date;
     }
 }

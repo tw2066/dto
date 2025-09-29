@@ -11,11 +11,12 @@ use Hyperf\Validation\Rule;
 class In extends BaseValidation
 {
     /**
-     * In constructor.
+     * 验证字段值必须在给定的列表中.
      */
     public function __construct(private array $value, public string $messages = '')
     {
         $this->rule = Rule::in($this->value);
+        parent::__construct($messages);
     }
 
     public function getValue(): array

@@ -7,15 +7,13 @@ namespace Hyperf\DTO\Annotation\Validation;
 use Attribute;
 
 #[Attribute(Attribute::TARGET_PROPERTY)]
-class Str extends BaseValidation
+class Distinct extends ArrType
 {
-    protected mixed $rule = 'string';
-
     /**
-     * 验证字段必须是字符串，如果允许字段为空，需要分配 nullable 规则到该字段.
+     * 处理数组时，验证字段不能包含重复值.
      */
     public function __construct(string $messages = '')
     {
-        parent::__construct($messages);
+        parent::__construct('distinct', $messages);
     }
 }
