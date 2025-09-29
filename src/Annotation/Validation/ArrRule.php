@@ -7,12 +7,12 @@ namespace Hyperf\DTO\Annotation\Validation;
 use Attribute;
 
 #[Attribute(Attribute::TARGET_PROPERTY)]
-class ArrType extends BaseValidation
+class ArrRule extends BaseValidation
 {
 
     /**
      * 验证数组中值的类型.
-     * @param mixed  $rule 验证规则
+     * @param mixed  $rule 验证规则 eg: 'integer' 'string'
      * @param string $messages
      */
     public function __construct(mixed $rule, string $messages = '')

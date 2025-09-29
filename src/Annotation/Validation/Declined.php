@@ -7,13 +7,15 @@ namespace Hyperf\DTO\Annotation\Validation;
 use Attribute;
 
 #[Attribute(Attribute::TARGET_PROPERTY)]
-class Distinct extends ArrRule
+class Declined extends BaseValidation
 {
+    protected mixed $rule = 'declined';
+
     /**
-     * 处理数组时，验证字段不能包含重复值.
+     * 正在验证的字段必须是 no、off、0 或者 false.
      */
     public function __construct(string $messages = '')
     {
-        parent::__construct('distinct', $messages);
+        parent::__construct($messages);
     }
 }

@@ -92,7 +92,7 @@ class ValidationManager
         }
     }
 
-    protected function setRule(string $className, string $fieldName, $rule): void
+    protected function setRule(string $className, string $fieldName,array $rule): void
     {
         static::$content[$className]['rule'][$fieldName] = $rule;
     }
