@@ -9,12 +9,15 @@ use Attribute;
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class ArrType extends BaseValidation
 {
+
     /**
      * 验证数组中值的类型.
+     * @param mixed  $rule 验证规则
+     * @param string $messages
      */
-    public function __construct(mixed $value, string $messages = '')
+    public function __construct(mixed $rule, string $messages = '')
     {
-        $this->rule = $value;
+        $this->rule = $rule;
         parent::__construct($messages);
     }
 
