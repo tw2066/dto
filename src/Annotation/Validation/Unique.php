@@ -6,7 +6,6 @@ namespace Hyperf\DTO\Annotation\Validation;
 
 use Attribute;
 use Hyperf\Context\ApplicationContext;
-use Hyperf\Database\Query\Builder;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\Validation\Rule;
 
@@ -32,12 +31,12 @@ class Unique extends BaseValidation
         parent::__construct($messages);
     }
 
-    public function getRule(): \Hyperf\Validation\Rules\Unique
+    public function getRule(): mixed
     {
         $rule = Rule::unique($this->table, $this->column);
 
         if ($this->ignoreIdKey) {
-            $rule->where(function (Builder $query) {
+            $rule->where(function ($query) {
                 $request = ApplicationContext::getContainer()->get(RequestInterface::class);
                 $excludeId = $request->input($this->ignoreIdKey);
                 if (! is_null($excludeId) && $excludeId !== 'NULL') {
@@ -47,7 +46,7 @@ class Unique extends BaseValidation
         }
 
         if ($this->wheres) {
-            $rule->where(function (Builder $query) {
+            $rule->where(function ($query) {
                 $query->where($this->wheres);
             });
         }
