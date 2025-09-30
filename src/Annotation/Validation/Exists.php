@@ -12,18 +12,26 @@ use Hyperf\Validation\Rule;
 class Exists extends BaseValidation
 {
     /**
-     * 验证字段必须存在于指定数据表
+     * 验证字段必须存在于指定数据表.
+     * @param string $table 表名
+     * @param string $column 数据库字段，不指定 column 选项，字段名将作为默认 column
+     * @param array  $wheres 简单查询条件 eg: [['status', '=', '1']]
+     * @param string $messages
      */
-    public function __construct(string $table, string $column = 'NULL',array $wheres = [], public string $messages = '')
+    public function __construct(protected string $table, protected string $column = 'NULL', protected array $wheres = [], string $messages = '')
     {
-        $rule = Rule::exists($table, $column);
-
-        if ($wheres){
-            foreach ($wheres as $column => $where){
-                $rule->where($column, $where);
-            }
-        }
-        $this->rule = $rule;
         parent::__construct($messages);
+    }
+
+    public function getRule(): \Hyperf\Validation\Rules\Exists
+    {
+        $rule = Rule::exists($this->table, $this->column);
+        if ($this->wheres) {
+            $rule->where(function (Builder $query) {
+                $query->where($this->wheres);
+            });
+        }
+
+        return $rule;
     }
 }
