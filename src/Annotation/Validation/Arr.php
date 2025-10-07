@@ -13,9 +13,11 @@ class Arr extends BaseValidation
 
     /**
      * 验证字段必须是 PHP 数组.
+     * @param mixed $value 当为 array 规则提供其他值时，输入数组中的每个键都必须存在于提供给规则的值列表中。在以下示例中，输入数组中的 admin 键无效，因为它不包含在提供给 array 规则的值列表中
      */
-    public function __construct(string $messages = '')
+    public function __construct(mixed $value = '', string $messages = '')
     {
+        $value && $this->rule .= ':' . $value;
         parent::__construct($messages);
     }
 }
