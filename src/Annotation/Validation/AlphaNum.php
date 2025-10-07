@@ -16,7 +16,7 @@ class AlphaNum extends BaseValidation
      */
     public function __construct(string $characterEncoding = 'ascii', string $messages = '')
     {
-        $characterEncoding && $this->rule = $this->rule . ':' . $characterEncoding;
+        $characterEncoding && $this->rule .= ':' . $characterEncoding;
         parent::__construct($messages);
     }
 }

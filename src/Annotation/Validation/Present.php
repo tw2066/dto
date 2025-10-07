@@ -12,7 +12,7 @@ class Present extends BaseValidation
     protected mixed $rule = 'present';
 
     /**
-     * 验证字段必须出现在输入数据中但可以为空
+     * 验证字段必须出现在输入数据中但可以为空.
      */
     public function __construct(string $messages = '')
     {

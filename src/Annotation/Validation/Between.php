@@ -19,7 +19,7 @@ class Between extends BaseValidation
      */
     public function __construct(int $min, int $max, string $messages = '')
     {
-        $this->rule = $this->rule . ':' . $min . ',' . $max;
+        $this->rule .= ':' . $min . ',' . $max;
         parent::__construct($messages);
     }
 }

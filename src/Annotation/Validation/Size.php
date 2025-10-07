@@ -20,6 +20,6 @@ class Size extends BaseValidation
     public function __construct(int $value, string $messages = '')
     {
         parent::__construct($messages);
-        $this->rule = $this->rule . ':' . $value;
+        $this->rule .= ':' . $value;
     }
 }

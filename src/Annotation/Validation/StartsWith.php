@@ -20,6 +20,6 @@ class StartsWith extends BaseValidation
     public function __construct(string $value, string $messages = '')
     {
         parent::__construct($messages);
-        $this->rule = $this->rule . ':' . $value;
+        $this->rule .= ':' . $value;
     }
 }

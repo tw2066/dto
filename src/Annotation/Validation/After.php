@@ -23,6 +23,6 @@ class After extends BaseValidation
     public function __construct(string $date, string $messages = '')
     {
         parent::__construct($messages);
-        $this->rule = $this->rule . ':' . $date;
+        $this->rule .= ':' . $date;
     }
 }
