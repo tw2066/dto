@@ -16,9 +16,9 @@ class NotIn extends BaseValidation
     /**
      * 验证字段值不能在给定列表中.
      */
-    public function __construct(array $value, string $messages = '')
+    public function __construct(array $value, string $message = '')
     {
-        parent::__construct($messages);
+        parent::__construct($message);
         $this->rule = Rule::notIn($value);
     }
 }

@@ -14,8 +14,8 @@ class Url extends BaseValidation
     /**
      * 验证字段必须是有效的 URL.
      */
-    public function __construct(string $messages = '')
+    public function __construct(string $message = '')
     {
-        parent::__construct($messages);
+        parent::__construct($message);
     }
 }

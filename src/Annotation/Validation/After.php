@@ -20,9 +20,9 @@ class After extends BaseValidation
     /**
      * 验证字段必须是给定日期之后的一个值，日期将会通过 PHP 函数 strtotime 传递.
      */
-    public function __construct(string $date, string $messages = '')
+    public function __construct(string $date, string $message = '')
     {
-        parent::__construct($messages);
+        parent::__construct($message);
         $this->rule .= ':' . $date;
     }
 }

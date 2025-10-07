@@ -26,9 +26,9 @@ class Unique extends BaseValidation
         protected ?string $ignoreIdKey = null,
         protected ?string $ignoreIdColumn = null,
         protected array $wheres = [],
-        string $messages = ''
+        string $message = ''
     ) {
-        parent::__construct($messages);
+        parent::__construct($message);
     }
 
     public function getRule(): mixed

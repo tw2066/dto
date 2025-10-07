@@ -17,9 +17,9 @@ class Lt extends BaseValidation
     /**
      * 验证字段必须小于等于给定 field 字段，这两个字段类型必须一致，适用于字符串、数字、数组和文件，和 size 规则类似
      */
-    public function __construct(mixed $value, string $messages = '')
+    public function __construct(mixed $value, string $message = '')
     {
         $this->rule .= ':' . $value;
-        parent::__construct($messages);
+        parent::__construct($message);
     }
 }

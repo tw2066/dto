@@ -14,8 +14,8 @@ class Email extends BaseValidation
     /**
      * 验证字段必须是格式正确的电子邮件地址
      */
-    public function __construct(string $messages = '')
+    public function __construct(string $message = '')
     {
-        parent::__construct($messages);
+        parent::__construct($message);
     }
 }

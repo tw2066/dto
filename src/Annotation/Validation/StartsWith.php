@@ -17,9 +17,9 @@ class StartsWith extends BaseValidation
     /**
      * 验证字段必须以某个给定值开头.
      */
-    public function __construct(string $value, string $messages = '')
+    public function __construct(string $value, string $message = '')
     {
-        parent::__construct($messages);
+        parent::__construct($message);
         $this->rule .= ':' . $value;
     }
 }

@@ -14,8 +14,8 @@ class Present extends BaseValidation
     /**
      * 验证字段必须出现在输入数据中但可以为空.
      */
-    public function __construct(string $messages = '')
+    public function __construct(string $message = '')
     {
-        parent::__construct($messages);
+        parent::__construct($message);
     }
 }

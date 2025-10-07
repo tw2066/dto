@@ -14,8 +14,8 @@ class Integer extends BaseValidation
     /**
      * 验证字段必须是整型（String 和 Integer 类型都可以通过验证）.
      */
-    public function __construct(string $messages = '')
+    public function __construct(string $message = '')
     {
-        parent::__construct($messages);
+        parent::__construct($message);
     }
 }

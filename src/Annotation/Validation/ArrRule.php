@@ -13,10 +13,10 @@ class ArrRule extends BaseValidation
      * 验证数组中值的类型.
      * @param mixed $rule 验证规则 eg: 'integer' 'string'
      */
-    public function __construct(mixed $rule, string $messages = '')
+    public function __construct(mixed $rule, string $message = '')
     {
         $this->rule = $rule;
-        parent::__construct($messages);
+        parent::__construct($message);
     }
 
     public function setFieldName(string $fieldName): void

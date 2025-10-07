@@ -16,9 +16,9 @@ class Exists extends BaseValidation
      * @param string $column 数据库字段，不指定 column 选项，字段名将作为默认 column
      * @param array $wheres 简单查询条件 eg: [['status', '=', '1']]
      */
-    public function __construct(protected string $table, protected string $column = 'NULL', protected array $wheres = [], string $messages = '')
+    public function __construct(protected string $table, protected string $column = 'NULL', protected array $wheres = [], string $message = '')
     {
-        parent::__construct($messages);
+        parent::__construct($message);
     }
 
     public function getRule(): mixed

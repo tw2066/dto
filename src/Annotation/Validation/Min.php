@@ -17,9 +17,9 @@ class Min extends BaseValidation
     /**
      * 验证字段必须大于等于最小值，对字符串、数值、数组、文件字段而言，和 size 规则使用方式一致.
      */
-    public function __construct(mixed $value, string $messages = '')
+    public function __construct(mixed $value, string $message = '')
     {
-        parent::__construct($messages);
+        parent::__construct($message);
         $this->rule .= ':' . $value;
     }
 }

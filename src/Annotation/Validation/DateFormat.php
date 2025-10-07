@@ -14,9 +14,9 @@ class DateFormat extends BaseValidation
     /**
      * 验证字段必须匹配指定格式，可以使用 PHP 函数 date 或 date_format 验证该字段.
      */
-    public function __construct(string $format = 'Y-m-d H:i:s', public string $messages = '')
+    public function __construct(string $format = 'Y-m-d H:i:s', public string $message = '')
     {
         $this->rule .= ':' . $format;
-        parent::__construct($messages);
+        parent::__construct($message);
     }
 }

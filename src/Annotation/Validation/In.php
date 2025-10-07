@@ -13,10 +13,10 @@ class In extends BaseValidation
     /**
      * 验证字段值必须在给定的列表中.
      */
-    public function __construct(private array $value, public string $messages = '')
+    public function __construct(private array $value, public string $message = '')
     {
         $this->rule = Rule::in($this->value);
-        parent::__construct($messages);
+        parent::__construct($message);
     }
 
     public function getValue(): array

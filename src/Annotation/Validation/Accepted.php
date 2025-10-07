@@ -14,8 +14,8 @@ class Accepted extends BaseValidation
     /**
      * 验证字段的值必须是 yes、on、1 或 true，这在「同意服务协议」时很有用.
      */
-    public function __construct(string $messages = '')
+    public function __construct(string $message = '')
     {
-        parent::__construct($messages);
+        parent::__construct($message);
     }
 }

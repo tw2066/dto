@@ -14,8 +14,8 @@ class Image extends BaseValidation
     /**
      * 验证文件必须是图片（jpeg、png、bmp、gif 或者 svg）.
      */
-    public function __construct(string $messages = '')
+    public function __construct(string $message = '')
     {
-        parent::__construct($messages);
+        parent::__construct($message);
     }
 }

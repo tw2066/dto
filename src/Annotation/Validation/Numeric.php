@@ -14,8 +14,8 @@ class Numeric extends BaseValidation
     /**
      * 验证字段必须是数值
      */
-    public function __construct(string $messages = '')
+    public function __construct(string $message = '')
     {
-        parent::__construct($messages);
+        parent::__construct($message);
     }
 }

@@ -14,8 +14,8 @@ class Nullable extends BaseValidation
     /**
      * 验证字段可以是 null，这在验证一些可以为 null 的原始数据如整型或字符串时很有用。
      */
-    public function __construct(string $messages = '')
+    public function __construct(string $message = '')
     {
-        parent::__construct($messages);
+        parent::__construct($message);
     }
 }

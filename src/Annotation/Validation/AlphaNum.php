@@ -14,9 +14,9 @@ class AlphaNum extends BaseValidation
     /**
      * 验证字段必须是字母(包含中文)或数字。为了将此验证规则限制在 ASCII 范围内的字符（a-z 和 A-Z）.
      */
-    public function __construct(string $characterEncoding = 'ascii', string $messages = '')
+    public function __construct(string $characterEncoding = 'ascii', string $message = '')
     {
         $characterEncoding && $this->rule .= ':' . $characterEncoding;
-        parent::__construct($messages);
+        parent::__construct($message);
     }
 }

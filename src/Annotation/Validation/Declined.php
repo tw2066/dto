@@ -14,8 +14,8 @@ class Declined extends BaseValidation
     /**
      * 正在验证的字段必须是 no、off、0 或者 false.
      */
-    public function __construct(string $messages = '')
+    public function __construct(string $message = '')
     {
-        parent::__construct($messages);
+        parent::__construct($message);
     }
 }

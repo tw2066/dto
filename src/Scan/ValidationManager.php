@@ -55,26 +55,26 @@ class ValidationManager
             }
             $validation->setFieldName($aliasName ?? $fieldName);
             // 支持自定义key
-            $customKey = $validation->getCustomKey() ?: $validation->getFieldName();
+            $fieldName = $validation->getCustomKey() ?: $validation->getFieldName();
             $rule = $validation->getRule();
             // 适配规则 eg: required|date|after:start_date
             if (is_string($rule) && Str::contains($rule, '|')) {
                 $ruleArr = explode('|', $rule);
                 foreach ($ruleArr as $item) {
-                    $ruleArray[$customKey][] = $item;
+                    $ruleArray[$fieldName][] = $item;
                 }
             } else {
-                $ruleArray[$customKey][] = $rule;
+                $ruleArray[$fieldName][] = $rule;
             }
 
             if (empty($validation->messages)) {
                 continue;
             }
-            [$messagesRule] = explode(':', (string) $validation->getRule());
-            $messageRuleArr = explode('|', $messagesRule);
+            [$messageRules] = explode(':', (string) $validation->getRule());
+            $messageRuleArr = explode('|', $messageRules);
             $messageArr = explode('|', $validation->messages);
             foreach ($messageRuleArr as $num => $messageRule) {
-                $key = $customKey . '.' . $messageRule;
+                $key = $fieldName . '.' . $messageRule;
                 if (! empty($messageArr[$num])) {
                     $this->setMessages($className, $key, $messageArr[$num]);
                 }
@@ -92,7 +92,7 @@ class ValidationManager
         }
     }
 
-    protected function setRule(string $className, string $fieldName,array $rule): void
+    protected function setRule(string $className, string $fieldName, array $rule): void
     {
         static::$content[$className]['rule'][$fieldName] = $rule;
     }
