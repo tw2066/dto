@@ -6,6 +6,9 @@ namespace Hyperf\DTO;
 
 use Hyperf\Di\Annotation\AnnotationCollector;
 
+/**
+ * Helper class for retrieving annotation metadata.
+ */
 class ApiAnnotation
 {
     /**

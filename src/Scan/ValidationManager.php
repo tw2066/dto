@@ -11,17 +11,29 @@ use Hyperf\DTO\Annotation\Validation\BaseValidation;
 use Hyperf\DTO\ApiAnnotation;
 use Hyperf\Stringable\Str;
 
+/**
+ * Manager for handling validation rule generation and storage.
+ */
 class ValidationManager
 {
     protected static array $content = [];
 
+    /**
+     * Get validation data for a class.
+     *
+     * @param string $className The class name
+     * @return array Validation rules, messages and attributes
+     */
     public function getData(string $className): array
     {
         return static::$content[$className] ?? [];
     }
 
     /**
-     * 生成验证数据.
+     * Generate validation rules for a class property.
+     *
+     * @param string $className The class name
+     * @param string $fieldName The property name
      */
     public function generateValidation(string $className, string $fieldName): void
     {
@@ -54,10 +66,10 @@ class ValidationManager
                 continue;
             }
             $validation->setFieldName($aliasName ?? $fieldName);
-            // 支持自定义key
+            // Support custom key for nested validation (e.g., 'items.*')
             $fieldName = $validation->getCustomKey() ?: $validation->getFieldName();
             $rule = $validation->getRule();
-            // 适配规则 eg: required|date|after:start_date
+            // Parse pipe-separated rules (e.g., "required|date|after:start_date")
             if (is_string($rule) && Str::contains($rule, '|')) {
                 $ruleArr = explode('|', $rule);
                 foreach ($ruleArr as $item) {

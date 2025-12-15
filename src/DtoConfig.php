@@ -9,6 +9,9 @@ use Hyperf\Di\ScanHandler\PcntlScanHandler;
 use Hyperf\Di\ScanHandler\ScanHandlerInterface;
 use Hyperf\DTO\Type\Convert;
 
+/**
+ * DTO configuration manager.
+ */
 class DtoConfig
 {
     private static string $dto_alias_method_prefix = '_set_dto_alias_';
@@ -28,7 +31,7 @@ class DtoConfig
         $this->scan_cacheable = $config->get('scan_cacheable', false);
         $data = $config->get('dto', []) ?: $config->get('api_docs', []);
         $jsonMapper = Mapper::getJsonMapper('bIgnoreVisibility');
-        // 私有属性和函数
+        // Enable private property and method access
         $jsonMapper->bIgnoreVisibility = true;
         $jsonMapper->map($data, $this);
     }

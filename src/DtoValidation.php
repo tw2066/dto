@@ -33,10 +33,17 @@ class DtoValidation
         $this->validateResolved($className, $data);
     }
 
-    private function validateResolved(string $className, $data): void
+    /**
+     * Validate data recursively with depth limit.
+     *
+     * @param string $className The DTO class name
+     * @param mixed $data The data to validate
+     * @throws DtoException|ValidationException
+     */
+    private function validateResolved(string $className, mixed $data): void
     {
         if (! is_array($data)) {
-            throw new DtoException('Class:' . $className . ' data must be object or array');
+            throw new DtoException("Class: {$className} - data must be object or array");
         }
 
         $validArr = $this->validationManager->getData($className);
@@ -52,7 +59,8 @@ class DtoValidation
         if ($validator->fails()) {
             throw new ValidationException($validator);
         }
-        // 递归校验判断
+
+        // Recursively validate nested objects and arrays
         $notSimplePropertyArr = $this->propertyManager->getPropertyAndNotSimpleType($className);
         foreach ($notSimplePropertyArr as $fieldName => $property) {
             if (! empty($data[$fieldName])) {

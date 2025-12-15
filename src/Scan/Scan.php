@@ -47,7 +47,7 @@ class Scan
     }
 
     /**
-     * 扫描类.
+     * Scan class and generate validation rules.
      */
     public function scanClass(string $className): void
     {

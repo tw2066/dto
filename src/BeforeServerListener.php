@@ -24,6 +24,9 @@ use Throwable;
 
 use function Hyperf\Collection\collect;
 
+/**
+ * Listener for scanning and registering DTO classes before server starts.
+ */
 class BeforeServerListener implements ListenerInterface
 {
     public function listen(): array
@@ -56,7 +59,7 @@ class BeforeServerListener implements ListenerInterface
                 $tcpRouter = $container->get(JsonRpcTcpRouter::class);
                 $router = $tcpRouter->getRouter($serverName);
             } catch (Throwable $throwable) {
-                $logger->warning($throwable);
+                $logger->warning('Failed to get TCP router: ' . $throwable->getMessage());
                 return;
             }
         } elseif (($serverConfig['callbacks']['request'][0] ?? '') == 'Hyperf\JsonRpc\HttpServer') {
@@ -64,7 +67,7 @@ class BeforeServerListener implements ListenerInterface
                 $tcpRouter = $container->get(JsonRpcHttpRouter::class);
                 $router = $tcpRouter->getRouter($serverName);
             } catch (Throwable $throwable) {
-                $logger->warning($throwable);
+                $logger->warning('Failed to get JsonRpc HTTP router: ' . $throwable->getMessage());
                 return;
             }
         } else {
@@ -72,6 +75,7 @@ class BeforeServerListener implements ListenerInterface
         }
 
         $routerData = $router->getData();
+        // Scan all handlers and register DTO classes
         array_walk_recursive($routerData, function ($item) use ($scanAnnotation) {
             if ($item instanceof Handler && ! ($item->callback instanceof Closure)) {
                 $prepareHandler = $this->prepareHandler($item->callback);
@@ -85,6 +89,13 @@ class BeforeServerListener implements ListenerInterface
         $scanAnnotation->clearScanClassArray();
     }
 
+    /**
+     * Prepare handler string to array format.
+     *
+     * @param mixed $handler The handler to prepare
+     * @return array [className, methodName]
+     * @throws RuntimeException If handler format is invalid
+     */
     protected function prepareHandler($handler): array
     {
         if (is_string($handler)) {
