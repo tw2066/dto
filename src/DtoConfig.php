@@ -6,6 +6,7 @@ namespace Hyperf\DTO;
 
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\Di\ScanHandler\PcntlScanHandler;
+use Hyperf\Di\ScanHandler\ProcScanHandler;
 use Hyperf\Di\ScanHandler\ScanHandlerInterface;
 use Hyperf\DTO\Type\Convert;
 
@@ -63,7 +64,13 @@ class DtoConfig
 
     public function getScanHandler(): ScanHandlerInterface
     {
-        return $this->scan_handler ?? new PcntlScanHandler();
+        if ($this->scan_handler) {
+            return $this->scan_handler;
+        }
+        if (defined('PHPUNIT_COMPOSER_INSTALL')) {
+            return new ProcScanHandler();
+        }
+        return new PcntlScanHandler();
     }
 
     public function isScanCacheable(): bool
