@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Hyperf\DTO;
 
 use Hyperf\Context\ApplicationContext;
+use Hyperf\Contract\ValidatorInterface;
 use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Scan\ValidationManager;
@@ -17,7 +18,7 @@ class DtoValidation
 
     private ?ValidatorFactoryInterface $validationFactory = null;
 
-    public function __construct(protected PropertyManager $propertyManager,protected ValidationManager $validationManager)
+    public function __construct(protected PropertyManager $propertyManager, protected ValidationManager $validationManager)
     {
         $container = ApplicationContext::getContainer();
         if ($container->has(ValidatorFactoryInterface::class)) {
@@ -33,14 +34,17 @@ class DtoValidation
         $this->validateResolved($className, $data);
     }
 
-    /**
-     * Validate data recursively with depth limit.
-     *
-     * @param string $className The DTO class name
-     * @param mixed $data The data to validate
-     * @throws DtoException|ValidationException
-     */
-    private function validateResolved(string $className, mixed $data): void
+    protected function buildValidationException(ValidatorInterface $validator): ValidationException
+    {
+        $message = 'The given data was invalid, error message: ' . implode(' ', $validator->errors()->all());
+        $getResponseBuilder = function () use ($message) {
+            $this->message = $message;
+            return $this;
+        };
+        return $getResponseBuilder->call(new ValidationException($validator));
+    }
+
+    protected function validateResolved(string $className, $data): void
     {
         if (! is_array($data)) {
             throw new DtoException("Class: {$className} - data must be object or array");
@@ -57,7 +61,7 @@ class DtoValidation
             static::$isValidationCustomAttributes ? ($validArr['attributes'] ?? []) : []
         );
         if ($validator->fails()) {
-            throw new ValidationException($validator);
+            throw $this->buildValidationException($validator);
         }
 
         // Recursively validate nested objects and arrays
