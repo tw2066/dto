@@ -38,6 +38,7 @@ class DtoValidation
     {
         $message = 'The given data was invalid, error message: ' . implode(' ', $validator->errors()->all());
         $getResponseBuilder = function () use ($message) {
+            /* @phpstan-ignore-next-line */
             $this->message = $message;
             return $this;
         };
