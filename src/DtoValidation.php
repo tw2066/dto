@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Hyperf\DTO;
 
 use Hyperf\Context\ApplicationContext;
+use Hyperf\Contract\ValidatorInterface;
 use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Scan\ValidationManager;
@@ -17,7 +18,7 @@ class DtoValidation
 
     private ?ValidatorFactoryInterface $validationFactory = null;
 
-    public function __construct(protected PropertyManager $propertyManager,protected ValidationManager $validationManager)
+    public function __construct(protected PropertyManager $propertyManager, protected ValidationManager $validationManager)
     {
         $container = ApplicationContext::getContainer();
         if ($container->has(ValidatorFactoryInterface::class)) {
@@ -33,10 +34,21 @@ class DtoValidation
         $this->validateResolved($className, $data);
     }
 
-    private function validateResolved(string $className, $data): void
+    protected function buildValidationException(ValidatorInterface $validator): ValidationException
+    {
+        $message = 'The given data was invalid, error message: ' . implode(' ', $validator->errors()->all());
+        $getResponseBuilder = function () use ($message) {
+            /* @phpstan-ignore-next-line */
+            $this->message = $message;
+            return $this;
+        };
+        return $getResponseBuilder->call(new ValidationException($validator));
+    }
+
+    protected function validateResolved(string $className, $data): void
     {
         if (! is_array($data)) {
-            throw new DtoException('Class:' . $className . ' data must be object or array');
+            throw new DtoException("Class: {$className} - data must be object or array");
         }
 
         $validArr = $this->validationManager->getData($className);
@@ -50,9 +62,10 @@ class DtoValidation
             static::$isValidationCustomAttributes ? ($validArr['attributes'] ?? []) : []
         );
         if ($validator->fails()) {
-            throw new ValidationException($validator);
+            throw $this->buildValidationException($validator);
         }
-        // 递归校验判断
+
+        // Recursively validate nested objects and arrays
         $notSimplePropertyArr = $this->propertyManager->getPropertyAndNotSimpleType($className);
         foreach ($notSimplePropertyArr as $fieldName => $property) {
             if (! empty($data[$fieldName])) {

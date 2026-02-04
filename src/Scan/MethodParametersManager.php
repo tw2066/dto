@@ -66,6 +66,7 @@ class MethodParametersManager
                 ++$total;
             }
             if ($attribute->getAttributes(Valid::class)) {
+                ++$total;
                 $methodParameters->setIsValid(true);
             }
             if ($mark > 1) {

@@ -5,38 +5,39 @@
 [![License](https://img.shields.io/packagist/l/tangwei/dto)](https://github.com/tw2066/dto)
 [![PHP Version](https://img.shields.io/badge/php-%3E%3D8.1-blue)](https://www.php.net)
 
-[English](./README_EN.md) | 中文
+English | [中文](./README.md)
 
-基于 [Hyperf](https://github.com/hyperf/hyperf) 框架的 DTO (数据传输对象) 映射和验证库，使用 PHP 8.1+ 的属性（Attributes）特性，提供优雅的请求参数绑定和验证方案。
+A Data Transfer Object (DTO) mapping and validation library for the [Hyperf](https://github.com/hyperf/hyperf) framework, leveraging PHP 8.1+ Attributes to provide an elegant solution for request parameter binding and validation.
 
-## ✨ 特性
+## ✨ Features
 
-- 🚀 **自动映射** - 请求参数自动映射到 PHP DTO 类
-- 🎯 **类型安全** - 利用 PHP 8.1+ 的类型系统，提供完整的类型提示
-- 🔄 **递归支持** - 支持数组、嵌套对象、递归结构
-- ✅ **数据验证** - 集成 Hyperf 验证器，提供丰富的验证注解
-- 📝 **多种参数源** - 支持 Body、Query、FormData、Header 等多种参数来源
-- 🎨 **代码优雅** - 基于 PHP 8 Attributes，代码简洁易读
-- 🔧 **易于扩展** - 支持自定义验证规则和类型转换
+- 🚀 **Auto Mapping** - Automatically map request parameters to PHP DTO classes
+- 🎯 **Type Safety** - Leverage PHP 8.1+ type system for complete type hints
+- 🔄 **Recursive Support** - Support for arrays, nested objects, and recursive structures
+- ✅ **Data Validation** - Integrate with Hyperf validator, providing rich validation annotations
+- 📝 **Multiple Parameter Sources** - Support Body, Query, FormData, Header, and more
+- 🎨 **Elegant Code** - Based on PHP 8 Attributes for clean and readable code
+- 🔧 **Easy to Extend** - Support custom validation rules and type conversion
 
-## 📋 环境要求
+## 📋 Requirements
 
 - PHP >= 8.1
-- Hyperf
+- Hyperf >= 3.0
+- Swoole >= 5.0
 
-## 📦 安装
+## 📦 Installation
 
 ```bash
 composer require tangwei/dto
 ```
 
-安装后，组件会自动注册，无需额外配置。
+After installation, the component will be automatically registered without any additional configuration.
 
-## 📖 快速开始
+## 📖 Quick Start
 
-### 基本使用
+### Basic Usage
 
-#### 1. 创建 DTO 类
+#### 1. Create a DTO Class
 
 ```php
 namespace App\Request;
@@ -56,7 +57,7 @@ class DemoQuery
 }
 ```
 
-#### 2. 在控制器中使用
+#### 2. Use in Controller
 
 ```php
 namespace App\Controller;
@@ -81,15 +82,15 @@ class UserController
 }
 ```
 
-## 📚 注解说明
+## 📚 Annotation Reference
 
-### 参数来源注解
+### Parameter Source Annotations
 
-> 命名空间：`Hyperf\DTO\Annotation\Contracts`
+> Namespace: `Hyperf\DTO\Annotation\Contracts`
 
 #### RequestBody
 
-获取 POST/PUT/PATCH 请求的 Body 参数
+Retrieve parameters from POST/PUT/PATCH request body
 
 ```php
 use Hyperf\DTO\Annotation\Contracts\RequestBody;
@@ -97,13 +98,13 @@ use Hyperf\DTO\Annotation\Contracts\RequestBody;
 #[PostMapping(path: 'create')]
 public function create(#[RequestBody] CreateUserRequest $request)
 {
-    // $request 会自动填充 Body 中的数据
+    // $request will be automatically populated with data from the body
 }
 ```
 
 #### RequestQuery
 
-获取 URL 查询参数（GET 参数）
+Retrieve URL query parameters (GET parameters)
 
 ```php
 use Hyperf\DTO\Annotation\Contracts\RequestQuery;
@@ -111,13 +112,13 @@ use Hyperf\DTO\Annotation\Contracts\RequestQuery;
 #[GetMapping(path: 'list')]
 public function list(#[RequestQuery] QueryRequest $request)
 {
-    // $request 会自动填充 Query 参数
+    // $request will be automatically populated with query parameters
 }
 ```
 
 #### RequestFormData
 
-获取表单请求数据（Content-Type: multipart/form-data）
+Retrieve form request data (Content-Type: multipart/form-data)
 
 ```php
 use Hyperf\DTO\Annotation\Contracts\RequestFormData;
@@ -125,14 +126,14 @@ use Hyperf\DTO\Annotation\Contracts\RequestFormData;
 #[PostMapping(path: 'upload')]
 public function upload(#[RequestFormData] UploadRequest $formData)
 {
-    // $formData 会自动填充表单数据
-    // 文件上传需要通过 $this->request->file('field_name') 获取
+    // $formData will be automatically populated with form data
+    // File uploads need to be retrieved via $this->request->file('field_name')
 }
 ```
 
 #### RequestHeader
 
-获取请求头信息
+Retrieve request header information
 
 ```php
 use Hyperf\DTO\Annotation\Contracts\RequestHeader;
@@ -140,25 +141,25 @@ use Hyperf\DTO\Annotation\Contracts\RequestHeader;
 #[GetMapping(path: 'info')]
 public function info(#[RequestHeader] HeaderRequest $headers)
 {
-    // $headers 会自动填充请求头数据
+    // $headers will be automatically populated with request header data
 }
 ```
 
 #### Valid
 
-启用验证，必须与其他参数来源注解一起使用
+Enable validation, must be used together with other parameter source annotations
 
 ```php
 #[PostMapping(path: 'create')]
 public function create(#[RequestBody] #[Valid] CreateUserRequest $request)
 {
-    // 请求参数会先验证，验证失败会自动抛出异常
+    // Request parameters will be validated first; validation failure will throw an exception
 }
 ```
 
-### 组合使用
+### Combined Usage
 
-可以在同一方法中组合使用多种参数来源：
+You can combine multiple parameter sources in the same method:
 
 ```php
 #[PutMapping(path: 'update/{id}')]
@@ -168,15 +169,15 @@ public function update(
     #[RequestQuery] QueryRequest $query,
     #[RequestHeader] HeaderRequest $headers
 ) {
-    // 同时获取 Body、Query 和 Header 参数
+    // Retrieve Body, Query, and Header parameters simultaneously
 }
 ```
 
-> ⚠️ **注意**：同一个方法不能同时使用 `RequestBody` 和 `RequestFormData` 注解
+> ⚠️ **Note**: The same method cannot use both `RequestBody` and `RequestFormData` annotations
 
-## 📝 完整示例
+## 📝 Complete Examples
 
-### 控制器示例
+### Controller Example
 
 ```php
 namespace App\Controller;
@@ -205,7 +206,7 @@ class DemoController
     #[PostMapping(path: 'create')]
     public function create(#[RequestBody] #[Valid] CreateRequest $request): array
     {
-        // 处理创建逻辑
+        // Handle creation logic
         return ['id' => 1, 'message' => 'Created successfully'];
     }
 
@@ -214,7 +215,7 @@ class DemoController
         #[RequestBody] #[Valid] UpdateRequest $body,
         #[RequestQuery] QueryParams $query
     ): array {
-        // 同时使用 Body 和 Query 参数
+        // Use both Body and Query parameters
         return ['message' => 'Updated successfully'];
     }
 
@@ -222,15 +223,15 @@ class DemoController
     public function upload(#[RequestFormData] UploadRequest $formData): array
     {
         $file = $this->request->file('photo');
-        // 处理文件上传
+        // Handle file upload
         return ['message' => 'Uploaded successfully'];
     }
 }
 ```
 
-### DTO 类示例
+### DTO Class Examples
 
-#### 简单 DTO
+#### Simple DTO
 
 ```php
 namespace App\Request;
@@ -256,7 +257,7 @@ class CreateRequest
 }
 ```
 
-#### 嵌套对象 DTO
+#### Nested Object DTO
 
 ```php
 namespace App\Request;
@@ -267,7 +268,7 @@ class UserRequest
     
     public int $age;
     
-    // 嵌套对象
+    // Nested object
     public Address $address;
 }
 
@@ -281,7 +282,7 @@ class Address
 }
 ```
 
-#### 数组类型 DTO
+#### Array Type DTO
 
 ```php
 namespace App\Request;
@@ -300,13 +301,13 @@ class BatchRequest
      */
     public array $users;
     
-    // 使用 ArrayType 注解显式指定类型
+    // Use ArrayType annotation to explicitly specify type
     #[ArrayType(User::class)]
     public array $members;
 }
 ```
 
-#### 自定义字段名
+#### Custom Field Names
 
 ```php
 namespace App\Request;
@@ -315,7 +316,7 @@ use Hyperf\DTO\Annotation\JSONField;
 
 class ApiRequest
 {
-    // 将请求中的 user_name 映射到 userName
+    // Map user_name from the request to userName
     #[JSONField('user_name')]
     public string $userName;
     
@@ -324,39 +325,39 @@ class ApiRequest
 }
 ```
 
-## ✅ 数据验证
+## ✅ Data Validation
 
-### 内置验证注解
+### Built-in Validation Annotations
 
-> 需要先安装 Hyperf 验证器：`composer require hyperf/validation`
+> First, install the Hyperf validator: `composer require hyperf/validation`
 
-本库提供了丰富的验证注解，包括：
+This library provides rich validation annotations, including:
 
-- `Required` - 必填项
-- `Integer` - 整数
-- `Numeric` - 数字
-- `Between` - 范围验证
-- `Min` / `Max` - 最小/最大值
-- `Email` - 邮箱格式
-- `Url` - URL 格式
-- `Date` - 日期格式
-- `DateFormat` - 指定日期格式
-- `Boolean` - 布尔值
-- `Alpha` - 字母
-- `AlphaNum` - 字母和数字
-- `AlphaDash` - 字母、数字、破折号、下划线
-- `Image` - 图片文件
-- `Json` - JSON 格式
-- `Nullable` - 可为空
-- `In` - 在指定值中
-- `NotIn` - 不在指定值中
-- `Regex` - 正则表达式
-- `Unique` - 数据库唯一
-- `Exists` - 数据库存在
+- `Required` - Required field
+- `Integer` - Integer
+- `Numeric` - Numeric
+- `Between` - Range validation
+- `Min` / `Max` - Minimum/Maximum value
+- `Email` - Email format
+- `Url` - URL format
+- `Date` - Date format
+- `DateFormat` - Specified date format
+- `Boolean` - Boolean value
+- `Alpha` - Alphabetic characters
+- `AlphaNum` - Alphanumeric characters
+- `AlphaDash` - Alphanumeric characters, dashes, and underscores
+- `Image` - Image file
+- `Json` - JSON format
+- `Nullable` - Nullable
+- `In` - In specified values
+- `NotIn` - Not in specified values
+- `Regex` - Regular expression
+- `Unique` - Database unique
+- `Exists` - Database exists
 
-### 使用示例
+### Usage Examples
 
-#### 基本验证
+#### Basic Validation
 
 ```php
 use Hyperf\DTO\Annotation\Validation\Required;
@@ -375,51 +376,51 @@ class DemoQuery
 }
 ```
 
-在控制器中使用 `#[Valid]` 注解启用验证：
+Enable validation in the controller using the `#[Valid]` annotation:
 
 ```php
 #[GetMapping(path: 'query')]
 public function query(#[RequestQuery] #[Valid] DemoQuery $request)
 {
-    // 参数已经验证通过
+    // Parameters have been validated
 }
 ```
 
-#### 自定义错误消息
+#### Custom Error Messages
 
 ```php
 class UserRequest
 {
-    #[Required("用户名不能为空”)]
+    #[Required("Username cannot be empty")]
     public string $name;
 
-    #[Between(18, 100, "年龄必须在 18-100 之间")]
+    #[Between(18, 100, "Age must be between 18 and 100")]
     public int $age;
 }
 ```
 
-#### 使用 Validation 注解
+#### Using Validation Annotation
 
-`Validation` 注解支持 Laravel 风格的验证规则：
+The `Validation` annotation supports Laravel-style validation rules:
 
 ```php
 use Hyperf\DTO\Annotation\Validation\Validation;
 
 class ComplexRequest
 {
-    // 使用管道符分隔多个规则
-    #[Validation("required|string|min:3|max:50”)]
+    // Use pipe separator for multiple rules
+    #[Validation("required|string|min:3|max:50")]
     public string $username;
 
-    // 数组元素验证
-    #[Validation("integer”, customKey: 'ids.*')]
+    // Array element validation
+    #[Validation("integer", customKey: 'ids.*')]
     public array $ids;
 }
 ```
 
-### 自定义验证规则
+### Custom Validation Rules
 
-继承 `BaseValidation` 类即可创建自定义验证规则：
+Create custom validation rules by extending the `BaseValidation` class:
 
 ```php
 namespace App\Validation;
@@ -432,14 +433,14 @@ class Phone extends BaseValidation
 {
     protected $rule = 'regex:/^1[3-9]\\d{9}$/';
     
-    public function __construct(string $messages = '手机号格式不正确')
+    public function __construct(string $messages = 'Invalid phone number format')
     {
         parent::__construct($messages);
     }
 }
 ```
 
-使用自定义验证：
+Use custom validation:
 
 ```php
 use App\Validation\Phone;
@@ -451,22 +452,23 @@ class RegisterRequest
     public string $mobile;
 }
 ```
-## 🔧 高级功能
 
-### RPC 支持
+## 🔧 Advanced Features
 
-在 JSON-RPC 服务中返回 PHP 对象，需要配置序列化支持。
+### RPC Support
 
-#### 1. 安装依赖
+To return PHP objects in JSON-RPC services, you need to configure serialization support.
+
+#### 1. Install Dependencies
 
 ```bash
 composer require symfony/serializer ^5.0|^6.0
 composer require symfony/property-access ^5.0|^6.0
 ```
 
-#### 2. 配置 Aspect
+#### 2. Configure Aspect
 
-在 `config/autoload/aspects.php` 中添加：
+Add to `config/autoload/aspects.php`:
 
 ```php
 return [
@@ -474,9 +476,9 @@ return [
 ];
 ```
 
-#### 3. 配置依赖
+#### 3. Configure Dependencies
 
-在 `config/autoload/dependencies.php` 中添加：
+Add to `config/autoload/dependencies.php`:
 
 ```php
 use Hyperf\Serializer\SerializerFactory;
@@ -487,9 +489,9 @@ return [
 ];
 ```
 
-### 自定义类型转换
+### Custom Type Conversion
 
-如果需要自定义类型转换逻辑，可以实现自己的转换器：
+If you need custom type conversion logic, you can implement your own converter:
 
 ```php
 namespace App\Convert;
@@ -500,13 +502,13 @@ class CustomConvert implements ConvertCustom
 {
     public function convert(mixed $value): mixed
     {
-        // 自定义转换逻辑
+        // Custom conversion logic
         return $value;
     }
 }
 ```
 
-在 DTO 类中使用：
+Use in DTO class:
 
 ```php
 use Hyperf\DTO\Annotation\Dto;
@@ -520,23 +522,23 @@ class UserResponse
 }
 ```
 
-## 💡 最佳实践
+## 💡 Best Practices
 
-### 1. DTO 类结构设计
+### 1. DTO Class Structure Design
 
-- 为不同的请求类型创建独立的 DTO 类
-- 使用有意义的类名，如 `CreateUserRequest`、`UpdateUserRequest`
-- 将 Request DTO 和 Response DTO 分开存放
+- Create independent DTO classes for different request types
+- Use meaningful class names, such as `CreateUserRequest`, `UpdateUserRequest`
+- Store Request DTOs and Response DTOs separately
 
-### 2. 验证规则
+### 2. Validation Rules
 
-- 优先使用内置验证注解，保持代码可读性
-- 复杂验证使用 `Validation` 注解
-- 通用验证规则封装为自定义注解
+- Prefer built-in validation annotations for code readability
+- Use `Validation` annotation for complex validation
+- Encapsulate common validation rules as custom annotations
 
-### 3. 错误处理
+### 3. Error Handling
 
-验证失败会抛出 `Hyperf\Validation\ValidationException` 异常，可以通过异常处理器统一处理：
+Validation failures throw `Hyperf\Validation\ValidationException` exceptions, which can be handled uniformly through an exception handler:
 
 ```php
 namespace App\Exception\Handler;
@@ -570,18 +572,18 @@ class ValidationExceptionHandler extends ExceptionHandler
 }
 ```
 
-## 📚 常见问题
+## 📚 FAQ
 
-### Q: 为什么验证没有生效？
+### Q: Why isn't validation working?
 
-A: 请确保：
-1. 已安装 `hyperf/validation` 组件
-2. 在控制器方法参数上添加了 `#[Valid]` 注解
-3. DTO 类中的属性添加了验证注解
+A: Please ensure:
+1. The `hyperf/validation` component is installed
+2. The `#[Valid]` annotation is added to the controller method parameter
+3. Validation annotations are added to properties in the DTO class
 
-### Q: 如何处理嵌套数组？
+### Q: How to handle nested arrays?
 
-A: 使用 PHPDoc 或 `ArrayType` 注解：
+A: Use PHPDoc or the `ArrayType` annotation:
 
 ```php
 /**
@@ -589,21 +591,44 @@ A: 使用 PHPDoc 或 `ArrayType` 注解：
  */
 public array $users;
 
-// 或者
+// Or
 #[ArrayType(User::class)]
 public array $users;
 ```
 
-### Q: 可以同时使用 RequestBody 和 RequestFormData 吗？
+### Q: Can RequestBody and RequestFormData be used together?
 
-A: 不可以。这两个注解是互斥的，因为它们处理不同的请求类型。
+A: No. These two annotations are mutually exclusive as they handle different request types.
 
-### Q: 如何处理文件上传？
+### Q: How to handle file uploads?
 
-A: 使用 `RequestFormData` 注解，然后通过 `$this->request->file()` 获取文件。
+A: Use the `RequestFormData` annotation, then retrieve the file via `$this->request->file()`.
 
-## 🔗 相关链接
+## 🔗 Related Links
 
-- [Hyperf 官方文档](https://hyperf.wiki)
-- [Hyperf Validation](https://hyperf.wiki/3.1/#/zh-cn/validation)
-- [PHP Attributes](https://www.php.net/manual/zh/language.attributes.php)
+- [Hyperf Official Documentation](https://hyperf.wiki)
+- [Hyperf Validation](https://hyperf.wiki/3.1/#/en/validation)
+- [PHP Attributes](https://www.php.net/manual/en/language.attributes.php)
+
+## 📝 Contributing
+
+Issues and Pull Requests are welcome!
+
+1. Fork this repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📜 License
+
+[MIT License](LICENSE)
+
+## ❤️ Acknowledgments
+
+- [Hyperf](https://github.com/hyperf/hyperf) - Excellent coroutine PHP framework
+- [JsonMapper](https://github.com/cweiske/jsonmapper) - JSON to PHP object mapping library
+
+---
+
+If this project helps you, please give it a ⭐ Star!

@@ -8,6 +8,7 @@ use Hyperf\Di\ReflectionManager;
 use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\ApiAnnotation;
 use Hyperf\DTO\DtoCommon;
+use Hyperf\DTO\Exception\DtoException;
 
 class PropertyManager
 {
@@ -16,6 +17,8 @@ class PropertyManager
     protected static array $notSimpleClass = [];
 
     private static array $scanClassArray = [];
+
+    private const MAX_SCAN_DEPTH = 100;
 
     public function __construct(protected DtoCommon $dtoCommon, protected PropertyEnum $propertyEnum)
     {
@@ -58,8 +61,12 @@ class PropertyManager
         static::$content[$className][$fieldName] = $property;
     }
 
-    private function scanClass(string $className): void
+    private function scanClass(string $className, int $depth = 0): void
     {
+        if ($depth > self::MAX_SCAN_DEPTH) {
+            throw new DtoException("DTO class nesting too deep (max " . self::MAX_SCAN_DEPTH . "): {$className}");
+        }
+
         $className = ltrim($className,'\\');
         if (in_array($className, self::$scanClassArray)) {
             return;
@@ -99,14 +106,14 @@ class PropertyManager
                             $arrSimpleType = $arrType;
                         } elseif (class_exists($arrType)) {
                             $arrClassName = $arrType;
-                            $this->scanClass($arrType);
+                            $this->scanClass($arrType, $depth + 1);
                         }
                     }
                 }
             } elseif ($propertyEnum) {
                 $isSimpleType = false;
             } elseif (class_exists($type)) {
-                $this->scanClass($type);
+                $this->scanClass($type, $depth + 1);
                 $isSimpleType = false;
                 $propertyClassName = $type;
             }

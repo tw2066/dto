@@ -206,6 +206,13 @@ class CoreMiddlewareAspect
                         . "of {$callableName} should not be null");
                 }
             } else {
+                // rpc validate
+                [$controllerName, $methodName] = explode('::', $callableName);
+                $methodParameter = $this->methodParametersManager->getMethodParameter($controllerName, $methodName, $definition->getMeta('name'));
+                if ($methodParameter?->isValid()) {
+                    $validationDTO = $this->container->get(DtoValidation::class);
+                    $validationDTO->validate($definition->getName(), $value);
+                }
                 // 标记
                 $injections[] = $coreMiddleware->getNormalizer()->denormalize($value, $definition->getName());
             }
