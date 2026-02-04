@@ -12,6 +12,8 @@ use Hyperf\Validation\Rule;
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class Unique extends BaseValidation
 {
+    use DatabaseRule;
+
     /**
      * 验证字段在给定数据表上必须是唯一的.
      * @param string $table 表名
@@ -29,6 +31,7 @@ class Unique extends BaseValidation
         string $message = ''
     ) {
         parent::__construct($message);
+        $this->table = $this->resolveTableName($this->table);
     }
 
     public function getRule(): mixed

@@ -10,6 +10,8 @@ use Hyperf\Validation\Rule;
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class Exists extends BaseValidation
 {
+    use DatabaseRule;
+
     /**
      * 验证字段必须存在于指定数据表.
      * @param string $table 表名
@@ -19,6 +21,7 @@ class Exists extends BaseValidation
     public function __construct(protected string $table, protected string $column = 'NULL', protected array $wheres = [], string $message = '')
     {
         parent::__construct($message);
+        $this->table = $this->resolveTableName($this->table);
     }
 
     public function getRule(): mixed
