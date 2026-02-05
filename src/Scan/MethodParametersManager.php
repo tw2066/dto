@@ -42,6 +42,10 @@ class MethodParametersManager
         foreach ($attributes as $attribute) {
             $methodParameters = new MethodParameter();
             $paramName = $attribute->getName();
+
+            if (! ($attribute->getType() && class_exists($attribute->getType()->getName()))) {
+                continue;
+            }
             $mark = 0;
             if ($attribute->getAttributes(RequestQuery::class)) {
                 $methodParameters->setIsRequestQuery(true);

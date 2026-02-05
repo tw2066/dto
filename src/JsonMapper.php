@@ -209,7 +209,9 @@ class JsonMapper extends \JsonMapper
         $block = $factory->create($docblock, $context);
         foreach ($block->getTags() as $tag) {
             if ($tag instanceof Var_) {
-                $annotations[$tag->getName()][] = $tag->getType()->__toString();
+                $type = $tag->getType()->__toString();
+                $type = explode('|', $type)[0]; // SecurityScheme.php string|non-empty-array<string>
+                $annotations[$tag->getName()][] = $type;
             }
         }
         return $annotations;
