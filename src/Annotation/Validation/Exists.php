@@ -14,7 +14,7 @@ class Exists extends BaseValidation
 
     /**
      * 验证字段必须存在于指定数据表.
-     * @param string $table 表名
+     * @param string $table 表名, 支持模型 eg: App\Model\User::class
      * @param string $column 数据库字段，不指定 column 选项，字段名将作为默认 column
      * @param array $wheres 简单查询条件 eg: [['status', '=', '1']]
      */

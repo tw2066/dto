@@ -16,7 +16,7 @@ class Unique extends BaseValidation
 
     /**
      * 验证字段在给定数据表上必须是唯一的.
-     * @param string $table 表名
+     * @param string $table 表名, 支持模型 eg: App\Model\User::class
      * @param string $column 数据库字段，不指定 column 选项，字段名将作为默认 column
      * @param null|string $ignoreIdKey 从请求中获取指定的key的值, 唯一检查时忽略给定 ID
      * @param null|string $ignoreIdColumn 如果你的数据表使用主键字段不是 id，可以指定字段名称
