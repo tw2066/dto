@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO;
 
+use ReflectionParameter;
 use ReflectionProperty;
 
 class DtoCommon extends JsonMapper
@@ -11,7 +12,7 @@ class DtoCommon extends JsonMapper
     /**
      * 获取PHP类型.
      */
-    public function getTypeName(ReflectionProperty $rprop): string
+    public function getTypeName(ReflectionProperty|ReflectionParameter $rprop): string
     {
         if ($rprop->hasType()) {
             $rPropType = $rprop->getType();
