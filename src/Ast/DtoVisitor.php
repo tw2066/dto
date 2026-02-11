@@ -89,7 +89,7 @@ class DtoVisitor extends NodeVisitorAbstract
                             $alias = $property->alias;
                             // 增加set属性方法
                             $setter = DtoConfig::getDtoAliasMethodName($alias);
-                            $stmts = $this->createSetter($setter, $alias, $propertyName, $stmt->props[0]->default, $stmt->type);
+                            $stmts = $this->createSetter($setter, $propertyName, $stmt->props[0]->default, $stmt->type);
                             $class->stmts[] = $stmts;
                         }
                     }
@@ -163,11 +163,11 @@ class DtoVisitor extends NodeVisitorAbstract
         );
     }
 
-    protected function createSetter(string $method, string $alias, string $propertyName, $default, $type): Node\Stmt\ClassMethod
+    protected function createSetter(string $method, string $propertyName, $default, $type): Node\Stmt\ClassMethod
     {
         $node = new Node\Stmt\ClassMethod($method, [
             'flags' => Node\Stmt\Class_::MODIFIER_PRIVATE,
-            'params' => [new Node\Param(new Node\Expr\Variable($alias), $default, $type)],
+            'params' => [new Node\Param(new Node\Expr\Variable('param'), $default, $type)],
         ]);
         $node->returnType = new Node\Identifier('void');
         $node->stmts[] = new Node\Stmt\Expression(
@@ -176,7 +176,7 @@ class DtoVisitor extends NodeVisitorAbstract
                     new Node\Expr\Variable('this'),
                     new Node\Identifier($propertyName)
                 ),
-                new Node\Expr\Variable($alias)
+                new Node\Expr\Variable('param')
             )
         );
 
