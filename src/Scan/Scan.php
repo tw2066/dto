@@ -31,6 +31,7 @@ class Scan
     {
         // 设置方法中的参数.
         $this->methodParametersManager->setMethodParameters($className, $methodName);
+        $this->methodParametersManager->scanClassMethodParam($className, $methodName);
         $definitionArr = $this->methodDefinitionCollector->getParameters($className, $methodName);
         $definitionArr[] = $this->methodDefinitionCollector->getReturnType($className, $methodName);
         foreach ($definitionArr as $definition) {
@@ -49,15 +50,15 @@ class Scan
     /**
      * Scan class and generate validation rules.
      */
-    public function scanClass(string $className): void
+    public function scanClass(string $parameterClassName): void
     {
-        if (in_array($className, self::$scanClassArray)) {
+        if (in_array($parameterClassName, self::$scanClassArray)) {
             return;
         }
-        self::$scanClassArray[] = $className;
-        $propertyArr = $this->propertyManager->getPropertyByClass($className);
+        self::$scanClassArray[] = $parameterClassName;
+        $propertyArr = $this->propertyManager->getPropertyByClass($parameterClassName);
         foreach ($propertyArr as $fieldName => $property) {
-            $this->validationManager->generateValidation($className, $fieldName);
+            $this->validationManager->generateValidation($parameterClassName, $fieldName);
         }
     }
 }

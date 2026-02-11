@@ -12,13 +12,13 @@ use Hyperf\DTO\Exception\DtoException;
 
 class PropertyManager
 {
+    private const MAX_SCAN_DEPTH = 100;
+
     protected static array $content = [];
 
     protected static array $notSimpleClass = [];
 
     private static array $scanClassArray = [];
-
-    private const MAX_SCAN_DEPTH = 100;
 
     public function __construct(protected DtoCommon $dtoCommon, protected PropertyEnum $propertyEnum)
     {
@@ -26,7 +26,7 @@ class PropertyManager
 
     public function getPropertyByClass(string $className): array
     {
-        $this->scanClass($className);
+        $this->scanClassProperties($className);
         return static::$content[$className] ?? [];
     }
 
@@ -49,25 +49,13 @@ class PropertyManager
         return static::$notSimpleClass[$className];
     }
 
-    /**
-     * 设置类中字段的属性.
-     */
-    private function setProperty(string $className, string $fieldName, Property $property): void
-    {
-        // 判断复杂类型 用于数据验证
-        if (! $property->isSimpleType) {
-            static::$notSimpleClass[$className][$fieldName] = $property;
-        }
-        static::$content[$className][$fieldName] = $property;
-    }
-
-    private function scanClass(string $className, int $depth = 0): void
+    public function scanClassProperties(string $className, int $depth = 0): void
     {
         if ($depth > self::MAX_SCAN_DEPTH) {
-            throw new DtoException("DTO class nesting too deep (max " . self::MAX_SCAN_DEPTH . "): {$className}");
+            throw new DtoException('DTO class nesting too deep (max ' . self::MAX_SCAN_DEPTH . "): {$className}");
         }
 
-        $className = ltrim($className,'\\');
+        $className = ltrim($className, '\\');
         if (in_array($className, self::$scanClassArray)) {
             return;
         }
@@ -106,14 +94,14 @@ class PropertyManager
                             $arrSimpleType = $arrType;
                         } elseif (class_exists($arrType)) {
                             $arrClassName = $arrType;
-                            $this->scanClass($arrType, $depth + 1);
+                            $this->scanClassProperties($arrType, $depth + 1);
                         }
                     }
                 }
             } elseif ($propertyEnum) {
                 $isSimpleType = false;
             } elseif (class_exists($type)) {
-                $this->scanClass($type, $depth + 1);
+                $this->scanClassProperties($type, $depth + 1);
                 $isSimpleType = false;
                 $propertyClassName = $type;
             }
@@ -131,5 +119,17 @@ class PropertyManager
             $property->alias = $JSONFieldName;
             $this->setProperty($className, $fieldName, $property);
         }
+    }
+
+    /**
+     * 设置类中字段的属性.
+     */
+    private function setProperty(string $className, string $fieldName, Property $property): void
+    {
+        // 判断复杂类型 用于数据验证
+        if (! $property->isSimpleType) {
+            static::$notSimpleClass[$className][$fieldName] = $property;
+        }
+        static::$content[$className][$fieldName] = $property;
     }
 }

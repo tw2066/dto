@@ -183,6 +183,33 @@ class CoreMiddlewareAspect
         return Mapper::map($param, make($className));
     }
 
+    protected function arrayValidateAndMap(string $callableName, string $paramName): array
+    {
+        [$controllerName, $methodName] = explode('::', $callableName);
+        $methodParameter = $this->methodParametersManager->getMethodParameter($controllerName, $methodName, $paramName);
+        if (! $methodParameter?->isRequestBody()) {
+            return [];
+        }
+
+        $property = $this->methodParametersManager->getProperty($controllerName, $methodName, $paramName);
+        /** @var ServerRequestInterface $request */
+        $request = Context::get(ServerRequestInterface::class);
+        $params = $request->getParsedBody();
+        if ($property?->arrClassName == null) {
+            return $params;
+        }
+        $paramType = $property->arrClassName;
+        $data = [];
+        $validationDTO = $this->container->get(DtoValidation::class);
+        foreach ($params as $param) {
+            if ($methodParameter->isValid()) {
+                $validationDTO->validate($paramType, $param);
+            }
+            $data[] = Mapper::map($param, make($paramType));
+        }
+        return $data;
+    }
+
     /**
      * @param ReflectionType[] $definitions
      * @param mixed $coreMiddleware
@@ -199,6 +226,9 @@ class CoreMiddlewareAspect
                     // 修改
                     $obj = $this->container->get($definition->getName());
                     $injections[] = $this->validateAndMap($callableName, $definition->getMeta('name'), $definition->getName(), $obj);
+                } elseif ($definition->getName() === 'array') {
+                    // 修改 支持json数组
+                    $injections[] = $this->arrayValidateAndMap($callableName, $definition->getMeta('name'));
                 } elseif ($definition->allowsNull()) {
                     $injections[] = null;
                 } else {
