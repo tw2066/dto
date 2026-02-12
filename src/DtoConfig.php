@@ -56,12 +56,8 @@ class DtoConfig
 
     public static function getDtoAliasMethodName(string $fieldName): string
     {
-        // See JsonMapper::getCamelCaseName
-        $fieldName = str_replace(
-            ' ',
-            '',
-            ucwords(str_replace(['_', '-'], ' ', $fieldName))
-        );
+        $dtoCommon = new DtoCommon();
+        $fieldName = $dtoCommon->getSafeName($fieldName);
         $fieldName = md5($fieldName);
         return static::$dto_alias_method_prefix . $fieldName;
     }

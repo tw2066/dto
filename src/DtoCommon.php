@@ -38,4 +38,9 @@ class DtoCommon extends JsonMapper
     {
         return parent::isArrayOfType($strType);
     }
+
+    public function getSafeName($name)
+    {
+        return parent::getSafeName($name);
+    }
 }
