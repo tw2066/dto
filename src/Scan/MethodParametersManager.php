@@ -51,11 +51,11 @@ class MethodParametersManager
         $attributes = $ref->getParameters();
         $methodMark = 0;
         $headerMark = 0;
-        $total = 0;
         foreach ($attributes as $attribute) {
             $methodParameters = new MethodParameter();
             $paramName = $attribute->getName();
 
+            $total = 0;
             $mark = 0;
             if ($attribute->getAttributes(RequestQuery::class)) {
                 $methodParameters->setIsRequestQuery(true);
