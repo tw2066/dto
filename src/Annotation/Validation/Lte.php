@@ -7,7 +7,7 @@ namespace Hyperf\DTO\Annotation\Validation;
 use Attribute;
 
 #[Attribute(Attribute::TARGET_PROPERTY)]
-class Lt extends BaseValidation
+class Lte extends BaseValidation
 {
     /**
      * @var string
