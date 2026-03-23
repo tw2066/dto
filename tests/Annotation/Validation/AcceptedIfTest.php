@@ -98,4 +98,3 @@ class AcceptedIfTest extends ValidationAnnotationTestCase
         );
     }
 }
-

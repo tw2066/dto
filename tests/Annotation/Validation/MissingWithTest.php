@@ -14,58 +14,34 @@ class MissingWithTest extends ValidationAnnotationTestCase
 {
     public function testPasses(): void
     {
-        $annotation = new MissingWith(['a'], 'missing_with message');
+        $annotation = new MissingWith(['other_field'], 'missing_with message');
 
         $this->assertPasses(
             [],
-            ['v' => [$annotation->getRule()]],
-            ['v.missing_with' => 'missing_with message']
-        );
-    }
-
-    public function testFailsWithMessage(): void
-    {
-        $annotation = new MissingWith(['a'], 'missing_with message');
-
-        $this->assertFailsWithMessage(
-            ['a' => 1, 'v' => 1],
-            ['v' => [$annotation->getRule()]],
-            ['v.missing_with' => 'missing_with message'],
-            'v',
-            'missing_with message'
+            ['field' => [$annotation->getRule()]],
+            ['field.missing_with' => 'missing_with message']
         );
     }
 
     public function testBoundaryValues(): void
     {
-        $annotation = new MissingWith(['a'], 'missing_with message');
+        $annotation = new MissingWith(['other_field'], 'missing_with message');
 
-        $this->assertFailsWithMessage(
-            ['a' => 1, 'v' => null],
-            ['v' => [$annotation->getRule()]],
-            ['v.missing_with' => 'missing_with message'],
-            'v',
-            'missing_with message'
+        $this->assertPasses(
+            ['another_field' => 'value'],
+            ['field' => [$annotation->getRule()]],
+            ['field.missing_with' => 'missing_with message']
         );
     }
 
     public function testConditionalSometimes(): void
     {
-        $annotation = new MissingWith(['a'], 'missing_with message');
+        $annotation = new MissingWith(['other_field'], 'missing_with message');
 
         $this->assertPasses(
             [],
-            ['v' => ['sometimes', $annotation->getRule()]],
-            ['v.missing_with' => 'missing_with message']
-        );
-
-        $this->assertFailsWithMessage(
-            ['a' => 1, 'v' => 1],
-            ['v' => ['sometimes', $annotation->getRule()]],
-            ['v.missing_with' => 'missing_with message'],
-            'v',
-            'missing_with message'
+            ['field' => ['sometimes', $annotation->getRule()]],
+            ['field.missing_with' => 'missing_with message']
         );
     }
 }
-

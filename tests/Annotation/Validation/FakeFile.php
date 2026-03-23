@@ -18,4 +18,3 @@ class FakeFile extends SplFileInfo
         return $this->mimeType;
     }
 }
-

@@ -72,4 +72,3 @@ class Ipv4Test extends ValidationAnnotationTestCase
         );
     }
 }
-

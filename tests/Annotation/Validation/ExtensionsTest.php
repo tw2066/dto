@@ -92,4 +92,3 @@ class ExtensionsTest extends ValidationAnnotationTestCase
         );
     }
 }
-

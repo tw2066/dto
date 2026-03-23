@@ -74,4 +74,3 @@ class FileTest extends ValidationAnnotationTestCase
         );
     }
 }
-

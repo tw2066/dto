@@ -63,7 +63,7 @@ class DecimalTest extends ValidationAnnotationTestCase
         );
 
         $this->assertFailsWithMessage(
-            ['v' => new class () {
+            ['v' => new class {
                 public function __toString(): string
                 {
                     return '1.2';

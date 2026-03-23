@@ -13,13 +13,6 @@ abstract class ValidationAnnotationTestCase extends TestCase
 {
     protected array $tempFiles = [];
 
-    protected function makeValidatorFactory(): ValidatorFactory
-    {
-        $translator = new Translator(new FakeTranslatorLoader(), 'en');
-        $translator->setFallback('en');
-        return new ValidatorFactory($translator);
-    }
-
     protected function tearDown(): void
     {
         foreach ($this->tempFiles as $file) {
@@ -27,6 +20,13 @@ abstract class ValidationAnnotationTestCase extends TestCase
         }
         $this->tempFiles = [];
         parent::tearDown();
+    }
+
+    protected function makeValidatorFactory(): ValidatorFactory
+    {
+        $translator = new Translator(new FakeTranslatorLoader(), 'en');
+        $translator->setFallback('en');
+        return new ValidatorFactory($translator);
     }
 
     protected function createTempFile(string $suffix, string $contents): string

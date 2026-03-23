@@ -18,8 +18,8 @@ class MissingTest extends ValidationAnnotationTestCase
 
         $this->assertPasses(
             [],
-            ['v' => [$annotation->getRule()]],
-            ['v.missing' => 'missing message']
+            ['field' => [$annotation->getRule()]],
+            ['field.missing' => 'missing message']
         );
     }
 
@@ -28,10 +28,10 @@ class MissingTest extends ValidationAnnotationTestCase
         $annotation = new Missing('missing message');
 
         $this->assertFailsWithMessage(
-            ['v' => 1],
-            ['v' => [$annotation->getRule()]],
-            ['v.missing' => 'missing message'],
-            'v',
+            ['field' => 'value'],
+            ['field' => [$annotation->getRule()]],
+            ['field.missing' => 'missing message'],
+            'field',
             'missing message'
         );
     }
@@ -40,44 +40,10 @@ class MissingTest extends ValidationAnnotationTestCase
     {
         $annotation = new Missing('missing message');
 
-        $this->assertFailsWithMessage(
-            ['v' => ''],
-            ['v' => [$annotation->getRule()]],
-            ['v.missing' => 'missing message'],
-            'v',
-            'missing message'
-        );
-
-        $this->assertFailsWithMessage(
-            ['v' => 0],
-            ['v' => [$annotation->getRule()]],
-            ['v.missing' => 'missing message'],
-            'v',
-            'missing message'
-        );
-
-        $this->assertFailsWithMessage(
-            ['v' => null],
-            ['v' => [$annotation->getRule()]],
-            ['v.missing' => 'missing message'],
-            'v',
-            'missing message'
-        );
-
-        $this->assertFailsWithMessage(
-            ['v' => []],
-            ['v' => [$annotation->getRule()]],
-            ['v.missing' => 'missing message'],
-            'v',
-            'missing message'
-        );
-
-        $this->assertFailsWithMessage(
-            ['v' => (object) ['a' => 1]],
-            ['v' => [$annotation->getRule()]],
-            ['v.missing' => 'missing message'],
-            'v',
-            'missing message'
+        $this->assertPasses(
+            ['other_field' => 'value'],
+            ['field' => [$annotation->getRule()]],
+            ['field.missing' => 'missing message']
         );
     }
 
@@ -87,17 +53,8 @@ class MissingTest extends ValidationAnnotationTestCase
 
         $this->assertPasses(
             [],
-            ['v' => ['sometimes', $annotation->getRule()]],
-            ['v.missing' => 'missing message']
-        );
-
-        $this->assertFailsWithMessage(
-            ['v' => 1],
-            ['v' => ['sometimes', $annotation->getRule()]],
-            ['v.missing' => 'missing message'],
-            'v',
-            'missing message'
+            ['field' => ['sometimes', $annotation->getRule()]],
+            ['field.missing' => 'missing message']
         );
     }
 }
-

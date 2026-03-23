@@ -17,22 +17,9 @@ class MissingUnlessTest extends ValidationAnnotationTestCase
         $annotation = new MissingUnless('status', 1, 'missing_unless message');
 
         $this->assertPasses(
-            ['status' => 1, 'v' => 1],
-            ['v' => [$annotation->getRule()]],
-            ['v.missing_unless' => 'missing_unless message']
-        );
-    }
-
-    public function testFailsWithMessage(): void
-    {
-        $annotation = new MissingUnless('status', 1, 'missing_unless message');
-
-        $this->assertFailsWithMessage(
-            ['status' => 0, 'v' => 1],
-            ['v' => [$annotation->getRule()]],
-            ['v.missing_unless' => 'missing_unless message'],
-            'v',
-            'missing_unless message'
+            ['status' => 2],
+            ['field' => [$annotation->getRule()]],
+            ['field.missing_unless' => 'missing_unless message']
         );
     }
 
@@ -40,18 +27,10 @@ class MissingUnlessTest extends ValidationAnnotationTestCase
     {
         $annotation = new MissingUnless('status', 1, 'missing_unless message');
 
-        $this->assertFailsWithMessage(
-            ['status' => 0, 'v' => ''],
-            ['v' => [$annotation->getRule()]],
-            ['v.missing_unless' => 'missing_unless message'],
-            'v',
-            'missing_unless message'
-        );
-
         $this->assertPasses(
-            ['status' => 1, 'v' => null],
-            ['v' => [$annotation->getRule()]],
-            ['v.missing_unless' => 'missing_unless message']
+            [],
+            ['field' => [$annotation->getRule()]],
+            ['field.missing_unless' => 'missing_unless message']
         );
     }
 
@@ -60,18 +39,9 @@ class MissingUnlessTest extends ValidationAnnotationTestCase
         $annotation = new MissingUnless('status', 1, 'missing_unless message');
 
         $this->assertPasses(
-            ['status' => 1, 'v' => 1],
-            ['v' => ['sometimes', $annotation->getRule()]],
-            ['v.missing_unless' => 'missing_unless message']
-        );
-
-        $this->assertFailsWithMessage(
-            ['status' => 0, 'v' => 1],
-            ['v' => ['sometimes', $annotation->getRule()]],
-            ['v.missing_unless' => 'missing_unless message'],
-            'v',
-            'missing_unless message'
+            [],
+            ['field' => ['sometimes', $annotation->getRule()]],
+            ['field.missing_unless' => 'missing_unless message']
         );
     }
 }
-

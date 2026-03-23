@@ -26,4 +26,3 @@ class FakeTranslatorLoader implements TranslatorLoaderInterface
         return [];
     }
 }
-

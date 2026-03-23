@@ -72,4 +72,3 @@ class Ipv6Test extends ValidationAnnotationTestCase
         );
     }
 }
-

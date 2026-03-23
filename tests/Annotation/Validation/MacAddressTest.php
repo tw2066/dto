@@ -72,4 +72,3 @@ class MacAddressTest extends ValidationAnnotationTestCase
         );
     }
 }
-

@@ -59,7 +59,7 @@ class AsciiTest extends ValidationAnnotationTestCase
         );
 
         $this->assertPasses(
-            ['v' => new class () {
+            ['v' => new class {
                 public function __toString(): string
                 {
                     return 'abc';
@@ -89,4 +89,3 @@ class AsciiTest extends ValidationAnnotationTestCase
         );
     }
 }
-

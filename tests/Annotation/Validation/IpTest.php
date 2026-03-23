@@ -96,4 +96,3 @@ class IpTest extends ValidationAnnotationTestCase
         );
     }
 }
-

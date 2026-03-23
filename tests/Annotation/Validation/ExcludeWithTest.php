@@ -49,4 +49,3 @@ class ExcludeWithTest extends ValidationAnnotationTestCase
         self::assertSame([], $validator->validate());
     }
 }
-

@@ -74,4 +74,3 @@ class MissingIfTest extends ValidationAnnotationTestCase
         );
     }
 }
-

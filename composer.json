@@ -26,7 +26,8 @@
     "phpunit/phpunit": ">=7.0",
     "symfony/var-dumper": "^5.1",
     "symfony/property-access": "^5.0|^6.0",
-    "symfony/serializer": "^5.0|^6.0"
+    "symfony/serializer": "^5.0|^6.0",
+    "brick/math": "*"
   },
   "autoload": {
     "psr-4": {
