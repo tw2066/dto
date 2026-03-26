@@ -198,6 +198,9 @@ class CoreMiddlewareAspect
         if ($property?->arrClassName == null) {
             return $params;
         }
+        if (empty($params)) {
+            return [];
+        }
         $paramType = $property->arrClassName;
         $data = [];
         $validationDTO = $this->container->get(DtoValidation::class);
