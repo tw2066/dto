@@ -18,7 +18,7 @@ class MapperTest extends TestCase
 
         $this->assertInstanceOf(TestSimpleDto::class, $result);
         $this->assertSame('test', $result->name);
-        $this->assertSame(25, $result->age);
+        $this->assertSame(251, $result->age);
     }
 
     public function testMapWithNullSource(): void
