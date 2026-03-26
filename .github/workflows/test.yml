@@ -2,10 +2,6 @@ name: PHPUnit
 
 on: [ push, pull_request ]
 
-env:
-  SWOOLE_VERSION: '6.1.7'
-  SWOW_VERSION: 'develop'
-
 jobs:
   ci:
     name: Test PHP ${{ matrix.php-version }} on ${{ matrix.engine }}
@@ -14,8 +10,10 @@ jobs:
       matrix:
         os: [ ubuntu-latest ]
         php-version: [ '8.1','8.2','8.3','8.4' ]
-        engine: [ 'swoole' ]
+        sw-version: [ 'v6.1.7']
       max-parallel: 5
+    env:
+      SW_VERSION: ${{ matrix.sw-version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,7 +26,6 @@ jobs:
           ini-values: opcache.enable_cli=0
           coverage: none
       - name: Setup Swoole
-        if: ${{ matrix.engine == 'swoole' }}
         run: |
           sudo apt-get install libcurl4-openssl-dev libc-ares-dev libpq-dev
           wget https://github.com/swoole/swoole-src/archive/${SW_VERSION}.tar.gz -O swoole.tar.gz
