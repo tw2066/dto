@@ -3,7 +3,7 @@ name: PHPUnit3.2
 on: [ push, pull_request ]
 
 jobs:
-  ci31:
+  ci32:
     runs-on: ubuntu-latest
     strategy:
       matrix:
