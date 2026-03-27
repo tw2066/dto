@@ -1,4 +1,4 @@
-name: PHPUnit
+name: PHPUnit3.1
 
 on: [ push, pull_request ]
 
@@ -7,9 +7,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        hyperf-di:
-          - "3.2"
-#          - "3.1"
         hyperf-version:
           - "8.1-alpine-v3.19-swoole"
           - "8.2-alpine-v3.22-swoole"
@@ -28,11 +25,10 @@ jobs:
           docker run --rm hyperf/hyperf:${{ matrix.hyperf-version }} \
             sh -c "php -v && php -m && php --ri swoole && composer -V"
       - name: Composer Update
-        if: matrix.hyperf-version == '3.2' && matrix.hyperf-version != '8.1-alpine-v3.11-swoole'
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/app -w /app hyperf/hyperf:${{ matrix.hyperf-version }} \
-            sh -c "composer require hyperf/di:${{ matrix.hyperf-di }} && composer update -o"
+            sh -c "composer require hyperf/di:3.1.* && composer update -o"
       - name: Composer Analyse
         run: |
           docker run --rm \
