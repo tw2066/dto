@@ -7,14 +7,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
+        hyperf-di:
+          - "3.0.*"
+          - "3.1.*"
         hyperf-version:
           - "8.1-alpine-v3.19-swoole"
           - "8.2-alpine-v3.22-swoole"
           - "8.3-alpine-v3.23-swoole"
           - "8.4-alpine-v3.23-swoole"
-        hyperf-di:
-          - "3.1.*"
-          - "3.2.*"
       fail-fast: false
       max-parallel: 5
 
