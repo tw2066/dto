@@ -1,18 +1,39 @@
-name: Hyperf docker:// 官方用法
+name: PHPUnit3.1
+
 on: [push, pull_request]
 
 jobs:
-  test:
+  ci31:
     runs-on: ubuntu-latest
+    container: hyperf/hyperf:${{ matrix.hyperf-version }}
+    strategy:
+      matrix:
+        hyperf-version:
+          - "8.1-alpine-v3.19-swoole"
+          - "8.2-alpine-v3.22-swoole"
+          - "8.3-alpine-v3.23-swoole"
+          - "8.4-alpine-v3.23-swoole"
+      fail-fast: false
+      max-parallel: 15
+
     steps:
-      - name: 检出代码
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # 👇 官方标准：直接使用 Docker 镜像
-      - name: 运行 Hyperf 单元测试
-        uses: docker://hyperf/hyperf:8.3-alpine-v3.23-swoole
-        with:
-          # 容器内执行的命令（自动在代码目录运行）
-          run: |
-            php -v
-            php -m
+      - name: Setup Environment
+        run: |
+          php -v
+          php -m
+          php --ri swoole
+          composer -V
+
+      - name: Install Dependencies
+        run: |
+          composer require hyperf/di:3.1.* --no-update
+          composer update -o --no-scripts 
+
+      - name: Static Analysis
+        run: composer analyse
+
+      - name: Run Tests
+        run: composer test
