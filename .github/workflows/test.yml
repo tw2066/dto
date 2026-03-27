@@ -13,4 +13,4 @@ jobs:
         uses: docker://hyperf/hyperf:8.3-alpine-v3.23-swoole
       - name: Composer Update
         run: |
-          ls && pwd && composer update -o
+          ls && pwd && php -v && php --ri swoole &&  composer update -o
