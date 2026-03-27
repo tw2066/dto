@@ -5,6 +5,7 @@ on: [ push, pull_request ]
 jobs:
   ci31:
     runs-on: ubuntu-latest
+    container: hyperf/hyperf:${{ matrix.hyperf-version }}
     strategy:
       matrix:
         hyperf-version:
@@ -18,24 +19,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Pull Hyperf Image
-        run: docker pull hyperf/hyperf:${{ matrix.hyperf-version }}
-      - name: Environment Info
+      - name: Setup Environment
         run: |
-          docker run --rm hyperf/hyperf:${{ matrix.hyperf-version }} \
-            sh -c "php -v && php -m && php --ri swoole && composer -V"
-      - name: Composer Update
+          pwd
+          ls -al
+          php -v
+          php -m
+          php --ri swoole
+          composer -V
+
+      - name: Install Dependencies
         run: |
-          docker run --rm \
-            -v ${{ github.workspace }}:/app -w /app hyperf/hyperf:${{ matrix.hyperf-version }} \
-            sh -c "composer require hyperf/di:3.1.* && composer update -o"
-      - name: Composer Analyse
-        run: |
-          docker run --rm \
-            -v ${{ github.workspace }}:/app -w /app hyperf/hyperf:${{ matrix.hyperf-version }} \
-            sh -c "composer analyse"
-      - name: Run Unit Tests
-        run: |
-          docker run --rm \
-            -v ${{ github.workspace }}:/app -w /app hyperf/hyperf:${{ matrix.hyperf-version }} \
-            sh -c "composer test"
+          composer require hyperf/di:3.1.* --no-update
+          composer update -o --no-scripts 
+          composer info
+
+      - name: Static Analysis
+        run: composer analyse
+
+      - name: Run Tests
+        run: composer test
