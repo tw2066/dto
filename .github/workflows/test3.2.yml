@@ -27,7 +27,7 @@ jobs:
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/app -w /app hyperf/hyperf:${{ matrix.hyperf-version }} \
-            sh -c "composer require hyperf/di:3.2.* -W && composer update -oW"
+            sh -c "php .github/workflows/add_composer_stability.php && composer require hyperf/di:3.2.* && composer update -o"
       - name: Composer Analyse
         run: |
           docker run --rm \
