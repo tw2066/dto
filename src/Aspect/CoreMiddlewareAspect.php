@@ -33,13 +33,8 @@ class CoreMiddlewareAspect
         CoreMiddleware::class . '::transferToResponse',
     ];
 
-    protected int $hyperfVersion = 31;
-
     public function __construct(private ContainerInterface $container, protected MethodParametersManager $methodParametersManager)
     {
-        if (! method_exists($this->response(), 'addHeader')) {
-            $this->hyperfVersion = 30;
-        }
     }
 
     /**
@@ -52,9 +47,6 @@ class CoreMiddlewareAspect
         if ($proceedingJoinPoint->methodName === 'transferToResponse') {
             $response = $proceedingJoinPoint->arguments['keys']['response'];
             $request = $proceedingJoinPoint->arguments['keys']['request'];
-            if ($this->hyperfVersion === 30) {
-                return $this->transferToResponse30($response, $request);
-            }
             return $this->transferToResponse($response, $request);
         }
 
@@ -114,38 +106,6 @@ class CoreMiddlewareAspect
         }
 
         return $this->response()->addHeader('content-type', 'text/plain')->setBody(new SwooleStream((string) $response));
-    }
-
-    protected function transferToResponse30($response, ServerRequestInterface $request): ResponseInterface
-    {
-        if (is_string($response)) {
-            return $this->response()->withAddedHeader('content-type', 'text/plain')->withBody(new SwooleStream($response));
-        }
-
-        if (is_array($response) || $response instanceof Arrayable) {
-            return $this->response()
-                ->withAddedHeader('content-type', 'application/json')
-                ->withBody(new SwooleStream(Json::encode($response)));
-        }
-
-        if ($response instanceof Jsonable) {
-            return $this->response()
-                ->withAddedHeader('content-type', 'application/json')
-                ->withBody(new SwooleStream((string) $response));
-        }
-
-        // object
-        if (is_object($response)) {
-            return $this->response()
-                ->addHeader('content-type', 'application/json')
-                ->setBody(new SwooleStream(Json::encode($response)));
-        }
-
-        if ($this->response()->hasHeader('content-type')) {
-            return $this->response()->withBody(new SwooleStream((string) $response));
-        }
-
-        return $this->response()->withHeader('content-type', 'text/plain')->withBody(new SwooleStream((string) $response));
     }
 
     /**
