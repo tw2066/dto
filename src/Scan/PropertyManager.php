@@ -17,8 +17,7 @@ class PropertyManager
     protected static array $content = [];
 
     protected static array $notSimpleClass = [];
-
-    private static array $scanClassArray = [];
+    private static array $scannedClasses = [];
 
     public function __construct(protected DtoCommon $dtoCommon, protected PropertyEnum $propertyEnum)
     {
@@ -56,10 +55,11 @@ class PropertyManager
         }
 
         $className = ltrim($className, '\\');
-        if (in_array($className, self::$scanClassArray)) {
+        // 使用关联数组检查，时间复杂度 O(1) 替代 in_array 的 O(n)
+        if (isset(self::$scannedClasses[$className])) {
             return;
         }
-        self::$scanClassArray[] = $className;
+        self::$scannedClasses[$className] = true;
 
         $rc = ReflectionManager::reflectClass($className);
         $strNs = $rc->getNamespaceName();

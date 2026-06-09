@@ -11,7 +11,7 @@ use ReflectionException;
 
 class Scan
 {
-    protected static array $scanClassArray = [];
+    protected static array $scannedClasses = [];
 
     public function __construct(
         protected ContainerInterface $container,
@@ -44,7 +44,7 @@ class Scan
 
     public function clearScanClassArray(): void
     {
-        self::$scanClassArray = [];
+        self::$scannedClasses = [];
     }
 
     /**
@@ -52,10 +52,11 @@ class Scan
      */
     public function scanClass(string $parameterClassName): void
     {
-        if (in_array($parameterClassName, self::$scanClassArray)) {
+        // 使用关联数组检查，时间复杂度 O(1) 替代 in_array 的 O(n)
+        if (isset(self::$scannedClasses[$parameterClassName])) {
             return;
         }
-        self::$scanClassArray[] = $parameterClassName;
+        self::$scannedClasses[$parameterClassName] = true;
         $propertyArr = $this->propertyManager->getPropertyByClass($parameterClassName);
         foreach ($propertyArr as $fieldName => $property) {
             $this->validationManager->generateValidation($parameterClassName, $fieldName);
