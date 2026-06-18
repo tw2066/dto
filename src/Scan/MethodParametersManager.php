@@ -101,10 +101,11 @@ class MethodParametersManager
     public function scanClassMethodParam(string $className, string $methodName): void
     {
         $className = ltrim($className, '\\');
-        if (in_array($className . '_' . $methodName, self::$scanClassMethodArray)) {
+        $key = $className . '_' . $methodName;
+        if (isset(self::$scanClassMethodArray[$key])) {
             return;
         }
-        self::$scanClassMethodArray[] = $className . '_' . $methodName;
+        self::$scanClassMethodArray[$key] = true;
 
         $rc = ReflectionManager::reflectClass($className);
         $strNs = $rc->getNamespaceName();
