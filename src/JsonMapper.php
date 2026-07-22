@@ -22,7 +22,7 @@ class JsonMapper extends \JsonMapper
      * @param string $message Text to log
      * @param array $context Additional information
      */
-    protected function log($level, $message, array $context = [])
+    protected function log(string $level, string $message, array $context = []): void
     {
         if ($this->logger) {
             $this->logger->log('debug', $message, $context);
@@ -42,9 +42,9 @@ class JsonMapper extends \JsonMapper
      *               Third value: type of the property
      *               Fourth value: if the property is nullable
      */
-    protected function inspectProperty(ReflectionClass $rc, $name)
+    protected function inspectProperty(ReflectionClass $rc, string $name): array
     {
-        // 修改
+        // 修改：别名 setter 方法优先
         $isSetDtoMethod = true;
         $setter = DtoConfig::getDtoAliasMethodName($name);
         if (! $rc->hasMethod($setter)) {
@@ -55,7 +55,7 @@ class JsonMapper extends \JsonMapper
 
         if ($rc->hasMethod($setter)) {
             $rmeth = $rc->getMethod($setter);
-            // 修改
+            // 修改：DTO 别名 setter 为私有方法，同样允许访问
             if ($rmeth->isPublic() || $this->bIgnoreVisibility || $isSetDtoMethod) {
                 $isNullable = false;
                 $rparams = $rmeth->getParameters();
@@ -77,7 +77,7 @@ class JsonMapper extends \JsonMapper
                 }
 
                 $docblock    = $rmeth->getDocComment();
-                $annotations = static::parseAnnotations($docblock);
+                $annotations = static::parseAnnotations((string) $docblock);
 
                 if (!isset($annotations['param'][0])) {
                     return array(true, $rmeth, null, $isNullable);
@@ -110,20 +110,18 @@ class JsonMapper extends \JsonMapper
         if ($rprop !== null) {
             if ($rprop->isPublic() || $this->bIgnoreVisibility) {
                 $docblock = $rprop->getDocComment();
-                if (PHP_VERSION_ID >= 80000 && $docblock === false
-                    && $class->hasMethod('__construct')
-                ) {
+                if ($docblock === false && $class->hasMethod('__construct')) {
                     $docblock = $class->getMethod('__construct')->getDocComment();
                 }
-                // 修改
+                // 修改：优先读取 ArrayType 注解，并使用 DocBlockFactory 解析命名空间
                 $annotations = $this->parseAnnotationsNew($rc, $rprop, $docblock);
 
                 if (!isset($annotations['var'][0])) {
-                    if (PHP_VERSION_ID >= 80000 && $rprop->hasType()
-                        && isset($annotations['param'])
-                    ) {
+                    if ($rprop->hasType() && isset($annotations['param'])) {
                         foreach ($annotations['param'] as $param) {
-                            if (strpos($param, '$' . $rprop->getName()) !== false) {
+                            if (strpos($param . ' ', '$' . $rprop->getName() . ' ') !== false
+                                || strpos($param . "\t", '$' . $rprop->getName() . "\t") !== false
+                            ) {
                                 list($type) = explode(' ', $param);
                                 return array(
                                     true, $rprop, $type, $this->isNullable($type)
@@ -134,7 +132,7 @@ class JsonMapper extends \JsonMapper
 
                     // If there is no annotations (higher priority) inspect
                     // if there's a scalar type being defined
-                    if (PHP_VERSION_ID >= 70400 && $rprop->hasType()) {
+                    if ($rprop->hasType()) {
                         $rPropType = $rprop->getType();
                         $propTypeName = $this->stringifyReflectionType($rPropType);
                         if ($this->isSimpleType($propTypeName)) {
@@ -172,13 +170,13 @@ class JsonMapper extends \JsonMapper
     }
 
     /**
-     * Copied from PHPUnit 3.7.29, Util/Test.php.
+     * 解析属性的类型注解，优先使用 ArrayType 注解，其次解析 @var 标签.
      *
-     * @param false|string $docblock Full method docblock
+     * @param false|string $docblock 属性或构造方法的 docblock
      *
      * @return array Array of arrays.
      *               Key is the "@"-name like "param",
-     *               each value is an array of the rest of the @-lines
+     *               each value is an array of the @-lines
      */
     public function parseAnnotationsNew(ReflectionClass $rc, ReflectionProperty $reflectionProperty, $docblock): array
     {

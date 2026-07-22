@@ -25,22 +25,22 @@ class DtoCommon extends JsonMapper
         return 'string';
     }
 
-    public function isSimpleType($type)
+    public function isSimpleType(string $type): bool
     {
         return parent::isSimpleType($type);
     }
 
-    public function getFullNamespace($type, $strNs)
+    public function getFullNamespace(?string $type, string $strNs): ?string
     {
         return parent::getFullNamespace($type, $strNs);
     }
 
-    public function isArrayOfType($strType)
+    public function isArrayOfType(string $strType): bool
     {
         return parent::isArrayOfType($strType);
     }
 
-    public function getSafeName($name)
+    public function getSafeName(string $name): string
     {
         return parent::getSafeName($name);
     }
