@@ -133,7 +133,7 @@ class MethodParametersManager
                     $varType = $annotations[$paramName] ?? null;
                     $varType = $this->dtoCommon->getFullNamespace($varType, $strNs);
                     // 数组类型
-                    if ($this->dtoCommon->isArrayOfType($varType)) {
+                    if ($varType !== null && $this->dtoCommon->isArrayOfType($varType)) {
                         $isSimpleType = false;
                         $arrType = substr($varType, 0, -2);
                         // 数组的简单类型 eg: int[]  string[]
