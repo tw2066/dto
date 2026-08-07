@@ -23,6 +23,31 @@ class InArrayTest extends ValidationAnnotationTestCase
         );
     }
 
+    public function testFailsWithMessage(): void
+    {
+        $annotation = new InArray('valid_options.*', 'in_array message');
+
+        $this->assertFailsWithMessage(
+            ['valid_options' => ['a', 'b', 'c'], 'choice' => 'd'],
+            ['choice' => [$annotation->getRule()]],
+            ['choice.in_array' => 'in_array message'],
+            'choice',
+            'in_array message'
+        );
+    }
+
+    public function testBoundaryValues(): void
+    {
+        $annotation = new InArray('valid_options.*', 'in_array message');
+
+        // 空字符串触发跳过语义，非隐式规则不执行
+        $this->assertPasses(
+            ['valid_options' => ['a'], 'choice' => ''],
+            ['choice' => [$annotation->getRule()]],
+            ['choice.in_array' => 'in_array message']
+        );
+    }
+
     public function testConditionalSometimes(): void
     {
         $annotation = new InArray('valid_options', 'in_array message');

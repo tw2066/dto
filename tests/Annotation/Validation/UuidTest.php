@@ -36,6 +36,17 @@ class UuidTest extends ValidationAnnotationTestCase
         );
     }
 
+    public function testBoundaryValues(): void
+    {
+        $annotation = new Uuid('uuid message');
+
+        $this->assertPasses(
+            ['id' => ''],
+            ['id' => [$annotation->getRule()]],
+            ['id.uuid' => 'uuid message']
+        );
+    }
+
     public function testConditionalSometimes(): void
     {
         $annotation = new Uuid('uuid message');

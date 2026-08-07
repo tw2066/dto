@@ -4,14 +4,21 @@ declare(strict_types=1);
 
 namespace HyperfTest\DTO;
 
-use Hyperf\DTO\Annotation\Validation\Required;
-use Hyperf\DTO\Annotation\Validation\Nullable;
-use Hyperf\DTO\Annotation\Validation\Sometimes;
 use Hyperf\DTO\Annotation\Validation\Bail;
+use Hyperf\DTO\Annotation\Validation\Exclude;
 use Hyperf\DTO\Annotation\Validation\Filled;
+use Hyperf\DTO\Annotation\Validation\Missing;
+use Hyperf\DTO\Annotation\Validation\Nullable;
+use Hyperf\DTO\Annotation\Validation\Present;
+use Hyperf\DTO\Annotation\Validation\Required;
+use Hyperf\DTO\Annotation\Validation\Sometimes;
 use Hyperf\DTO\Exception\DtoException;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * @internal
+ * @coversNothing
+ */
 class ExceptionAndValidationTest extends TestCase
 {
     public function testDtoExceptionExtendsRuntimeException(): void
@@ -81,5 +88,35 @@ class ExceptionAndValidationTest extends TestCase
         $attr2 = new Filled('Must be filled');
         $this->assertSame('filled', $attr2->getRule());
         $this->assertSame('Must be filled', $attr2->messages);
+    }
+
+    public function testPresentAttribute(): void
+    {
+        $attr = new Present();
+        $this->assertSame('present', $attr->getRule());
+
+        $attr2 = new Present('Must be present');
+        $this->assertSame('present', $attr2->getRule());
+        $this->assertSame('Must be present', $attr2->messages);
+    }
+
+    public function testMissingAttribute(): void
+    {
+        $attr = new Missing();
+        $this->assertSame('missing', $attr->getRule());
+
+        $attr2 = new Missing('Must be missing');
+        $this->assertSame('missing', $attr2->getRule());
+        $this->assertSame('Must be missing', $attr2->messages);
+    }
+
+    public function testExcludeAttribute(): void
+    {
+        $attr = new Exclude();
+        $this->assertSame('exclude', $attr->getRule());
+
+        $attr2 = new Exclude('Must be excluded');
+        $this->assertSame('exclude', $attr2->getRule());
+        $this->assertSame('Must be excluded', $attr2->messages);
     }
 }
