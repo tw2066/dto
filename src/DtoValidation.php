@@ -88,20 +88,19 @@ class DtoValidation
         }
 
         $validArr = $this->validationManager->getData($className);
-        if (empty($validArr)) {
-            return;
-        }
-        $validator = $this->validationFactory->make(
-            $data,
-            $validArr['rule'],
-            $validArr['messages'] ?? [],
-            static::$isValidationCustomAttributes ? ($validArr['attributes'] ?? []) : []
-        );
-        if ($validator->fails()) {
-            throw $this->buildValidationException($validator);
+        if (! empty($validArr)) {
+            $validator = $this->validationFactory->make(
+                $data,
+                $validArr['rule'],
+                $validArr['messages'] ?? [],
+                static::$isValidationCustomAttributes ? ($validArr['attributes'] ?? []) : []
+            );
+            if ($validator->fails()) {
+                throw $this->buildValidationException($validator);
+            }
         }
 
-        // 递归验证嵌套对象和数组
+        // 递归验证嵌套对象和数组（类自身无规则时也要递归，嵌套类的规则独立生效）
         $notSimplePropertyArr = $this->propertyManager->getPropertyAndNotSimpleType($className);
         foreach ($notSimplePropertyArr as $fieldName => $property) {
             // 数据键优先取 JSONField 别名（与 ValidationManager 的 rule 键一致），回退 PHP 属性名

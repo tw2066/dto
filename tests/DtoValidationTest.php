@@ -41,19 +41,18 @@ class DtoValidationTest extends AbstractTestCase
         $dtoValidation->validate(ValidationChildDto::class, 'scalar-string');
     }
 
-    public function testClassWithoutRulesReturnsEarlyAndSkipsNestedValidation(): void
+    public function testClassWithoutRulesStillValidatesNestedObjects(): void
     {
-        // B1 回归（疑似 bug，按当前行为锁定）:
-        // 类自身无 rule 时 validateResolved 直接 return，嵌套对象的验证被一并跳过。
-        // 若未来修复（嵌套递归移到 rule 空检查之前），本用例会失败，届时翻转为期待 ValidationException。
+        // B1 已修复: 类自身无 rule 时不再早退，嵌套对象的验证独立生效
         $this->prepareRules(ValidationChildDto::class, 'x');
         $propertyManager = $this->makePropertyManager();
         $propertyManager->scanClassProperties(ValidationNoRuleParentDto::class);
 
         $dtoValidation = $this->makeDtoValidation($propertyManager);
-        // 嵌套数据非法（x 为空串违反 required），但父类无 rule → 当前行为：不抛异常
+
+        // 父类无 rule，嵌套 child.x 为空串违反 required → 递归触发 ValidationException
+        $this->expectException(ValidationException::class);
         $dtoValidation->validate(ValidationNoRuleParentDto::class, ['child' => ['x' => '']]);
-        $this->assertTrue(true);
     }
 
     public function testFailedRuleThrowsValidationException(): void
