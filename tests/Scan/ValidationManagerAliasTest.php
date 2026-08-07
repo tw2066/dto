@@ -58,13 +58,10 @@ class ValidationManagerAliasTest extends AbstractTestCase
         $this->assertSame(['integer'], $data['rule']['intArr.*']);
     }
 
-    public function testCustomKeyPollutesFollowingAnnotations(): void
+    public function testCustomKeyDoesNotPolluteFollowingAnnotations(): void
     {
-        // B3 回归（疑似 bug，按当前行为锁定）:
-        // generateValidation 循环内 $fieldName 被第一个注解的 customKey 重赋值，
-        // 同一属性的后续注解 setFieldName 拿到的是污染后的值。
-        // 当前行为: 'string' 规则也挂到 'items.*' 键下，'value' 键消失。
-        // 若未来修复（改用局部变量），本用例会失败，届时翻转为期待 rule['value'] = ['string']。
+        // B3 已修复: generateValidation 用局部变量做 rule 键，
+        // 第一个注解的 customKey 不再污染同一属性后续注解的键
         (new Validation('integer', '', 'items.*'))->collectProperty(VmPollutionDto::class, 'value');
         (new Validation('string'))->collectProperty(VmPollutionDto::class, 'value');
 
@@ -72,8 +69,8 @@ class ValidationManagerAliasTest extends AbstractTestCase
         $manager->generateValidation(VmPollutionDto::class, 'value');
 
         $data = $manager->getData(VmPollutionDto::class);
-        $this->assertSame(['integer', 'string'], $data['rule']['items.*']);
-        $this->assertArrayNotHasKey('value', $data['rule']);
+        $this->assertSame(['integer'], $data['rule']['items.*']);
+        $this->assertSame(['string'], $data['rule']['value']);
     }
 
     public function testMessageKeyUsesRuleNameBeforeColon(): void

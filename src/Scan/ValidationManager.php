@@ -61,27 +61,30 @@ class ValidationManager
         }
 
         $ruleArray = [];
+        $lastRuleKey = $fieldName;
         foreach ($validationArr as $validation) {
             if (empty($validation->getRule())) {
                 continue;
             }
             $validation->setFieldName($aliasName ?? $fieldName);
             // Support custom key for nested validation (e.g., 'items.*')
-            $fieldName = $validation->getCustomKey() ?: $validation->getFieldName();
+            // 注意: 用局部变量，避免 customKey 污染同一属性后续注解的键
+            $ruleKey = $validation->getCustomKey() ?: $validation->getFieldName();
+            $lastRuleKey = $ruleKey;
             $rule = $validation->getRule();
             // Parse pipe-separated rules (e.g., "required|date|after:start_date")
             // Or array-style rules (e.g., ['int', 'min:5'])
             if (is_array($rule)) {
                 foreach ($rule as $item) {
-                    $ruleArray[$fieldName][] = $item;
+                    $ruleArray[$ruleKey][] = $item;
                 }
             } elseif (is_string($rule) && Str::contains($rule, '|')) {
                 $ruleArr = explode('|', $rule);
                 foreach ($ruleArr as $item) {
-                    $ruleArray[$fieldName][] = $item;
+                    $ruleArray[$ruleKey][] = $item;
                 }
             } else {
-                $ruleArray[$fieldName][] = $rule;
+                $ruleArray[$ruleKey][] = $rule;
             }
 
             if (empty($validation->messages)) {
@@ -101,7 +104,7 @@ class ValidationManager
                 $messageArr = explode('|', $validation->messages);
             }
             foreach ($messageRuleArr as $num => $messageRule) {
-                $key = $fieldName . '.' . $messageRule;
+                $key = $ruleKey . '.' . $messageRule;
                 if (! empty($messageArr[$num])) {
                     $this->setMessages($className, $key, $messageArr[$num]);
                 }
@@ -113,7 +116,7 @@ class ValidationManager
             }
             foreach ($allAnnotationArray as $annotation) {
                 if (class_exists(ApiModelProperty::class) && $annotation instanceof ApiModelProperty && ! empty($annotation->value)) {
-                    $this->setAttributes($className, $fieldName, $annotation->value);
+                    $this->setAttributes($className, $lastRuleKey, $annotation->value);
                 }
             }
         }

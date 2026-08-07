@@ -89,12 +89,10 @@ class DtoValidationTest extends AbstractTestCase
         $dtoValidation->validate(ValidationParentDto::class, ['name' => 'ok', 'child' => ['x' => '']]);
     }
 
-    public function testNestedObjectWithAliasIsSkipped(): void
+    public function testNestedObjectWithAliasValidatedRecursively(): void
     {
-        // B2 回归（疑似 bug，按当前行为锁定）:
-        // ValidationManager 用 JSONField 别名做 rule 键，而嵌套递归用 PHP 属性名取 $data[$fieldName]。
-        // 数据按别名键入时，$data['child'] 为空 → 嵌套验证静默跳过。
-        // 若未来修复（递归优先取 alias 键），本用例会失败，届时翻转为期待 ValidationException。
+        // B2 已修复: 嵌套递归优先取 JSONField 别名键（与 rule 键一致），
+        // 按别名键入的非法嵌套数据会触发 ValidationException
         $this->prepareRules(ValidationChildDto::class, 'x');
         $this->prepareRules(ValidationAliasParentDto::class, 'name');
         (new JSONField('childData'))->collectProperty(ValidationAliasParentDto::class, 'child');
@@ -103,9 +101,25 @@ class DtoValidationTest extends AbstractTestCase
         $propertyManager->scanClassProperties(ValidationAliasParentDto::class);
 
         $dtoValidation = $this->makeDtoValidation($propertyManager);
-        // 按别名键入非法嵌套数据 → 当前行为：嵌套验证不执行，不抛异常
+
+        $this->expectException(ValidationException::class);
         $dtoValidation->validate(ValidationAliasParentDto::class, ['name' => 'ok', 'childData' => ['x' => '']]);
-        $this->assertTrue(true);
+    }
+
+    public function testNestedObjectWithAliasFallsBackToPropertyNameKey(): void
+    {
+        // B2 修复的兼容路径: 有别名但数据按 PHP 属性名键入时，回退属性名键仍可验证
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $this->prepareRules(ValidationAliasParentDto::class, 'name');
+        (new JSONField('childData'))->collectProperty(ValidationAliasParentDto::class, 'child');
+
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationAliasParentDto::class);
+
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationAliasParentDto::class, ['name' => 'ok', 'child' => ['x' => '']]);
     }
 
     public function testNestedClassArrayValidatedPerItem(): void

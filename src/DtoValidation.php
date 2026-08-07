@@ -14,7 +14,7 @@ use Hyperf\Validation\ValidationException;
 
 /**
  * DTO 验证类
- * 负责验证 DTO 对象的数据有效性
+ * 负责验证 DTO 对象的数据有效性.
  */
 class DtoValidation
 {
@@ -24,12 +24,12 @@ class DtoValidation
     public static bool $isValidationCustomAttributes = false;
 
     /**
-     * 验证工厂实例
+     * 验证工厂实例.
      */
     private ?ValidatorFactoryInterface $validationFactory = null;
 
     /**
-     * 构造函数
+     * 构造函数.
      *
      * @param PropertyManager $propertyManager 属性管理器
      * @param ValidationManager $validationManager 验证管理器
@@ -43,11 +43,10 @@ class DtoValidation
     }
 
     /**
-     * 验证 DTO 数据
+     * 验证 DTO 数据.
      *
      * @param string $className DTO 类名
      * @param mixed $data 要验证的数据
-     * @return void
      */
     public function validate(string $className, $data): void
     {
@@ -58,7 +57,7 @@ class DtoValidation
     }
 
     /**
-     * 构建验证异常
+     * 构建验证异常.
      *
      * @param ValidatorInterface $validator 验证器实例
      * @return ValidationException 验证异常
@@ -75,11 +74,10 @@ class DtoValidation
     }
 
     /**
-     * 解析并验证数据
+     * 解析并验证数据.
      *
      * @param string $className DTO 类名
      * @param mixed $data 要验证的数据
-     * @return void
      * @throws DtoException 当数据不是数组或对象时抛出
      * @throws ValidationException 当验证失败时抛出
      */
@@ -106,13 +104,16 @@ class DtoValidation
         // 递归验证嵌套对象和数组
         $notSimplePropertyArr = $this->propertyManager->getPropertyAndNotSimpleType($className);
         foreach ($notSimplePropertyArr as $fieldName => $property) {
-            if (! empty($data[$fieldName])) {
+            // 数据键优先取 JSONField 别名（与 ValidationManager 的 rule 键一致），回退 PHP 属性名
+            $dataKey = $property->alias ?? $fieldName;
+            $value = $data[$dataKey] ?? $data[$fieldName] ?? null;
+            if (! empty($value)) {
                 if ($property->isClassArray()) {
-                    foreach ($data[$fieldName] as $item) {
+                    foreach ($value as $item) {
                         $this->validateResolved($property->arrClassName, $item);
                     }
                 } elseif ($property->className != null) {
-                    $this->validateResolved($property->className, $data[$fieldName]);
+                    $this->validateResolved($property->className, $value);
                 }
             }
         }
