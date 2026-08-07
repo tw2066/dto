@@ -70,7 +70,12 @@ class ValidationManager
             $fieldName = $validation->getCustomKey() ?: $validation->getFieldName();
             $rule = $validation->getRule();
             // Parse pipe-separated rules (e.g., "required|date|after:start_date")
-            if (is_string($rule) && Str::contains($rule, '|')) {
+            // Or array-style rules (e.g., ['int', 'min:5'])
+            if (is_array($rule)) {
+                foreach ($rule as $item) {
+                    $ruleArray[$fieldName][] = $item;
+                }
+            } elseif (is_string($rule) && Str::contains($rule, '|')) {
                 $ruleArr = explode('|', $rule);
                 foreach ($ruleArr as $item) {
                     $ruleArray[$fieldName][] = $item;
@@ -82,7 +87,13 @@ class ValidationManager
             if (empty($validation->messages)) {
                 continue;
             }
-            [$messageRules] = explode(':', (string) $validation->getRule());
+            $ruleValue = $validation->getRule();
+            if (is_array($ruleValue)) {
+                $ruleString = implode('|', $ruleValue);
+            } else {
+                $ruleString = (string) $ruleValue;
+            }
+            [$messageRules] = explode(':', $ruleString);
             $messageRuleArr = explode('|', $messageRules);
             $messageArr = explode('|', $validation->messages);
             foreach ($messageRuleArr as $num => $messageRule) {
