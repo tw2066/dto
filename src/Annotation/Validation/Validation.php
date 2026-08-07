@@ -27,7 +27,7 @@ class Validation extends BaseValidation
      * public array $intArr;
      * ```
      */
-    public function __construct(mixed $rule, string $messages = '', string $customKey = '')
+    public function __construct(mixed $rule, array|string $messages = '', string $customKey = '')
     {
         $this->rule = $rule;
         $this->customKey = $customKey;

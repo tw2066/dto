@@ -57,4 +57,53 @@ class ValidationTest extends ValidationAnnotationTestCase
             ['name.required' => 'required message']
         );
     }
+
+    public function testArrayRulePasses(): void
+    {
+        $annotation = new Validation(['int', 'min:5']);
+
+        $this->assertPasses(
+            ['name' => 10],
+            ['name' => $annotation->getRule()],
+        );
+    }
+
+    public function testArrayRuleFailsWithInvalidData(): void
+    {
+        $annotation = new Validation(['int', 'min:5']);
+
+        $this->assertFailsWithMessage(
+            ['name' => 3],
+            ['name' => $annotation->getRule()],
+            [],
+            'name',
+            'validation.min.numeric'
+        );
+    }
+
+    public function testArrayRuleWithArrayMessages(): void
+    {
+        $annotation = new Validation(['string', 'min:5'], ['string failed', 'min failed']);
+
+        $this->assertFailsWithMessage(
+            ['name' => 'ab'],
+            ['name' => $annotation->getRule()],
+            ['name.string' => 'string failed', 'name.min' => 'min failed'],
+            'name',
+            'min failed'
+        );
+    }
+
+    public function testArrayRuleWithStringMessages(): void
+    {
+        $annotation = new Validation(['string', 'min:5'], 'string failed|min failed');
+
+        $this->assertFailsWithMessage(
+            ['name' => 'ab'],
+            ['name' => $annotation->getRule()],
+            ['name.string' => 'string failed', 'name.min' => 'min failed'],
+            'name',
+            'min failed'
+        );
+    }
 }

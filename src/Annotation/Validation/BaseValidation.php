@@ -8,7 +8,7 @@ use Hyperf\Di\Annotation\AbstractMultipleAnnotation;
 
 abstract class BaseValidation extends AbstractMultipleAnnotation
 {
-    public string $messages = '';
+    public array|string $messages = '';
 
     protected mixed $rule;
 
@@ -16,7 +16,7 @@ abstract class BaseValidation extends AbstractMultipleAnnotation
 
     protected string $fieldName = '';
 
-    public function __construct(string $messages = '')
+    public function __construct(array|string $messages = '')
     {
         $this->messages = $messages;
     }

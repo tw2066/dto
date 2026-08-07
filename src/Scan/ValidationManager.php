@@ -95,7 +95,11 @@ class ValidationManager
             }
             [$messageRules] = explode(':', $ruleString);
             $messageRuleArr = explode('|', $messageRules);
-            $messageArr = explode('|', $validation->messages);
+            if (is_array($validation->messages)) {
+                $messageArr = $validation->messages;
+            } else {
+                $messageArr = explode('|', $validation->messages);
+            }
             foreach ($messageRuleArr as $num => $messageRule) {
                 $key = $fieldName . '.' . $messageRule;
                 if (! empty($messageArr[$num])) {

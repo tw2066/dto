@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace HyperfTest\DTO\Scan;
 
+use Hyperf\Di\Annotation\AnnotationCollector;
+use Hyperf\DTO\Annotation\Validation\Validation;
 use Hyperf\DTO\Scan\Scan;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Scan\ValidationManager;
@@ -18,6 +20,7 @@ class ScanTest extends TestCase
 {
     protected function tearDown(): void
     {
+        AnnotationCollector::clear();
         Mockery::close();
         parent::tearDown();
     }
@@ -59,6 +62,55 @@ class ScanTest extends TestCase
         $data = $manager->getData(SimpleScanTestDto::class);
         $this->assertIsArray($data);
     }
+
+    public function testValidationManagerWithArrayRule(): void
+    {
+        $annotation = new Validation(['string', 'min:5']);
+        $annotation->collectProperty(ArrayRuleScanTestDto::class, 'value');
+
+        $manager = new ValidationManager();
+        $manager->generateValidation(ArrayRuleScanTestDto::class, 'value');
+
+        $data = $manager->getData(ArrayRuleScanTestDto::class);
+        $this->assertIsArray($data);
+        $this->assertArrayHasKey('rule', $data);
+        $this->assertArrayHasKey('value', $data['rule']);
+        // Rules should be flattened: ['string', 'min:5'], NOT [['string', 'min:5']]
+        $this->assertSame(['string', 'min:5'], $data['rule']['value']);
+    }
+
+    public function testValidationManagerWithArrayRuleAndArrayMessages(): void
+    {
+        $annotation = new Validation(
+            ['string', 'min:5'],
+            ['string failed', 'min failed']
+        );
+        $annotation->collectProperty(ArrayRuleScanTestDto::class, 'value');
+
+        $manager = new ValidationManager();
+        $manager->generateValidation(ArrayRuleScanTestDto::class, 'value');
+
+        $data = $manager->getData(ArrayRuleScanTestDto::class);
+        $this->assertIsArray($data);
+        // Rules should be flattened
+        $this->assertSame(['string', 'min:5'], $data['rule']['value']);
+        // Messages should be mapped by rule name
+        $this->assertArrayHasKey('messages', $data);
+        $this->assertSame('string failed', $data['messages']['value.string']);
+        $this->assertSame('min failed', $data['messages']['value.min']);
+    }
+
+    public function testValidationManagerWithStringRule(): void
+    {
+        $annotation = new Validation('string|min:5');
+        $annotation->collectProperty(ArrayRuleScanTestDto::class, 'value');
+
+        $manager = new ValidationManager();
+        $manager->generateValidation(ArrayRuleScanTestDto::class, 'value');
+
+        $data = $manager->getData(ArrayRuleScanTestDto::class);
+        $this->assertSame(['string', 'min:5'], $data['rule']['value']);
+    }
 }
 
 class SimpleScanTestDto
@@ -83,4 +135,9 @@ enum ScanTestPureEnum
 {
     case Active;
     case Inactive;
+}
+
+class ArrayRuleScanTestDto
+{
+    public string $value = '';
 }
