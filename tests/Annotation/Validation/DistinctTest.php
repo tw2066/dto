@@ -69,10 +69,20 @@ class DistinctTest extends ValidationAnnotationTestCase
     {
         $annotation = new Distinct(true, 'distinct message');
 
+        // distinct 作用于数组元素（items.*），忽略大小写且元素均唯一时通过
         $this->assertPasses(
             ['items' => ['a', 'B', 'c']],
-            ['items' => [$annotation->getRule()]],
-            ['items.distinct' => 'distinct message']
+            ['items.*' => [$annotation->getRule()]],
+            ['items.*' => 'distinct message']
+        );
+
+        // 忽略大小写时 a 与 A 判定为重复值
+        $this->assertFailsWithMessage(
+            ['items' => ['a', 'A']],
+            ['items.*' => [$annotation->getRule()]],
+            ['items.*' => 'distinct message'],
+            'items.*',
+            'distinct message'
         );
     }
 
