@@ -75,12 +75,28 @@ class DtoProxyClass
             $classLoader->register(true);
             return;
         }
-        if (! $this->dtoConfig->isScanCacheable()) {
+        // 代理文件齐全且开启扫描缓存时跳过(视为构建期产物); 否则走生成逻辑(内部按源文件 mtime 增量跳过)
+        if (! $this->dtoConfig->isScanCacheable() || $this->hasMissingProxyFile()) {
             // $this->removeProxies($proxyDir);
             $this->genProxyFile();
         }
 
         exit;
+    }
+
+    /**
+     * 是否存在尚未生成的代理文件: 遍历全部应生成的 DTO 类, 任一代理文件缺失即需要走生成逻辑.
+     */
+    protected function hasMissingProxyFile(): bool
+    {
+        foreach ($this->getScanClass() as $class) {
+            $rc = ReflectionManager::reflectClass($class);
+            $files = new SplFileInfo($rc->getFileName());
+            if (! file_exists($this->getProxyClassFilePath($class, $files->getRealPath()))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     protected function genProxyFile(): void
