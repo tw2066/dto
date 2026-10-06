@@ -70,7 +70,7 @@ class DtoConfig
         if ($this->scan_handler) {
             return $this->scan_handler;
         }
-        if (defined('PHPUNIT_COMPOSER_INSTALL')) {
+        if (defined('PHPUNIT_COMPOSER_INSTALL') || ! extension_loaded('pcntl')) {
             return new ProcScanHandler();
         }
         return new PcntlScanHandler();
