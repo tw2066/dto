@@ -72,9 +72,9 @@ class DtoConfig
             return $this->scan_handler;
         }
         if (defined('PHPUNIT_COMPOSER_INSTALL') || ! extension_loaded('pcntl') || ! function_exists('pcntl_fork')) {
-            return $this->scan_handler = new ProcScanHandler();
+            return new ProcScanHandler();
         }
-        return $this->scan_handler = new PcntlScanHandler();
+        return new PcntlScanHandler();
     }
 
     public function isScanCacheable(): bool
