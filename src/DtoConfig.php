@@ -8,6 +8,7 @@ use Hyperf\Contract\ConfigInterface;
 use Hyperf\Di\ScanHandler\PcntlScanHandler;
 use Hyperf\Di\ScanHandler\ProcScanHandler;
 use Hyperf\Di\ScanHandler\ScanHandlerInterface;
+use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\Type\Convert;
 
 class DtoConfig
@@ -67,10 +68,10 @@ class DtoConfig
         if ($this->scan_handler) {
             return $this->scan_handler;
         }
-        if (defined('PHPUNIT_COMPOSER_INSTALL') || ! extension_loaded('pcntl')) {
-            return new ProcScanHandler();
+        if (defined('PHPUNIT_COMPOSER_INSTALL') || ! extension_loaded('pcntl') || ! function_exists('pcntl_fork')) {
+            return $this->scan_handler = new ProcScanHandler();
         }
-        return new PcntlScanHandler();
+        return $this->scan_handler = new PcntlScanHandler();
     }
 
     public function isScanCacheable(): bool
