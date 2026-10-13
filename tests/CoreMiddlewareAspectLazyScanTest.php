@@ -7,6 +7,7 @@ namespace HyperfTest\DTO;
 use Hyperf\Context\ApplicationContext;
 use Hyperf\Context\Context;
 use Hyperf\Contract\ContainerInterface;
+use Hyperf\Di\Annotation\AnnotationCollector;
 use Hyperf\Di\MethodDefinitionCollector;
 use Hyperf\DTO\Aspect\CoreMiddlewareAspect;
 use Hyperf\DTO\DtoCommon;
@@ -40,11 +41,12 @@ class CoreMiddlewareAspectLazyScanTest extends TestCase
     protected function tearDown(): void
     {
         m::close();
+        AnnotationCollector::clear();
     }
 
     public function testScanMarker()
     {
-        $manager = new MethodParametersManager();
+        $manager = $this->makeManager();
 
         $this->assertFalse($manager->isMethodScanned(LazyScanController::class, 'create'));
         $this->assertNull($manager->getMethodParameter(LazyScanController::class, 'create', 'request'));
@@ -65,7 +67,7 @@ class CoreMiddlewareAspectLazyScanTest extends TestCase
 
     public function testLazyScanMapsRequestBodyWhenMetadataMissing()
     {
-        $manager = new MethodParametersManager();
+        $manager = $this->makeManager();
         $this->assertFalse($manager->isMethodScanned(LazyScanController::class, 'update'));
         $this->assertNull($manager->getMethodParameter(LazyScanController::class, 'update', 'request'));
 
@@ -84,7 +86,7 @@ class CoreMiddlewareAspectLazyScanTest extends TestCase
 
     public function testLazyScanRunsOnceForMethodWithoutAnnotations()
     {
-        $manager = new MethodParametersManager();
+        $manager = $this->makeManager();
         [$aspect, $scan] = $this->makeAspect($manager, ['name' => '不应映射', 'age' => 99]);
 
         $first = $this->invokeValidateAndMap($aspect, 'plain', new LazyScanRequest());
@@ -95,6 +97,13 @@ class CoreMiddlewareAspectLazyScanTest extends TestCase
         $this->assertSame('', $second->name);
         $this->assertSame(1, $scan->scanCount);
         $this->assertTrue($manager->isMethodScanned(LazyScanController::class, 'plain'));
+    }
+
+    private function makeManager(): MethodParametersManager
+    {
+        $dtoCommon = new DtoCommon();
+        $propertyEnum = new PropertyEnum();
+        return new MethodParametersManager($dtoCommon, $propertyEnum, new PropertyManager($dtoCommon, $propertyEnum));
     }
 
     /**
