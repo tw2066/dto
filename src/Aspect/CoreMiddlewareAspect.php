@@ -13,6 +13,7 @@ use Hyperf\Di\ReflectionType;
 use Hyperf\DTO\DtoValidation;
 use Hyperf\DTO\Mapper;
 use Hyperf\DTO\Scan\MethodParametersManager;
+use Hyperf\DTO\Scan\Scan;
 use Hyperf\HttpMessage\Server\ResponsePlusProxy;
 use Hyperf\HttpMessage\Stream\SwooleStream;
 use Hyperf\HttpServer\CoreMiddleware;
@@ -118,6 +119,11 @@ class CoreMiddlewareAspect
     {
         [$controllerName, $methodName] = explode('::', $callableName);
         $methodParameter = $this->methodParametersManager->getMethodParameter($controllerName, $methodName, $paramName);
+        if ($methodParameter == null && ! $this->methodParametersManager->isMethodScanned($controllerName, $methodName)) {
+            // 元数据缺失时按需懒扫描（如 PHPUnit 测试下 BeforeServerListener 不会触发）
+            $this->container->get(Scan::class)->scan($controllerName, $methodName);
+            $methodParameter = $this->methodParametersManager->getMethodParameter($controllerName, $methodName, $paramName);
+        }
         if ($methodParameter == null) {
             return $obj;
         }

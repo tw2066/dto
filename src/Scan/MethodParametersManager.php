@@ -22,11 +22,15 @@ class MethodParametersManager
 {
     protected static array $content = [];
 
+    protected static array $scannedMethods = [];
+
     private static array $scanClassMethodArray = [];
 
     public function __construct(protected DtoCommon $dtoCommon, protected PropertyEnum $propertyEnum, protected PropertyManager $propertyManager)
     {
     }
+
+
 
     public function getMethodParameter(string $className, string $methodName, string $paramName): ?MethodParameter
     {
@@ -36,6 +40,14 @@ class MethodParametersManager
         }
 
         return static::$content[$key];
+    }
+
+    /**
+     * 该方法是否已扫描过（无论是否存在 DTO 注解参数）.
+     */
+    public function isMethodScanned(string $className, string $methodName): bool
+    {
+        return isset(static::$scannedMethods[$className . ':' . $methodName]);
     }
 
     /**
@@ -96,6 +108,7 @@ class MethodParametersManager
         if ($methodMark > 1) {
             throw new DtoException("Method annotation [RequestFormData RequestBody] cannot exist simultaneously [{$className}::{$methodName}]");
         }
+        static::$scannedMethods[$className . ':' . $methodName] = true;
     }
 
     public function scanClassMethodParam(string $className, string $methodName): void
