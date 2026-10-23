@@ -79,13 +79,11 @@ class JsonMapperInspectPropertyTest extends AbstractTestCase
         $this->assertSame('string', $type);
     }
 
-    public function testCaseInsensitivePropertyMatching(): void
+    public function testCaseVariantPropertyDoesNotMatch(): void
     {
-        // JSON key myfield 命中属性 myField
-        [$hasProperty, $accessor] = $this->inspect(InspectCaseDto::class, 'myfield');
+        [$hasProperty] = $this->inspect(InspectCaseDto::class, 'myfield');
 
-        $this->assertTrue($hasProperty);
-        $this->assertSame('myField', $accessor->getName());
+        $this->assertFalse($hasProperty);
     }
 
     public function testConstructorDocblockDoesNotProvideParamType(): void
