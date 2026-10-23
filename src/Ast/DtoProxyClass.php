@@ -188,7 +188,7 @@ class DtoProxyClass
         $resVisitor = make(DtoVisitor::class, [$classname, $propertyArr, $isCreateJsonSerialize, $this->dtoConfig->getDtoDefaultValueLevel()]);
         $traverser->addVisitor($resVisitor);
         $ast = $traverser->traverse($ast);
-        $prettyPrinter = new PrettyPrinter\Standard();
+        $prettyPrinter = new PrettyPrinter\Standard(['shortArraySyntax' => true]);
         return $prettyPrinter->prettyPrintFile($ast);
     }
 

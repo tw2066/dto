@@ -245,7 +245,8 @@ PHP;
     public function testNormalizeValueWithMixedKeys(): void
     {
         $visitor = new DtoVisitor('Demo', [], false, 0);
-        $printer = new Standard();
+        // shortArraySyntax：php-parser 4 与 5 均输出 []
+        $printer = new Standard(['shortArraySyntax' => true]);
 
         // 连续数字键不生成键，关联键生成键
         $expr = $visitor->normalizeValue([1, 2, 'k' => 'v']);
@@ -283,6 +284,10 @@ PHP;
         $traverser = new NodeTraverser();
         $traverser->addVisitor($visitor);
         $ast = $traverser->traverse($ast);
-        return [(new Standard())->prettyPrintFile($ast), $visitor];
+        // php-parser 4 与 5 的 pretty printer 输出存在格式差异：
+        // shortArraySyntax 统一数组为 []；`) : void`（4.x）归一化为 `): void`（5.x）
+        $output = (new Standard(['shortArraySyntax' => true]))->prettyPrintFile($ast);
+        $output = preg_replace('/\)\s+:\s+/', '): ', $output);
+        return [$output, $visitor];
     }
 }
