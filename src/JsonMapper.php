@@ -332,6 +332,9 @@ class JsonMapper extends \JsonMapper
         // 若能命中属性即可绕过校验，此处按未命中处理。
 
         if ($rprop !== null) {
+            if ($rprop->isStatic() || $rprop->isReadOnly()) {
+                return array(true, null, null, false);
+            }
             if ($rprop->isPublic() || $this->bIgnoreVisibility) {
                 $docblock = $rprop->getDocComment();
                 if ($docblock === false && $class->hasMethod('__construct')) {
