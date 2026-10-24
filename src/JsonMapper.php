@@ -40,7 +40,7 @@ class JsonMapper extends \JsonMapper
         $strNs = $rc->getNamespaceName();
         $providedProperties = array();
         foreach ($json as $key => $jvalue) {
-            $key = $this->getSafeName($key);
+            $key = $this->getSafeName((string) $key);
             $providedProperties[$key] = true;
 
             // Store the property inspection results so we don't have to do it
