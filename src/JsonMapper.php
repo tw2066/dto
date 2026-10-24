@@ -46,18 +46,18 @@ class JsonMapper extends \JsonMapper
         $strNs = $rc->getNamespaceName();
         $providedProperties = array();
         foreach ($json as $key => $jvalue) {
-            $key = $this->getSafeName((string) $key);
+            $rawKey = (string) $key;
+            $key = $this->getSafeName($rawKey);
+            $allowPropertyCaseFallback = $key !== $rawKey;
             $providedProperties[$key] = true;
 
-            // Store the property inspection results so we don't have to do it
-            // again for subsequent objects of the same type
-            // 未命中（未知键）的检查结果不写入进程级缓存
-            if (isset($this->arInspectedClasses[$strClassName][$key])) {
-                $inspection = $this->arInspectedClasses[$strClassName][$key];
+            // 使用原始键，避免连字符规范化键与原始大小写键共用错误结果。
+            if (isset($this->arInspectedClasses[$strClassName][$rawKey])) {
+                $inspection = $this->arInspectedClasses[$strClassName][$rawKey];
             } else {
-                $inspection = $this->inspectProperty($rc, $key);
+                $inspection = $this->inspectProperty($rc, $key, $allowPropertyCaseFallback);
                 if ($inspection[0]) {
-                    $this->arInspectedClasses[$strClassName][$key] = $inspection;
+                    $this->arInspectedClasses[$strClassName][$rawKey] = $inspection;
                 }
             }
 
@@ -268,6 +268,7 @@ class JsonMapper extends \JsonMapper
      *
      * @param ReflectionClass $rc Reflection class to check
      * @param string $name Property name
+     * @param bool $allowPropertyCaseFallback Allow case-insensitive property matching for normalized keys
      *
      * @return array First value: if the property exists
      *               Second value: the accessor to use (
@@ -275,8 +276,17 @@ class JsonMapper extends \JsonMapper
      *               Third value: type of the property
      *               Fourth value: if the property is nullable
      */
-    protected function inspectProperty(ReflectionClass $rc, string $name): array
+    protected function inspectProperty(ReflectionClass $rc, string $name, bool $allowPropertyCaseFallback = false): array
     {
+        // 先按声明名查找属性，用于区分合法缩写 setter 与任意大小写变体。
+        $class = $rc;
+        $rprop = null;
+        do {
+            if ($class->hasProperty($name)) {
+                $rprop = $class->getProperty($name);
+            }
+        } while ($rprop === null && $class = $class->getParentClass());
+
         // 修改：别名 setter 方法优先
         $isSetDtoMethod = true;
         $setter = DtoConfig::getDtoAliasMethodName($name);
@@ -288,9 +298,9 @@ class JsonMapper extends \JsonMapper
 
         if ($rc->hasMethod($setter)) {
             $rmeth = $rc->getMethod($setter);
-            // 逐字符不一致时按未命中处理——校验按声明键名大小写敏感查找，
-            // 变体键若能写入即可绕过校验。
-            if ($rmeth->getName() === $setter
+            // 任意大小写变体仍需精确命中；声明属性键可使用 setID 等缩写 setter。
+            $isDeclaredPropertySetter = $rprop !== null && strcasecmp($rmeth->getName(), $setter) === 0;
+            if (($rmeth->getName() === $setter || $isDeclaredPropertySetter)
                 && ($rmeth->isPublic() || $this->bIgnoreVisibility || $isSetDtoMethod)
             ) {
                 $isNullable = false;
@@ -323,19 +333,16 @@ class JsonMapper extends \JsonMapper
             }
         }
 
-        //now try to set the property directly
-        //we have to look it up in the class hierarchy
-        $class = $rc;
-        $rprop = null;
-        do {
-            if ($class->hasProperty($name)) {
-                $rprop = $class->getProperty($name);
+        // 仅连字符规范化后的键允许属性大小写回退；原始大小写变体仍忽略。
+        if ($rprop === null && $allowPropertyCaseFallback) {
+            foreach ($rc->getProperties() as $property) {
+                if (strcasecmp($property->getName(), $name) === 0) {
+                    $rprop = $property;
+                    $class = $property->getDeclaringClass();
+                    break;
+                }
             }
-        } while ($rprop === null && $class = $class->getParentClass());
-
-        // 修改：移除了父类在此的大小写不敏感属性回退匹配（原 strcasecmp
-        // 分支）。校验按声明键名大小写敏感查找，Name/nAME 等纯大小写变体键
-        // 若能命中属性即可绕过校验，此处按未命中处理。
+        }
 
         if ($rprop !== null) {
             if ($rprop->isStatic() || $rprop->isReadOnly()) {

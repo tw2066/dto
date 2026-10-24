@@ -108,6 +108,7 @@ class DtoValidation
             $exactKeyMap = [];
             $setterKeyMap = [];
             $propertyKeyMap = [];
+            $insensitivePropertyKeyMap = [];
             foreach ($propertyArr as $fieldName => $property) {
                 $ruleKey = $property->alias ?? $fieldName;
                 $hasAlias = $property->alias !== null && $property->alias !== $fieldName;
@@ -131,20 +132,28 @@ class DtoValidation
                     break;
                 }
 
-                if (isset($publicProperties[$fieldName]) && $this->dtoCommon->getSafeName('-' . $fieldName) === $fieldName) {
-                    $propertyKeyMap[$fieldName] = $ruleKey;
+                if (isset($publicProperties[$fieldName])) {
+                    $insensitivePropertyKeyMap[strtolower($fieldName)] = $ruleKey;
+                    if ($this->dtoCommon->getSafeName('-' . $fieldName) === $fieldName) {
+                        $propertyKeyMap[$fieldName] = $ruleKey;
+                    }
                 }
             }
-            static::$keyMapCache[$className] = [$exactKeyMap, $setterKeyMap, $propertyKeyMap];
+            static::$keyMapCache[$className] = [$exactKeyMap, $setterKeyMap, $propertyKeyMap, $insensitivePropertyKeyMap];
         }
-        [$exactKeyMap, $setterKeyMap, $propertyKeyMap] = static::$keyMapCache[$className];
+        [$exactKeyMap, $setterKeyMap, $propertyKeyMap, $insensitivePropertyKeyMap] = static::$keyMapCache[$className];
 
         // 无别名或键变体时，精确声明键无需归一化。
-        if ($exactKeyMap !== [] || $setterKeyMap !== [] || $propertyKeyMap !== []) {
+        $hasVariantKeys = $exactKeyMap !== [] || $setterKeyMap !== [] || $propertyKeyMap !== [];
+        if ($hasVariantKeys || $insensitivePropertyKeyMap !== []) {
+            $onlyInsensitiveProperties = ! $hasVariantKeys;
             $keyOwners = [];
             $normalizedValues = [];
             foreach ($data as $key => $value) {
                 if (! is_string($key)) {
+                    continue;
+                }
+                if ($onlyInsensitiveProperties && ! str_contains($key, '-')) {
                     continue;
                 }
                 $ruleKey = $exactKeyMap[$key] ?? null;
@@ -155,13 +164,19 @@ class DtoValidation
                         $setter = $this->dtoCommon->getSetterName($safeKey);
                         $ruleKey = $setterKeyMap[$setter] ?? $propertyKeyMap[$safeKey] ?? null;
                     }
+                    if ($ruleKey === null && $safeKey !== $key) {
+                        $ruleKey = $insensitivePropertyKeyMap[strtolower($safeKey)] ?? null;
+                    }
                 }
                 if ($ruleKey === null) {
                     continue;
                 }
-                if (isset($keyOwners[$ruleKey]) && $keyOwners[$ruleKey] !== $key) {
+                $hasConflict = (isset($keyOwners[$ruleKey]) && $keyOwners[$ruleKey] !== $key)
+                    || ($key !== $ruleKey && array_key_exists($ruleKey, $data));
+                if ($hasConflict) {
+                    $ownerKey = $keyOwners[$ruleKey] ?? $ruleKey;
                     $validator = $this->validationFactory->make($data, []);
-                    $validator->errors()->add($ruleKey, 'The ' . $keyOwners[$ruleKey] . ' and ' . $key . ' fields cannot both be present.');
+                    $validator->errors()->add($ruleKey, 'The ' . $ownerKey . ' and ' . $key . ' fields cannot both be present.');
                     throw $this->buildValidationException($validator);
                 }
                 $keyOwners[$ruleKey] = $key;

@@ -150,6 +150,31 @@ class DtoValidationTest extends AbstractTestCase
         $dtoValidation->validate(ValidationPascalPropertyDto::class, ['user-name' => 'TOO-LONG-VALUE']);
     }
 
+    public function testHyphenatedHeaderPropertyUsesDeclaredValidationRules(): void
+    {
+        (new Max(5))->collectProperty(ValidationHeaderPropertyDto::class, 'xRequestId');
+        (new ValidationManager())->generateValidation(ValidationHeaderPropertyDto::class, 'xRequestId');
+        $dtoValidation = $this->makeDtoValidation();
+
+        $dtoValidation->validate(ValidationHeaderPropertyDto::class, ['XRequestId' => 'TOO-LONG-VALUE']);
+        $dtoValidation->validate(ValidationHeaderPropertyDto::class, ['x-request-id' => 'ok']);
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationHeaderPropertyDto::class, ['x-request-id' => 'TOO-LONG-VALUE']);
+    }
+
+    public function testHyphenatedHeaderAndDeclaredKeyCannotBeSubmittedTogether(): void
+    {
+        (new Max(5))->collectProperty(ValidationHeaderPropertyDto::class, 'xRequestId');
+        (new ValidationManager())->generateValidation(ValidationHeaderPropertyDto::class, 'xRequestId');
+        $dtoValidation = $this->makeDtoValidation();
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationHeaderPropertyDto::class, [
+            'x-request-id' => 'ok',
+            'xRequestId' => 'TOO-LONG-VALUE',
+        ]);
+    }
+
     public function testNestedObjectValidatedRecursively(): void
     {
         $this->prepareRules(ValidationChildDto::class, 'x');
@@ -401,6 +426,11 @@ class ValidationAcronymSetterDto
 class ValidationPascalPropertyDto
 {
     public string $UserName = '';
+}
+
+class ValidationHeaderPropertyDto
+{
+    public string $xRequestId = '';
 }
 
 class ValidationArrayParentDto
