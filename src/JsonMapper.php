@@ -430,7 +430,11 @@ class JsonMapper extends \JsonMapper
         }
         $factory = DocBlockFactory::createInstance();
         $contextFactory = new ContextFactory();
-        $context = $contextFactory->createForNamespace($rc->getNamespaceName(), file_get_contents($rc->getFileName()));
+        $declaringClass = $reflectionProperty->getDeclaringClass();
+        $context = $contextFactory->createForNamespace(
+            $declaringClass->getNamespaceName(),
+            file_get_contents($declaringClass->getFileName())
+        );
         $block = $factory->create($docblock, $context);
         foreach ($block->getTags() as $tag) {
             if ($tag instanceof Var_) {
