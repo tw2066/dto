@@ -60,6 +60,12 @@ class Scan
         $propertyArr = $this->propertyManager->getPropertyByClass($parameterClassName);
         foreach ($propertyArr as $fieldName => $property) {
             $this->validationManager->generateValidation($parameterClassName, $fieldName);
+            if ($property->className !== null) {
+                $this->scanClass($property->className);
+            }
+            if ($property->arrClassName !== null) {
+                $this->scanClass($property->arrClassName);
+            }
         }
     }
 }

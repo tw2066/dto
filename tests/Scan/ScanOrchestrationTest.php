@@ -43,6 +43,20 @@ class ScanOrchestrationTest extends AbstractTestCase
         $this->assertArrayHasKey(ScanOrchResponseDto::class, $content);
     }
 
+    public function testScanGeneratesRulesForNestedDtoClasses(): void
+    {
+        (new Required())->collectProperty(ScanOrchNestedChildDto::class, 'name');
+        (new Required())->collectProperty(ScanOrchNestedItemDto::class, 'value');
+
+        [$scan, $validationManager] = $this->makeScan([ScanOrchNestedParentDto::class]);
+        $scan->scan(ScanOrchNestedController::class, 'handle');
+
+        $childData = $validationManager->getData(ScanOrchNestedChildDto::class);
+        $this->assertSame(['required'], $childData['rule']['name'] ?? null);
+        $itemData = $validationManager->getData(ScanOrchNestedItemDto::class);
+        $this->assertSame(['required'], $itemData['rule']['value'] ?? null);
+    }
+
     public function testScanIsIdempotent(): void
     {
         (new Required())->collectProperty(ScanOrchIdempotentDto::class, 'name');
@@ -138,4 +152,29 @@ class ScanOrchIdempotentController
 class ScanOrchClearDto
 {
     public string $name = '';
+}
+
+class ScanOrchNestedParentDto
+{
+    public ?ScanOrchNestedChildDto $child = null;
+
+    /**
+     * @var ScanOrchNestedItemDto[]
+     */
+    public array $items = [];
+}
+
+class ScanOrchNestedChildDto
+{
+    public string $name = '';
+}
+
+class ScanOrchNestedItemDto
+{
+    public string $value = '';
+}
+
+class ScanOrchNestedController
+{
+    public function handle(ScanOrchNestedParentDto $dto): void {}
 }
