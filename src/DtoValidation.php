@@ -208,7 +208,7 @@ class DtoValidation
             // 使用归一化后的 JSONField 别名或 PHP 属性名键
             $dataKey = $property->alias ?? $fieldName;
             $value = $data[$dataKey] ?? null;
-            if (! empty($value)) {
+            if (array_key_exists($dataKey, $data) && (is_array($value) || ! empty($value))) {
                 if ($property->isClassArray()) {
                     foreach ($value as $item) {
                         $this->validateResolved($property->arrClassName, $item);

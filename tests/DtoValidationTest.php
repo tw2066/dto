@@ -257,7 +257,7 @@ class DtoValidationTest extends AbstractTestCase
         ]);
     }
 
-    public function testEmptyNestedDataSkipsRecursion(): void
+    public function testEmptyNestedDataStillValidatesRecursively(): void
     {
         $this->prepareRules(ValidationChildDto::class, 'x');
         $this->prepareRules(ValidationParentDto::class, 'name');
@@ -265,9 +265,9 @@ class DtoValidationTest extends AbstractTestCase
         $propertyManager->scanClassProperties(ValidationParentDto::class);
 
         $dtoValidation = $this->makeDtoValidation($propertyManager);
-        // child 为空数组 → empty() 分支跳过递归，不抛异常
+        // child 为空对象时也应执行子类的 required 规则
+        $this->expectException(ValidationException::class);
         $dtoValidation->validate(ValidationParentDto::class, ['name' => 'ok', 'child' => []]);
-        $this->assertTrue(true);
     }
 
     public function testValidateReturnsImmediatelyWithoutValidatorFactory(): void
