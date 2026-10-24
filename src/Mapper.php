@@ -78,6 +78,7 @@ class Mapper
             // Allow passing arrays to mapping
             $jsonMapper->bEnforceMapType = false;
             $jsonMapper->bStrictNullTypes = false;
+            $jsonMapper->bStrictNullTypesInArrays = false;
             static::$jsonMapper[$key] = $jsonMapper;
         }
         return static::$jsonMapper[$key];
