@@ -84,6 +84,9 @@ class PropertyManager
                 if (! empty($annotations)) {
                     // support "@var type description"
                     [$varType] = explode(' ', $annotations['var'][0]);
+                    if (str_starts_with($varType, '?')) {
+                        $varType = substr($varType, 1);
+                    }
                     $varType = $this->dtoCommon->getFullNamespace($varType, $strNs);
                     // 数组类型
                     if ($this->dtoCommon->isArrayOfType($varType)) {

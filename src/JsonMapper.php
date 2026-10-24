@@ -8,7 +8,13 @@ use Hyperf\DTO\Annotation\ArrayType;
 use Hyperf\DTO\Type\PhpType;
 use phpDocumentor\Reflection\DocBlock\Tags\Var_;
 use phpDocumentor\Reflection\DocBlockFactory;
+use phpDocumentor\Reflection\Type;
+use phpDocumentor\Reflection\Types\AbstractList;
+use phpDocumentor\Reflection\Types\Compound;
 use phpDocumentor\Reflection\Types\ContextFactory;
+use phpDocumentor\Reflection\Types\Mixed_;
+use phpDocumentor\Reflection\Types\Null_;
+use phpDocumentor\Reflection\Types\Nullable;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionProperty;
@@ -438,11 +444,53 @@ class JsonMapper extends \JsonMapper
         $block = $factory->create($docblock, $context);
         foreach ($block->getTags() as $tag) {
             if ($tag instanceof Var_) {
-                $type = $tag->getType()->__toString();
-                $type = explode('|', $type)[0]; // SecurityScheme.php string|non-empty-array<string>
-                $annotations[$tag->getName()][] = $type;
+                $annotations[$tag->getName()][] = $this->normalizeDocblockType($tag->getType());
             }
         }
         return $annotations;
+    }
+
+    private function normalizeDocblockType(Type $type): string
+    {
+        if ($type instanceof Nullable) {
+            return '?' . ltrim($this->normalizeDocblockType($type->getActualType()), '?');
+        }
+        if ($type instanceof Compound) {
+            $nullable = false;
+            $nonNullTypes = [];
+            foreach ($type as $part) {
+                if ($part instanceof Nullable) {
+                    $nullable = true;
+                    $part = $part->getActualType();
+                }
+                if ($part instanceof Null_) {
+                    $nullable = true;
+                    continue;
+                }
+                $nonNullTypes[] = $part;
+            }
+            if (count($nonNullTypes) !== 1) {
+                throw new \JsonMapper_Exception('Unsupported docblock union type: ' . $type);
+            }
+            $normalized = $this->normalizeDocblockType($nonNullTypes[0]);
+            return $nullable ? '?' . ltrim($normalized, '?') : $normalized;
+        }
+        if ($type instanceof AbstractList) {
+            $valueType = $type->getValueType();
+            if ($valueType instanceof Mixed_) {
+                return 'array';
+            }
+            $normalized = $this->normalizeDocblockType($valueType);
+            if (str_starts_with($normalized, '?')) {
+                throw new \JsonMapper_Exception('Unsupported nullable array element type: ' . $type);
+            }
+            return $normalized . '[]';
+        }
+
+        $normalized = (string) $type;
+        if (str_contains($normalized, '<')) {
+            throw new \JsonMapper_Exception('Unsupported generic docblock type: ' . $normalized);
+        }
+        return $normalized;
     }
 }
