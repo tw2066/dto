@@ -11,6 +11,7 @@ use Hyperf\DTO\Ast\DtoProxyClass;
 use Hyperf\DTO\DtoConfig;
 use HyperfTest\DTO\AbstractTestCase;
 use HyperfTest\DTO\Ast\Fixtures\ProxyAliasDto;
+use HyperfTest\DTO\Ast\Fixtures\ProxyArrayTypeAliasDto;
 use HyperfTest\DTO\Ast\Fixtures\ProxyDtoAnnotatedDto;
 use HyperfTest\DTO\Ast\Fixtures\ProxyExistingSerializeDto;
 use Mockery as m;
@@ -42,6 +43,18 @@ class DtoProxyClassTest extends AbstractTestCase
         $this->assertStringContainsString('function jsonSerialize()', $content);
         $this->assertStringContainsString("'user_name' => \$this->getName()", $content);
         $this->assertStringContainsString('implements \JsonSerializable', $content);
+    }
+
+    public function testProxyAliasSetterContainsArrayTypeParam(): void
+    {
+        (new JSONField('user_items'))->collectProperty(ProxyArrayTypeAliasDto::class, 'items');
+        $proxyDir = $this->createTempDir();
+        $proxyClass = new TestableDtoProxyClass($this->makeDtoConfig($proxyDir));
+
+        $proxyClass->exposeGenProxyFile();
+
+        $content = file_get_contents($this->proxyFilePath($proxyDir, ProxyArrayTypeAliasDto::class));
+        $this->assertStringContainsString('@param \\HyperfTest\\DTO\\Ast\\Fixtures\\ProxyArrayTypeItem[] $param', $content);
     }
 
     public function testProxySkippedWhenFresh(): void

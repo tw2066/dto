@@ -22,6 +22,11 @@ class PropertyInfo
     public string $alias = '';
 
     /**
+     * ArrayType 注解声明的数组元素类型.
+     */
+    public string $arrayType = '';
+
+    /**
      * 生成json数组的key.
      */
     public string $jsonArrKey = '';

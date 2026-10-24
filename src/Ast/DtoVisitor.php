@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Hyperf\DTO\Ast;
 
 use Hyperf\DTO\DtoConfig;
+use Hyperf\DTO\Type\PhpType;
+use PhpParser\Comment\Doc;
 use PhpParser\Node;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Name;
@@ -89,7 +91,14 @@ class DtoVisitor extends NodeVisitorAbstract
                             $alias = $property->alias;
                             // 增加set属性方法
                             $setter = DtoConfig::getDtoAliasMethodName($alias);
-                            $stmts = $this->createSetter($setter, $propertyName, $stmt->props[0]->default, $stmt->type);
+                            $stmts = $this->createSetter(
+                                $setter,
+                                $propertyName,
+                                $stmt->props[0]->default,
+                                $stmt->type,
+                                $property->arrayType,
+                                $stmt->getDocComment()?->getText()
+                            );
                             $class->stmts[] = $stmts;
                         }
                     }
@@ -163,7 +172,7 @@ class DtoVisitor extends NodeVisitorAbstract
         );
     }
 
-    protected function createSetter(string $method, string $propertyName, $default, $type): Node\Stmt\ClassMethod
+    protected function createSetter(string $method, string $propertyName, $default, $type, string $arrayType = '', ?string $docComment = null): Node\Stmt\ClassMethod
     {
         $node = new Node\Stmt\ClassMethod($method, [
             'flags' => Node\Stmt\Class_::MODIFIER_PRIVATE,
@@ -179,6 +188,15 @@ class DtoVisitor extends NodeVisitorAbstract
                 new Node\Expr\Variable('param')
             )
         );
+        if ($arrayType !== '') {
+            $arrayType = PhpType::tryFrom($arrayType) === null ? '\\' . ltrim($arrayType, '\\') : $arrayType;
+            $docComment = '/** @param ' . $arrayType . '[] $param */';
+        } elseif ($docComment !== null) {
+            $docComment = preg_replace('/@var\s+(\S+)/', '@param $1 $param', $docComment) ?? $docComment;
+        }
+        if ($docComment !== null && $docComment !== '') {
+            $node->setDocComment(new Doc($docComment));
+        }
 
         return $node;
     }

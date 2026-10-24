@@ -8,6 +8,7 @@ use Hyperf\Collection\Arr;
 use Hyperf\Di\Annotation\AnnotationCollector;
 use Hyperf\Di\ReflectionManager;
 use Hyperf\Di\ScanHandler\ScanHandlerInterface;
+use Hyperf\DTO\Annotation\ArrayType;
 use Hyperf\DTO\Annotation\Dto;
 use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\DtoConfig;
@@ -118,6 +119,10 @@ class DtoProxyClass
                 $propertyInfo = new PropertyInfo();
                 $propertyName = $property->name;
                 $propertyInfo->propertyName = $propertyName;
+                $arrayType = $property->getAttributes(ArrayType::class)[0] ?? null;
+                if ($arrayType !== null) {
+                    $propertyInfo->arrayType = $arrayType->newInstance()->value;
+                }
 
                 $getMethodName = \Hyperf\Support\getter($property->name);
                 if ($rc->hasMethod($getMethodName)) {

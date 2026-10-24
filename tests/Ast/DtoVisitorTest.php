@@ -119,6 +119,52 @@ PHP;
         $this->assertStringContainsString('$this->name = $param;', $output);
     }
 
+    public function testAliasSetterCopiesVarDocblock(): void
+    {
+        $code = <<<'PHP'
+<?php
+
+namespace AstDemo;
+
+class Demo
+{
+    /** @var Item[] */
+    public array $items;
+}
+PHP;
+        $propertyInfo = new PropertyInfo();
+        $propertyInfo->propertyName = 'items';
+        $propertyInfo->alias = 'user_items';
+        $propertyInfo->jsonArrKey = 'user_items';
+
+        [$output] = $this->traverse($code, ['items' => $propertyInfo], false, 0);
+
+        $this->assertStringContainsString('@param Item[] $param', $output);
+    }
+
+    public function testAliasSetterUsesArrayTypeMetadata(): void
+    {
+        $code = <<<'PHP'
+<?php
+
+namespace AstDemo;
+
+class Demo
+{
+    public array $items;
+}
+PHP;
+        $propertyInfo = new PropertyInfo();
+        $propertyInfo->propertyName = 'items';
+        $propertyInfo->alias = 'user_items';
+        $propertyInfo->jsonArrKey = 'user_items';
+        $propertyInfo->arrayType = 'AstDemo\\Item';
+
+        [$output] = $this->traverse($code, ['items' => $propertyInfo], false, 0);
+
+        $this->assertStringContainsString('@param \\AstDemo\\Item[] $param', $output);
+    }
+
     public function testJsonSerializeUsesCoalesceFallbackAndGetter(): void
     {
         $code = <<<'PHP'
