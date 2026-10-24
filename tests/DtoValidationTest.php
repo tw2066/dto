@@ -6,6 +6,7 @@ namespace HyperfTest\DTO;
 
 use Hyperf\Context\ApplicationContext;
 use Hyperf\DTO\Annotation\JSONField;
+use Hyperf\DTO\Annotation\Validation\Integer;
 use Hyperf\DTO\Annotation\Validation\Max;
 use Hyperf\DTO\Annotation\Validation\Required;
 use Hyperf\DTO\DtoCommon;
@@ -95,6 +96,58 @@ class DtoValidationTest extends AbstractTestCase
             'user_name' => 'ok',
             'userName' => 'TOO-LONG-VALUE',
         ]);
+    }
+
+    public function testSetterVariantKeysUseDeclaredValidationRules(): void
+    {
+        $this->prepareSetterVariantRules();
+        $dtoValidation = $this->makeDtoValidation();
+
+        foreach (['user_name', 'user-name', ' userName', 'UserName'] as $key) {
+            $dtoValidation->validate(ValidationSetterVariantDto::class, [$key => 'ok']);
+            try {
+                $dtoValidation->validate(ValidationSetterVariantDto::class, [$key => 'TOO-LONG-VALUE']);
+                $this->fail('Expected ValidationException was not thrown for key: ' . $key);
+            } catch (ValidationException $e) {
+                $this->assertStringContainsString('The given data was invalid', $e->getMessage());
+            }
+        }
+    }
+
+    public function testEquivalentSetterKeysCannotBeSubmittedTogether(): void
+    {
+        $this->prepareSetterVariantRules();
+        $dtoValidation = $this->makeDtoValidation();
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationSetterVariantDto::class, [
+            'userName' => 'ok',
+            'user_name' => 'TOO-LONG-VALUE',
+        ]);
+    }
+
+    public function testAcronymSetterVariantUsesDeclaredValidationRules(): void
+    {
+        (new Integer())->collectProperty(ValidationAcronymSetterDto::class, 'id');
+        (new Max(5))->collectProperty(ValidationAcronymSetterDto::class, 'id');
+        (new ValidationManager())->generateValidation(ValidationAcronymSetterDto::class, 'id');
+        $dtoValidation = $this->makeDtoValidation();
+
+        $dtoValidation->validate(ValidationAcronymSetterDto::class, ['ID' => 3]);
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationAcronymSetterDto::class, ['ID' => 7]);
+    }
+
+    public function testPascalPropertyVariantUsesDeclaredValidationRules(): void
+    {
+        (new Max(5))->collectProperty(ValidationPascalPropertyDto::class, 'UserName');
+        (new ValidationManager())->generateValidation(ValidationPascalPropertyDto::class, 'UserName');
+        $dtoValidation = $this->makeDtoValidation();
+
+        $dtoValidation->validate(ValidationPascalPropertyDto::class, ['user_name' => 'TOO-LONG-VALUE']);
+        $dtoValidation->validate(ValidationPascalPropertyDto::class, ['user-name' => 'ok']);
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationPascalPropertyDto::class, ['user-name' => 'TOO-LONG-VALUE']);
     }
 
     public function testNestedObjectValidatedRecursively(): void
@@ -259,6 +312,12 @@ class DtoValidationTest extends AbstractTestCase
         (new ValidationManager())->generateValidation(ValidationAliasScalarDto::class, 'userName');
     }
 
+    private function prepareSetterVariantRules(): void
+    {
+        (new Max(5))->collectProperty(ValidationSetterVariantDto::class, 'userName');
+        (new ValidationManager())->generateValidation(ValidationSetterVariantDto::class, 'userName');
+    }
+
     /**
      * 为类的指定属性播种 Required 规则并生成验证数据.
      */
@@ -307,6 +366,41 @@ class ValidationAliasParentDto
 class ValidationAliasScalarDto
 {
     public string $userName = '';
+}
+
+class ValidationSetterVariantDto
+{
+    private string $userName = '';
+
+    public function setUserName(string $userName): void
+    {
+        $this->userName = $userName;
+    }
+
+    public function getUserName(): string
+    {
+        return $this->userName;
+    }
+}
+
+class ValidationAcronymSetterDto
+{
+    private int $id = 0;
+
+    public function setID(int $id): void
+    {
+        $this->id = $id;
+    }
+
+    public function getId(): int
+    {
+        return $this->id;
+    }
+}
+
+class ValidationPascalPropertyDto
+{
+    public string $UserName = '';
 }
 
 class ValidationArrayParentDto

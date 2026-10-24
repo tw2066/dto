@@ -237,6 +237,11 @@ class JsonMapper extends \JsonMapper
         return $object;
     }
 
+    public function getSetterName(string $name): string
+    {
+        return 'set' . $this->getCamelCaseName($this->getSafeName($name));
+    }
+
     /**
      * Log a message to the $logger object.
      *

@@ -6,11 +6,14 @@ namespace Hyperf\DTO;
 
 use Hyperf\Context\ApplicationContext;
 use Hyperf\Contract\ValidatorInterface;
+use Hyperf\Di\ReflectionManager;
 use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Scan\ValidationManager;
 use Hyperf\Validation\Contract\ValidatorFactoryInterface;
 use Hyperf\Validation\ValidationException;
+use ReflectionMethod;
+use ReflectionProperty;
 
 /**
  * DTO 验证类
@@ -28,6 +31,10 @@ class DtoValidation
      */
     private ?ValidatorFactoryInterface $validationFactory = null;
 
+    private static array $keyMapCache = [];
+
+    private DtoCommon $dtoCommon;
+
     /**
      * 构造函数.
      *
@@ -36,6 +43,7 @@ class DtoValidation
      */
     public function __construct(protected PropertyManager $propertyManager, protected ValidationManager $validationManager)
     {
+        $this->dtoCommon = new DtoCommon();
         $container = ApplicationContext::getContainer();
         if ($container->has(ValidatorFactoryInterface::class)) {
             $this->validationFactory = $container->get(ValidatorFactoryInterface::class);
@@ -87,22 +95,82 @@ class DtoValidation
             throw new DtoException("Class: {$className} - data must be object or array");
         }
 
-        // 别名和 PHP 属性名都可映射：单键时归一到规则键，双键时拒绝校验后覆盖。
-        $propertyArr = $this->propertyManager->getPropertyByClass($className);
-        foreach ($propertyArr as $fieldName => $property) {
-            $alias = $property->alias;
-            if ($alias === null || $alias === $fieldName) {
-                continue;
+        // 与映射器一致：safe key 后依次尝试别名、公共 setter 和公有属性。
+        if (! isset(static::$keyMapCache[$className])) {
+            $propertyArr = $this->propertyManager->getPropertyByClass($className);
+            $reflectionClass = ReflectionManager::reflectClass($className);
+            $methods = $reflectionClass->getMethods(ReflectionMethod::IS_PUBLIC);
+            $publicProperties = [];
+            foreach ($reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC) as $reflectionProperty) {
+                $publicProperties[$reflectionProperty->getName()] = true;
             }
-            $hasAlias = array_key_exists($alias, $data);
-            $hasFieldName = array_key_exists($fieldName, $data);
-            if ($hasAlias && $hasFieldName) {
-                $validator = $this->validationFactory->make($data, []);
-                $validator->errors()->add($alias, 'The ' . $alias . ' and ' . $fieldName . ' fields cannot both be present.');
-                throw $this->buildValidationException($validator);
+
+            $exactKeyMap = [];
+            $setterKeyMap = [];
+            $propertyKeyMap = [];
+            foreach ($propertyArr as $fieldName => $property) {
+                $ruleKey = $property->alias ?? $fieldName;
+                $hasAlias = $property->alias !== null && $property->alias !== $fieldName;
+                if ($hasAlias) {
+                    $exactKeyMap[$fieldName] = $ruleKey;
+                    $exactKeyMap[$property->alias] = $ruleKey;
+                    $exactKeyMap[$this->dtoCommon->getSafeName($property->alias)] = $ruleKey;
+                }
+
+                foreach ($methods as $method) {
+                    $methodName = $method->getName();
+                    if (! str_starts_with($methodName, 'set')) {
+                        continue;
+                    }
+                    $suffix = substr($methodName, 3);
+                    if (strcasecmp($suffix, $fieldName) !== 0 || $this->dtoCommon->getSetterName($suffix) !== $methodName) {
+                        continue;
+                    }
+                    $exactKeyMap[$fieldName] = $ruleKey;
+                    $setterKeyMap[$methodName] = $ruleKey;
+                    break;
+                }
+
+                if (isset($publicProperties[$fieldName]) && $this->dtoCommon->getSafeName('-' . $fieldName) === $fieldName) {
+                    $propertyKeyMap[$fieldName] = $ruleKey;
+                }
             }
-            if ($hasFieldName) {
-                $data[$alias] = $data[$fieldName];
+            static::$keyMapCache[$className] = [$exactKeyMap, $setterKeyMap, $propertyKeyMap];
+        }
+        [$exactKeyMap, $setterKeyMap, $propertyKeyMap] = static::$keyMapCache[$className];
+
+        // 无别名或键变体时，精确声明键无需归一化。
+        if ($exactKeyMap !== [] || $setterKeyMap !== [] || $propertyKeyMap !== []) {
+            $keyOwners = [];
+            $normalizedValues = [];
+            foreach ($data as $key => $value) {
+                if (! is_string($key)) {
+                    continue;
+                }
+                $ruleKey = $exactKeyMap[$key] ?? null;
+                if ($ruleKey === null) {
+                    $safeKey = $this->dtoCommon->getSafeName($key);
+                    $ruleKey = $exactKeyMap[$safeKey] ?? null;
+                    if ($ruleKey === null) {
+                        $setter = $this->dtoCommon->getSetterName($safeKey);
+                        $ruleKey = $setterKeyMap[$setter] ?? $propertyKeyMap[$safeKey] ?? null;
+                    }
+                }
+                if ($ruleKey === null) {
+                    continue;
+                }
+                if (isset($keyOwners[$ruleKey]) && $keyOwners[$ruleKey] !== $key) {
+                    $validator = $this->validationFactory->make($data, []);
+                    $validator->errors()->add($ruleKey, 'The ' . $keyOwners[$ruleKey] . ' and ' . $key . ' fields cannot both be present.');
+                    throw $this->buildValidationException($validator);
+                }
+                $keyOwners[$ruleKey] = $key;
+                if ($key !== $ruleKey) {
+                    $normalizedValues[$ruleKey] = $value;
+                }
+            }
+            foreach ($normalizedValues as $key => $value) {
+                $data[$key] = $value;
             }
         }
 
