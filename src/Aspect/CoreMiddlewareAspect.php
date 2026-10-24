@@ -11,6 +11,7 @@ use Hyperf\Contract\Jsonable;
 use Hyperf\Di\Aop\ProceedingJoinPoint;
 use Hyperf\Di\ReflectionType;
 use Hyperf\DTO\DtoValidation;
+use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\Mapper;
 use Hyperf\DTO\Scan\MethodParametersManager;
 use Hyperf\DTO\Scan\Scan;
@@ -162,6 +163,9 @@ class CoreMiddlewareAspect
         $request = Context::get(ServerRequestInterface::class);
         $params = $request->getParsedBody();
         if ($property?->arrClassName == null) {
+            if ($methodParameter->isValid()) {
+                throw new DtoException("Parameter [{$callableName}:{$paramName}] uses #[Valid], but the array element type cannot be resolved.");
+            }
             return $params;
         }
         if (empty($params)) {

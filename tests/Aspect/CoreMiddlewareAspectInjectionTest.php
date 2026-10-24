@@ -16,6 +16,7 @@ use Hyperf\DTO\Annotation\Contracts\Valid;
 use Hyperf\DTO\Aspect\CoreMiddlewareAspect;
 use Hyperf\DTO\DtoCommon;
 use Hyperf\DTO\DtoValidation;
+use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\Scan\MethodParametersManager;
 use Hyperf\DTO\Scan\PropertyEnum;
 use Hyperf\DTO\Scan\PropertyManager;
@@ -270,6 +271,30 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         $this->assertSame($body, $injections[0]);
     }
 
+    public function testValidArrayParamWithoutElementTypeThrows(): void
+    {
+        $manager = $this->makeManager();
+        $manager->setMethodParameters(AspectValidArrayNoDocController::class, 'handle');
+        $manager->scanClassMethodParam(AspectValidArrayNoDocController::class, 'handle');
+
+        $body = [['name' => '']];
+        $request = m::mock(ServerRequestInterface::class);
+        $request->shouldReceive('getParsedBody')->andReturn($body);
+        Context::set(ServerRequestInterface::class, $request);
+
+        $dtoValidation = m::mock(DtoValidation::class);
+        $dtoValidation->shouldNotReceive('validate');
+        $aspect = new CoreMiddlewareAspect($this->makeContainer($dtoValidation), $manager);
+
+        $this->expectException(DtoException::class);
+        $aspect->process($this->makePjp(
+            null,
+            [$this->makeDefinition('array', 'items')],
+            AspectValidArrayNoDocController::class . '::handle',
+            []
+        ));
+    }
+
     public function testArrayParamWithEmptyBodyReturnsEmptyArray(): void
     {
         $manager = $this->makeManager();
@@ -517,6 +542,11 @@ class AspectArrayQueryController
 class AspectArrayNoDocController
 {
     public function handle(#[RequestBody] array $items) {}
+}
+
+class AspectValidArrayNoDocController
+{
+    public function handle(#[RequestBody] #[Valid] array $items) {}
 }
 
 class AspectRpcValidController
