@@ -87,6 +87,25 @@ class DtoValidation
             throw new DtoException("Class: {$className} - data must be object or array");
         }
 
+        // 别名和 PHP 属性名都可映射：单键时归一到规则键，双键时拒绝校验后覆盖。
+        $propertyArr = $this->propertyManager->getPropertyByClass($className);
+        foreach ($propertyArr as $fieldName => $property) {
+            $alias = $property->alias;
+            if ($alias === null || $alias === $fieldName) {
+                continue;
+            }
+            $hasAlias = array_key_exists($alias, $data);
+            $hasFieldName = array_key_exists($fieldName, $data);
+            if ($hasAlias && $hasFieldName) {
+                $validator = $this->validationFactory->make($data, []);
+                $validator->errors()->add($alias, 'The ' . $alias . ' and ' . $fieldName . ' fields cannot both be present.');
+                throw $this->buildValidationException($validator);
+            }
+            if ($hasFieldName) {
+                $data[$alias] = $data[$fieldName];
+            }
+        }
+
         $validArr = $this->validationManager->getData($className);
         if (! empty($validArr)) {
             $validator = $this->validationFactory->make(
@@ -103,9 +122,9 @@ class DtoValidation
         // 递归验证嵌套对象和数组（类自身无规则时也要递归，嵌套类的规则独立生效）
         $notSimplePropertyArr = $this->propertyManager->getPropertyAndNotSimpleType($className);
         foreach ($notSimplePropertyArr as $fieldName => $property) {
-            // 数据键优先取 JSONField 别名（与 ValidationManager 的 rule 键一致），回退 PHP 属性名
+            // 使用归一化后的 JSONField 别名或 PHP 属性名键
             $dataKey = $property->alias ?? $fieldName;
-            $value = $data[$dataKey] ?? $data[$fieldName] ?? null;
+            $value = $data[$dataKey] ?? null;
             if (! empty($value)) {
                 if ($property->isClassArray()) {
                     foreach ($value as $item) {

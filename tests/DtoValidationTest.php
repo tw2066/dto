@@ -6,6 +6,7 @@ namespace HyperfTest\DTO;
 
 use Hyperf\Context\ApplicationContext;
 use Hyperf\DTO\Annotation\JSONField;
+use Hyperf\DTO\Annotation\Validation\Max;
 use Hyperf\DTO\Annotation\Validation\Required;
 use Hyperf\DTO\DtoCommon;
 use Hyperf\DTO\DtoValidation;
@@ -74,6 +75,28 @@ class DtoValidationTest extends AbstractTestCase
         $this->assertTrue(true);
     }
 
+    public function testAliasRulesApplyToPropertyNameInput(): void
+    {
+        $this->prepareAliasScalarRules();
+        $dtoValidation = $this->makeDtoValidation();
+
+        $dtoValidation->validate(ValidationAliasScalarDto::class, ['userName' => 'ok']);
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationAliasScalarDto::class, ['userName' => 'TOO-LONG-VALUE']);
+    }
+
+    public function testAliasAndPropertyNameCannotBeSubmittedTogether(): void
+    {
+        $this->prepareAliasScalarRules();
+        $dtoValidation = $this->makeDtoValidation();
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationAliasScalarDto::class, [
+            'user_name' => 'ok',
+            'userName' => 'TOO-LONG-VALUE',
+        ]);
+    }
+
     public function testNestedObjectValidatedRecursively(): void
     {
         $this->prepareRules(ValidationChildDto::class, 'x');
@@ -119,6 +142,24 @@ class DtoValidationTest extends AbstractTestCase
 
         $this->expectException(ValidationException::class);
         $dtoValidation->validate(ValidationAliasParentDto::class, ['name' => 'ok', 'child' => ['x' => '']]);
+    }
+
+    public function testNestedAliasAndPropertyNameCannotBeSubmittedTogether(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $this->prepareRules(ValidationAliasParentDto::class, 'name');
+        (new JSONField('childData'))->collectProperty(ValidationAliasParentDto::class, 'child');
+
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationAliasParentDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationAliasParentDto::class, [
+            'name' => 'ok',
+            'childData' => ['x' => 'ok'],
+            'child' => ['x' => ''],
+        ]);
     }
 
     public function testNestedClassArrayValidatedPerItem(): void
@@ -211,6 +252,13 @@ class DtoValidationTest extends AbstractTestCase
 
     // ---------------- 工具方法 ----------------
 
+    private function prepareAliasScalarRules(): void
+    {
+        (new JSONField('user_name'))->collectProperty(ValidationAliasScalarDto::class, 'userName');
+        (new Max(5))->collectProperty(ValidationAliasScalarDto::class, 'userName');
+        (new ValidationManager())->generateValidation(ValidationAliasScalarDto::class, 'userName');
+    }
+
     /**
      * 为类的指定属性播种 Required 规则并生成验证数据.
      */
@@ -254,6 +302,11 @@ class ValidationAliasParentDto
     public string $name = '';
 
     public ?ValidationChildDto $child = null;
+}
+
+class ValidationAliasScalarDto
+{
+    public string $userName = '';
 }
 
 class ValidationArrayParentDto
