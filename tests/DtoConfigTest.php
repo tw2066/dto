@@ -127,7 +127,10 @@ class DtoConfigTest extends AbstractTestCase
     public function testDtoAliasMethodName(): void
     {
         // 生成侧(DtoVisitor)与消费侧(JsonMapper)共用的命名契约
-        $this->assertSame('_set_dto_alias_' . md5('user_name'), DtoConfig::getDtoAliasMethodName('user_name'));
+        $method = DtoConfig::getDtoAliasMethodName('user_name');
+        $this->assertSame('_set_dto_alias_' . md5('user_name'), $method);
+        $this->assertTrue(DtoConfig::isDtoAliasMethodName($method));
+        $this->assertFalse(DtoConfig::isDtoAliasMethodName('setName'));
     }
 
     private function makeConfig(array $values = []): ConfigInterface

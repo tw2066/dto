@@ -21,6 +21,14 @@ use ReflectionProperty;
 
 class JsonMapper extends \JsonMapper
 {
+    private const MAX_INSPECTED_PROPERTIES = 256;
+
+    private const MAX_JSON_KEYS_PER_MAP = 1024;
+
+    private const MAX_UNDEFINED_PROPERTY_LOGS = 32;
+
+    private array $classMetadata = [];
+
     public function map($json, $object)
     {
         if ($this->bEnforceMapType && !is_object($json)) {
@@ -45,19 +53,33 @@ class JsonMapper extends \JsonMapper
         $rc = new ReflectionClass($object);
         $strNs = $rc->getNamespaceName();
         $providedProperties = array();
+        $undefinedPropertyLogs = 0;
+        $jsonKeyCount = 0;
         foreach ($json as $key => $jvalue) {
+            if (++$jsonKeyCount > self::MAX_JSON_KEYS_PER_MAP) {
+                throw new \JsonMapper_Exception(
+                    'Too many JSON properties for object of type ' . $strClassName
+                    . '; maximum is ' . self::MAX_JSON_KEYS_PER_MAP
+                );
+            }
             $rawKey = (string) $key;
             $key = $this->getSafeName($rawKey);
             $allowPropertyCaseFallback = $key !== $rawKey;
             $providedProperties[$key] = true;
 
+            // 已知和未知键共用一个有界缓存，负缓存避免重复反射。
             // 使用原始键，避免连字符规范化键与原始大小写键共用错误结果。
             if (isset($this->arInspectedClasses[$strClassName][$rawKey])) {
                 $inspection = $this->arInspectedClasses[$strClassName][$rawKey];
             } else {
                 $inspection = $this->inspectProperty($rc, $key, $allowPropertyCaseFallback);
-                if ($inspection[0]) {
+                $classCache = $this->arInspectedClasses[$strClassName] ?? [];
+                if ($inspection[0] || count($classCache) < self::MAX_INSPECTED_PROPERTIES) {
                     $this->arInspectedClasses[$strClassName][$rawKey] = $inspection;
+                }
+                if (count($this->arInspectedClasses[$strClassName]) > self::MAX_INSPECTED_PROPERTIES) {
+                    $oldestKey = array_key_first($this->arInspectedClasses[$strClassName]);
+                    unset($this->arInspectedClasses[$strClassName][$oldestKey]);
                 }
             }
 
@@ -80,11 +102,14 @@ class JsonMapper extends \JsonMapper
                             = $this->inspectProperty($rc, $undefinedPropertyKey);
                     }
                 } else {
-                    $this->log(
-                        'info',
-                        'Property {property} does not exist in {class}',
-                        array('property' => $key, 'class' => $strClassName)
-                    );
+                    if ($undefinedPropertyLogs < self::MAX_UNDEFINED_PROPERTY_LOGS) {
+                        ++$undefinedPropertyLogs;
+                        $this->log(
+                            'info',
+                            'Property {property} does not exist in {class}',
+                            array('property' => $key, 'class' => $strClassName)
+                        );
+                    }
                 }
 
                 if (!$hasProperty) {
@@ -262,6 +287,41 @@ class JsonMapper extends \JsonMapper
         }
     }
 
+    private function getClassMetadata(ReflectionClass $rc): array
+    {
+        $className = $rc->getName();
+        if (isset($this->classMetadata[$className])) {
+            return $this->classMetadata[$className];
+        }
+
+        $methods = [];
+        $hasAliasMethods = false;
+        foreach ($rc->getMethods() as $method) {
+            $methods[strtolower($method->getName())] = $method;
+            if (DtoConfig::isDtoAliasMethodName($method->getName())) {
+                $hasAliasMethods = true;
+            }
+        }
+
+        $properties = [];
+        $class = $rc;
+        do {
+            foreach ($class->getProperties() as $property) {
+                if (! isset($properties[$property->getName()])) {
+                    $properties[$property->getName()] = $property;
+                }
+            }
+        } while ($class = $class->getParentClass());
+
+        $insensitiveProperties = [];
+        foreach ($rc->getProperties() as $property) {
+            $insensitiveProperties[strtolower($property->getName())] ??= $property;
+        }
+
+        $this->classMetadata[$className] = [$methods, $properties, $insensitiveProperties, $hasAliasMethods];
+        return $this->classMetadata[$className];
+    }
+
     /**
      * Try to find out if a property exists in a given class.
      * Checks property first, falls back to setter method.
@@ -278,26 +338,26 @@ class JsonMapper extends \JsonMapper
      */
     protected function inspectProperty(ReflectionClass $rc, string $name, bool $allowPropertyCaseFallback = false): array
     {
-        // 先按声明名查找属性，用于区分合法缩写 setter 与任意大小写变体。
-        $class = $rc;
-        $rprop = null;
-        do {
-            if ($class->hasProperty($name)) {
-                $rprop = $class->getProperty($name);
-            }
-        } while ($rprop === null && $class = $class->getParentClass());
+        [$methods, $properties, $insensitiveProperties, $hasAliasMethods] = $this->getClassMetadata($rc);
+        $rprop = $properties[$name] ?? null;
+        $class = $rprop?->getDeclaringClass() ?? $rc;
 
-        // 修改：别名 setter 方法优先
-        $isSetDtoMethod = true;
-        $setter = DtoConfig::getDtoAliasMethodName($name);
-        if (! $rc->hasMethod($setter)) {
+        // 修改：别名 setter 方法优先；无别名 setter 时无需计算别名 MD5。
+        $isSetDtoMethod = false;
+        $rmeth = null;
+        if ($hasAliasMethods) {
+            $isSetDtoMethod = true;
+            $setter = DtoConfig::getDtoAliasMethodName($name);
+            $rmeth = $methods[strtolower($setter)] ?? null;
+        }
+        if ($rmeth === null) {
             $isSetDtoMethod = false;
             // try setter method first
             $setter = 'set' . $this->getCamelCaseName($name);
+            $rmeth = $methods[strtolower($setter)] ?? null;
         }
 
-        if ($rc->hasMethod($setter)) {
-            $rmeth = $rc->getMethod($setter);
+        if ($rmeth !== null) {
             // 任意大小写变体仍需精确命中；声明属性键可使用 setID 等缩写 setter。
             $isDeclaredPropertySetter = $rprop !== null && strcasecmp($rmeth->getName(), $setter) === 0;
             if (($rmeth->getName() === $setter || $isDeclaredPropertySetter)
@@ -335,12 +395,9 @@ class JsonMapper extends \JsonMapper
 
         // 仅连字符规范化后的键允许属性大小写回退；原始大小写变体仍忽略。
         if ($rprop === null && $allowPropertyCaseFallback) {
-            foreach ($rc->getProperties() as $property) {
-                if (strcasecmp($property->getName(), $name) === 0) {
-                    $rprop = $property;
-                    $class = $property->getDeclaringClass();
-                    break;
-                }
+            $rprop = $insensitiveProperties[strtolower($name)] ?? null;
+            if ($rprop !== null) {
+                $class = $rprop->getDeclaringClass();
             }
         }
 

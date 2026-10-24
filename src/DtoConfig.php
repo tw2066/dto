@@ -18,6 +18,8 @@ class DtoConfig
 {
     private static string $dto_alias_method_prefix = '_set_dto_alias_';
 
+    private static ?DtoCommon $dtoCommon = null;
+
     private string $proxy_dir = '';
 
     private int $dto_default_value_level = 0;
@@ -60,10 +62,15 @@ class DtoConfig
 
     public static function getDtoAliasMethodName(string $fieldName): string
     {
-        $dtoCommon = new DtoCommon();
-        $fieldName = $dtoCommon->getSafeName($fieldName);
+        self::$dtoCommon ??= new DtoCommon();
+        $fieldName = self::$dtoCommon->getSafeName($fieldName);
         $fieldName = md5($fieldName);
         return static::$dto_alias_method_prefix . $fieldName;
+    }
+
+    public static function isDtoAliasMethodName(string $methodName): bool
+    {
+        return str_starts_with($methodName, static::$dto_alias_method_prefix);
     }
 
     public function getScanHandler(): ScanHandlerInterface
