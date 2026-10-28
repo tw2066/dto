@@ -149,7 +149,7 @@ class MethodParametersManager
                 }
             } elseif ($propertyEnum) {
                 $isSimpleType = false;
-            } elseif (class_exists($type)) {
+            } elseif (! PropertyEnum::isBuiltinType($type) && class_exists($type)) {
                 $this->propertyManager->scanClassProperties($type);
                 $isSimpleType = false;
                 $propertyClassName = $type;

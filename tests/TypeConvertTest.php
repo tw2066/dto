@@ -90,6 +90,24 @@ class TypeConvertTest extends TestCase
         $this->assertNull($result);
     }
 
+    public function testPropertyEnumSkipsBuiltinAndInvalidTypesWithoutAutoload(): void
+    {
+        $autoloaded = [];
+        $autoloader = static function (string $class) use (&$autoloaded): void {
+            $autoloaded[] = $class;
+        };
+        spl_autoload_register($autoloader);
+        try {
+            $propertyEnum = new PropertyEnum();
+            foreach (['string', 'int', 'mixed', '\DateTime|string', 'Foo[]'] as $type) {
+                $this->assertNull($propertyEnum->get($type), $type);
+            }
+            $this->assertSame([], $autoloaded);
+        } finally {
+            spl_autoload_unregister($autoloader);
+        }
+    }
+
     public function testDtoCommonIsSimpleType(): void
     {
         $dtoCommon = new DtoCommon();

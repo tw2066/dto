@@ -213,7 +213,7 @@ class PropertyManager
             $property->arrayDepth = $arrayDepth;
             if ($this->dtoCommon->isSimpleType($arrType)) {
                 $property->arrSimpleType = $arrType;
-            } elseif (class_exists($arrType)) {
+            } elseif (! PropertyEnum::isBuiltinType($arrType) && class_exists($arrType)) {
                 $property->arrClassName = trim($arrType, '\\');
                 $this->scanClassProperties($arrType, $depth + 1);
             }
@@ -223,7 +223,7 @@ class PropertyManager
         $property->enum = $this->propertyEnum->get($type);
         if ($property->enum) {
             $property->isSimpleType = false;
-        } elseif (class_exists($type)) {
+        } elseif (! PropertyEnum::isBuiltinType($type) && class_exists($type)) {
             $property->isSimpleType = false;
             $property->className = trim($type, '\\');
             $this->scanClassProperties($type, $depth + 1);
