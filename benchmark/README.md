@@ -25,3 +25,13 @@ DTO_SOURCE_DIR="$baseline_dir/src" php8.4 -d xdebug.mode=off \
 ```
 
 基线与当前版本应在同一机器、相同 PHP/依赖和参数下顺序运行。不要并行跑两组基准，也不要用不同脚本或不同输入数据直接比较。`method_exists($validation, 'prepare')` 分支仅用于让同一脚本兼容 3.x 与 4.0 的 Valid 调用方式。
+
+## 与原版 JsonMapper 比较
+
+```bash
+php8.4 -d xdebug.mode=off benchmark/upstream_comparison.php --iterations=10000 --rounds=12
+```
+
+该脚本直接对比 `Hyperf\DTO\JsonMapper` 与 `netresearch/jsonmapper` 的原版 `\JsonMapper`，统一映射器配置并验证映射结果。每轮交换执行顺序，丢弃首轮后输出中位数、p95 和 `hyperf_speedup`（大于 1 表示 Hyperf 更快）。
+
+场景仅包含两者共同支持的简单字段、未知键、setter、嵌套对象、对象数组和 1000 条批量映射；`JSONField` 和 DTO 验证不属于原版能力，不在此对比中。首次反射、docblock 解析和映射计划构建会在预热阶段完成，不计入稳态耗时。

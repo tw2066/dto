@@ -150,87 +150,46 @@ class JsonMapper extends \JsonMapper
         $className = get_class($object);
         $plan = $this->getMappingPlan($className);
         $input = $this->inputArray($json, $className);
-        $selected = [];
-        $unknown = [];
-        $directKeys = [];
-        $directInput = true;
-        if ($resolved) {
-            $directInput = array_diff_key($input, $plan['propertyKeys']) === [];
-            if ($directInput) {
-                foreach ($plan['fields'] as $index => $field) {
-                    if (array_key_exists($field['name'], $input)) {
-                        $directKeys[$index] = $field['name'];
-                    }
-                }
-            } else {
-                [$selected, $unknown] = $this->selectCanonicalFields($input, $plan);
-            }
-        } else {
+        if (! $resolved) {
             $context->enterNode(count($input), $className, $depth);
-            // 直接键热路径内联；遇到兼容变体时把已选直接键并入 selected 继续处理。
-            $selected = [];
-            $unknown = [];
-            $directKeys = [];
-            $directInput = true;
-            $fallback = false;
-            foreach ($input as $key => $value) {
-                $rawKey = (string) $key;
-                if (! $fallback) {
-                    $index = $plan['directMap'][$key] ?? null;
-                    if ($index !== null) {
-                        if (isset($directKeys[$index])) {
-                            $directKeys[$index] = $this->selectPreferredKey(
-                                $plan['fields'][$index],
-                                $directKeys[$index],
-                                $rawKey
-                            );
-                        } else {
-                            $directKeys[$index] = $rawKey;
-                        }
-                        continue;
-                    }
-                    $fallback = true;
-                    $directInput = false;
-                    foreach ($directKeys as $directIndex => $directKey) {
-                        $selected[$directIndex] = [$directKey, $input[$directKey]];
-                    }
-                    $directKeys = [];
-                }
-                $index = $this->resolveFieldIndex($rawKey, $plan);
-                if ($index === null) {
-                    $unknown[$key] = $value;
-                    continue;
-                }
-                if (isset($selected[$index]) && $selected[$index][0] !== $rawKey) {
-                    $winner = $this->selectPreferredKey($plan['fields'][$index], $selected[$index][0], $rawKey);
-                    if ($winner === $rawKey) {
-                        $selected[$index] = [$rawKey, $value];
-                    }
-                    continue;
-                }
-                $selected[$index] = [$rawKey, $value];
-            }
         }
 
         $providedProperties = [];
+        // 常规输入按字段主键一次读取；主键未传入时才扫描输入查找兼容键。
         foreach ($plan['fields'] as $index => $field) {
-            if ($directInput) {
-                if (! array_key_exists($index, $directKeys)) {
-                    continue;
-                }
-                $value = $input[$directKeys[$index]];
+            if ($resolved) {
+                $key = array_key_exists($field['name'], $input) ? $field['name'] : null;
             } else {
-                if (! isset($selected[$index])) {
-                    continue;
-                }
-                [, $value] = $selected[$index];
+                $primaryKey = $field['primaryKey'];
+                $key = array_key_exists($primaryKey, $input)
+                    ? $primaryKey
+                    : $this->selectFieldKey($field, $plan, $input, $index);
+            }
+            if ($key === null) {
+                continue;
             }
             $providedProperties[$field['name']] = true;
-            $this->writeField($object, $plan, $index, $value, $context, $depth, $path, $resolved, $mappedTypes);
+            $this->writeField($object, $plan, $index, $input[$key], $context, $depth, $path, $resolved, $mappedTypes);
         }
 
+        $unknown = [];
+        $needsUnknownHandling = $this->bExceptionOnUndefinedProperty
+            || $this->undefinedPropertyHandler !== null;
+        // 每个已选字段消费一个不同的输入键；数量相等时不存在未知键。
+        if ($needsUnknownHandling && count($input) !== count($providedProperties)) {
+            if ($resolved) {
+                $unknown = array_diff_key($input, $plan['propertyKeys']);
+            } else {
+                foreach ($input as $key => $value) {
+                    $index = $plan['directMap'][$key] ?? null;
+                    $known = $index !== null || $this->resolveFieldIndex((string) $key, $plan) !== null;
+                    if (! $known) {
+                        $unknown[$key] = $value;
+                    }
+                }
+            }
+        }
         if ($unknown !== []) {
-            // 未知键不参与字段计划，也不进入进程级缓存；仅按配置进行后续处理。
             $this->handleUnknownProperties(
                 $object,
                 $plan,
@@ -307,18 +266,28 @@ class JsonMapper extends \JsonMapper
     }
 
     /**
-     * ResolvedInput 含未知键时的选择路径：已知字段只取 canonical 属性名，
-     * 其余键原样保留给 customKey 验证和 unknown-property 扩展。
+     * 主键未传入时，按原输入顺序选择该字段的最终键。
+     * 常规 canonical 输入不会进入此回退路径。
      */
-    private function selectCanonicalFields(array $input, array $plan): array
+    private function selectFieldKey(array $field, array $plan, array $input, int $fieldIndex): ?string
     {
-        $selected = [];
-        foreach ($plan['fields'] as $index => $field) {
-            if (array_key_exists($field['name'], $input)) {
-                $selected[$index] = [$field['name'], $input[$field['name']]];
+        $selectedKey = null;
+        foreach ($input as $key => $value) {
+            $rawKey = (string) $key;
+            $index = $plan['directMap'][$key] ?? null;
+            if ($index === null) {
+                $index = $this->resolveFieldIndex($rawKey, $plan);
             }
+            if ($index !== $fieldIndex) {
+                continue;
+            }
+            if ($selectedKey === null) {
+                $selectedKey = $rawKey;
+                continue;
+            }
+            $selectedKey = $this->selectPreferredKey($field, $selectedKey, $rawKey);
         }
-        return [$selected, array_diff_key($input, $plan['propertyKeys'])];
+        return $selectedKey;
     }
 
     /**
@@ -787,9 +756,9 @@ class JsonMapper extends \JsonMapper
     }
 
     /**
-     * 统一处理未消费输入键。
+     * 处理需要异常或回调的未消费输入键。
      * handler 和异常消息使用上游 JsonMapper 的 safe key；handler 映射到已知
-     * 字段后复用正常写入流程。默认只记录有界日志，不缓存用户原始键。
+     * 字段后复用正常写入流程。普通映射忽略未知键，不记录日志或缓存原始键。
      */
     private function handleUnknownProperties(
         object $object,
@@ -827,14 +796,6 @@ class JsonMapper extends \JsonMapper
                 }
                 continue;
             }
-            if ($context->undefinedPropertyLogs < MappingContext::MAX_UNDEFINED_PROPERTY_LOGS) {
-                ++$context->undefinedPropertyLogs;
-                $this->log(
-                    'info',
-                    'Property {property} does not exist in {class}',
-                    ['property' => $safeKey, 'class' => $plan['className']]
-                );
-            }
         }
     }
 
@@ -859,10 +820,10 @@ class JsonMapper extends \JsonMapper
      * 构建一次类级映射计划，热路径只读，不保存请求数据。
      *
      * 关键结构：
-     * - fields：字段索引 => 属性、访问器、类型、可空性、简单类型标记和候选键。
+     * - fields：字段索引 => 主键、属性、访问器、类型、可空性和简单类型标记。
      * - keyMap：可直接匹配的 PHP 属性名/JSONField 别名 => 字段索引。
      * - variantMap：预计算的常见兼容变体（snake/kebab/Pascal/setter 形式）=> 字段索引。
-     * - directMap：keyMap + variantMap，供热路径一次遍历判定直接键。
+     * - directMap：keyMap + variantMap，供回退解析使用。
      * - safeMap：连字符等安全键形式 => 字段索引。
      * - setterMap：合法 setter 名（含 setID 等缩写）=> 字段索引。
      * - insensitiveMap：仅供规范化键使用的受限大小写回退表。
@@ -889,7 +850,6 @@ class JsonMapper extends \JsonMapper
 
         $fields = [];
         $keyMap = [];
-        $keyPriorities = [];
         $setterMap = [];
         $setterSuffixes = [];
         $insensitiveMap = [];
@@ -933,6 +893,7 @@ class JsonMapper extends \JsonMapper
             }
             $fields[$index] = [
                 'name' => $fieldName,
+                'primaryKey' => $fieldName,
                 'property' => $property,
                 'accessor' => $accessor,
                 'type' => $type,
@@ -942,18 +903,22 @@ class JsonMapper extends \JsonMapper
                 'variadic' => $accessor !== null && $this->hasVariadicArrayType($accessor),
             ];
             $propertyKeys[$fieldName] = true;
-            $this->registerDirectKey($keyMap, $keyPriorities, $fieldName, $index, 1, $className);
+            $this->registerDirectKey($keyMap, $fields, $fieldName, $index, $className);
 
             $alias = $property->alias;
             if ($alias !== null && $alias !== $fieldName) {
                 if ($alias === '') {
                     throw new DtoException("JSONField alias cannot be empty for {$className}::{$fieldName}");
                 }
-                $this->registerDirectKey($keyMap, $keyPriorities, $alias, $index, 0, $className);
                 $safeAlias = $this->getSafeName($alias);
                 if ($safeAlias !== $alias) {
-                    $this->registerDirectKey($keyMap, $keyPriorities, $safeAlias, $index, 0, $className);
+                    throw new DtoException(
+                        "JSONField alias [{$alias}] for class {$className}::{$fieldName} is ambiguous with safe key "
+                        . "[{$safeAlias}]; use an alias without hyphens"
+                    );
                 }
+                $fields[$index]['primaryKey'] = $alias;
+                $this->registerDirectKey($keyMap, $fields, $alias, $index, $className);
             }
 
             $setterMethods = $methodsBySuffix[strtolower($fieldName)] ?? [];
@@ -1038,27 +1003,24 @@ class JsonMapper extends \JsonMapper
     }
 
     /**
-     * 注册无需额外转换即可命中的键。
-     * 显式别名优先于属性名；仅同优先级的声明歧义立即失败。
+     * 注册无需额外转换即可命中的唯一键；任何跨字段冲突都在构建计划时失败。
      */
     private function registerDirectKey(
         array &$keyMap,
-        array &$keyPriorities,
+        array $fields,
         string $key,
         int $index,
-        int $priority,
         string $className,
     ): void {
         if (isset($keyMap[$key]) && $keyMap[$key] !== $index) {
-            if ($priority > $keyPriorities[$key]) {
-                return;
-            }
-            if ($priority === $keyPriorities[$key]) {
-                throw new DtoException("Input key [{$key}] for class {$className} maps to multiple properties");
-            }
+            $existingField = $fields[$keyMap[$key]]['name'];
+            $fieldName = $fields[$index]['name'];
+            throw new DtoException(
+                "Input key [{$key}] for class {$className} is ambiguous between fields "
+                . "[{$existingField}] and [{$fieldName}]; each field must have a unique property or alias key"
+            );
         }
         $keyMap[$key] = $index;
-        $keyPriorities[$key] = $priority;
     }
 
     /**

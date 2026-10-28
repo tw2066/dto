@@ -62,31 +62,47 @@ class MappingPlanTest extends TestCase
         $this->assertSame('declared-value', $dto->getUserName());
     }
 
-    public function testPrecomputedVariantDoesNotOverrideAliasSafeKey(): void
+    public function testAliasAndSafeAliasAmbiguityFails(): void
     {
-        $dto = $this->mapper()->map(['user-name' => 'aliased'], new PlanVariantCollisionDto());
+        $this->expectException(\Hyperf\DTO\Exception\DtoException::class);
+        $this->expectExceptionMessage(
+            'JSONField alias [user-Name] for class ' . PlanVariantCollisionDto::class
+            . '::other is ambiguous with safe key [UserName]; use an alias without hyphens'
+        );
 
-        $this->assertSame('aliased', $dto->other);
-        $this->assertSame('', $dto->getUserName());
+        $this->mapper()->map([], new PlanVariantCollisionDto());
     }
 
-    public function testAliasCollisionWithAnotherPropertyUsesAliasPriority(): void
+    public function testAliasCollisionWithAnotherPropertyFails(): void
     {
-        foreach ([PlanAliasCollisionDto::class, PlanAliasCollisionReverseDto::class] as $className) {
-            $dto = $this->mapper()->map(['user_name' => 'aliased', 'age' => 1], new $className());
-
-            $this->assertSame('aliased', $dto->userName);
-            $this->assertSame('', $dto->user_name);
-            $this->assertSame(1, $dto->age);
+        $cases = [
+            PlanAliasCollisionDto::class => '[userName] and [user_name]',
+            PlanAliasCollisionReverseDto::class => '[user_name] and [userName]',
+        ];
+        foreach ($cases as $className => $fields) {
+            try {
+                $this->mapper()->map([], new $className());
+                $this->fail("Expected alias collision to fail: {$className}");
+            } catch (\Hyperf\DTO\Exception\DtoException $exception) {
+                $this->assertSame(
+                    "Input key [user_name] for class {$className} is ambiguous between fields {$fields}; "
+                    . 'each field must have a unique property or alias key',
+                    $exception->getMessage()
+                );
+            }
         }
     }
 
-    public function testSamePriorityAliasCollisionStillFails(): void
+    public function testDuplicateAliasCollisionFails(): void
     {
         $this->expectException(\Hyperf\DTO\Exception\DtoException::class);
-        $this->expectExceptionMessage('maps to multiple properties');
+        $this->expectExceptionMessage(
+            'Input key [user_name] for class ' . PlanDuplicateAliasDto::class
+            . ' is ambiguous between fields [firstName] and [secondName]; '
+            . 'each field must have a unique property or alias key'
+        );
 
-        $this->mapper()->map(['age' => 1], new PlanDuplicateAliasDto());
+        $this->mapper()->map([], new PlanDuplicateAliasDto());
     }
 
     public function testAliasInputWinsOverPropertyName(): void
@@ -94,6 +110,23 @@ class MappingPlanTest extends TestCase
         $dto = $this->mapper()->map([
             'user_name' => 'alias-value',
             'userName' => 'property-value',
+        ], new PlanAliasDto());
+
+        $this->assertSame('alias-value', $dto->userName);
+
+        $dto = $this->mapper()->map([
+            'userName' => 'property-value',
+            'user_name' => 'alias-value',
+        ], new PlanAliasDto());
+
+        $this->assertSame('alias-value', $dto->userName);
+    }
+
+    public function testLowerPriorityInvalidValueDoesNotBlockAlias(): void
+    {
+        $dto = $this->mapper()->map([
+            'userName' => ['invalid'],
+            'user_name' => 'alias-value',
         ], new PlanAliasDto());
 
         $this->assertSame('alias-value', $dto->userName);
@@ -177,10 +210,10 @@ class MappingPlanTest extends TestCase
         $this->assertSame('handled', $dto->name);
     }
 
-    public function testUndefinedPropertyLogsAreLimited(): void
+    public function testUnknownKeysAreNotLogged(): void
     {
         $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects($this->exactly(32))->method('log');
+        $logger->expects($this->never())->method('log');
         $mapper = $this->mapper();
         $mapper->setLogger($logger);
         $data = [];

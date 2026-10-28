@@ -59,15 +59,15 @@ public string $userName;
 - PHP >= 8.1、Hyperf 3.1/3.2 和 JsonMapper 6 的依赖约束不变。
 - JsonMapper 的 classMap、class factory、post-mapping、unknown-property handler、strict null 和 visibility 配置继续有效。
 - setter、缩写 setter、合法连字符/下划线变体、继承属性、枚举、ArrayType/docblock、对象数组及 null 元素继续支持。
-- 未知字段默认忽略，异常/handler 策略保留；不为用户原始键建立进程级缓存。
-- 单节点最多 1024 个输入键，整棵映射树最多 65536 个输入键，最大嵌套深度 100；未知字段日志最多 32 条。
+- 未知字段默认忽略且不记录日志，异常/handler 策略保留；不为用户原始键建立进程级缓存。
+- 单节点最多 1024 个输入键，整棵映射树最多 65536 个输入键，最大嵌套深度 100。
 - 嵌套字段未传入或为 null 时跳过递归验证；空数组表示的嵌套对象仍执行子类规则，对象数组中的 null 元素跳过递归验证。普通对象数组与 `mapArray()` 继续保留 null 元素；写入不接受 null 的 variadic setter 时抛出 `JsonMapper_Exception`，不泄漏 PHP `TypeError`。
 - `Mapper::map(null, $dto)` 返回默认 DTO；未安装验证器时，`DtoValidation::validate()` 在解析输入前直接 no-op，不触发输入类型或 key 预算异常。
 - `Confirmed` 的确认字段遵循主字段外部别名，例如 `password` / `password_confirmation` 会映射到 canonical `pwd` / `pwd_confirmation` 后验证；PHP 属性名形式同样可用。
 - `#[Valid]` 数组参数支持标量元素数组和多维 DTO 数组；空数组直接返回，标量元素数组保持原值，多维 DTO 数组按叶子元素验证和映射。
 - `classMap` / `classFactories` 的注册键同时支持带或不带前导反斜杠；resolved 路径复用工厂选定的具体类型，不为同一嵌套值重复调用工厂。
 - variadic setter 继续接受单个标量作为唯一实参。
-- 别名与另一属性名冲突时按既定优先级确定性选择；同优先级的真实声明歧义仍在计划构建时拒绝。
+- 字段主键必须唯一；原始别名与安全别名不一致、别名与另一属性名冲突、多个字段共用别名都会在计划构建时抛出 `DtoException`。
 - 旧版本按 `JSONField` 别名书写的 `customKey` 会自动转换为 canonical PHP 属性路径，并同步转换 messages/attributes 的键前缀；新代码仍推荐使用 PHP 属性路径。
 
 ## 验证建议

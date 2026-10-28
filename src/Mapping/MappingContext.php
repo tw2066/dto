@@ -15,11 +15,7 @@ class MappingContext
 
     public const MAX_DEPTH = 100;
 
-    public const MAX_UNDEFINED_PROPERTY_LOGS = 32;
-
     public int $totalKeys = 0;
-
-    public int $undefinedPropertyLogs = 0;
 
     public function enterNode(int $keyCount, string $className, int $depth): void
     {
