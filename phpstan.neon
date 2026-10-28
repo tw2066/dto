@@ -4,5 +4,3 @@ parameters:
             - 'src/Router/JsonRpcHttpRouter.php'
             - 'src/Router/JsonRpcTcpRouter.php'
             - 'src/Scan/PropertyEnum.php'
-            - 'src/JsonMapper.php'
-            - 'src/Aspect/CoreMiddlewareAspect.php'

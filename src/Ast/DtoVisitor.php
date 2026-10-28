@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Ast;
 
-use Hyperf\DTO\DtoConfig;
-use Hyperf\DTO\Type\PhpType;
-use PhpParser\Comment\Doc;
 use PhpParser\Node;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Name;
@@ -83,26 +80,6 @@ class DtoVisitor extends NodeVisitorAbstract
                 if (! $class instanceof Node\Stmt\Class_) {
                     continue;
                 }
-                foreach ($class->stmts as $stmt) {
-                    if ($stmt instanceof Node\Stmt\Property) {
-                        $propertyName = $stmt->props[0]->name->name;
-                        $property = $this->propertyArr[$propertyName];
-                        if (! empty($property->alias)) {
-                            $alias = $property->alias;
-                            // 增加set属性方法
-                            $setter = DtoConfig::getDtoAliasMethodName($alias);
-                            $stmts = $this->createSetter(
-                                $setter,
-                                $propertyName,
-                                $stmt->props[0]->default,
-                                $stmt->type,
-                                $property->arrayType,
-                                $stmt->getDocComment()?->getText()
-                            );
-                            $class->stmts[] = $stmts;
-                        }
-                    }
-                }
                 if ($this->isCreateJsonSerialize) {
                     $stmts = $this->createJsonSerialize();
                     if ($stmts) {
@@ -170,35 +147,6 @@ class DtoVisitor extends NodeVisitorAbstract
         return new Expr\ConstFetch(
             new Name('null')
         );
-    }
-
-    protected function createSetter(string $method, string $propertyName, $default, $type, string $arrayType = '', ?string $docComment = null): Node\Stmt\ClassMethod
-    {
-        $node = new Node\Stmt\ClassMethod($method, [
-            'flags' => Node\Stmt\Class_::MODIFIER_PRIVATE,
-            'params' => [new Node\Param(new Node\Expr\Variable('param'), $default, $type)],
-        ]);
-        $node->returnType = new Node\Identifier('void');
-        $node->stmts[] = new Node\Stmt\Expression(
-            new Node\Expr\Assign(
-                new Node\Expr\PropertyFetch(
-                    new Node\Expr\Variable('this'),
-                    new Node\Identifier($propertyName)
-                ),
-                new Node\Expr\Variable('param')
-            )
-        );
-        if ($arrayType !== '') {
-            $arrayType = PhpType::tryFrom($arrayType) === null ? '\\' . ltrim($arrayType, '\\') : $arrayType;
-            $docComment = '/** @param ' . $arrayType . '[] $param */';
-        } elseif ($docComment !== null) {
-            $docComment = preg_replace('/@var\s+(\S+)/', '@param $1 $param', $docComment) ?? $docComment;
-        }
-        if ($docComment !== null && $docComment !== '') {
-            $node->setDocComment(new Doc($docComment));
-        }
-
-        return $node;
     }
 
     protected function createJsonSerialize(): ?Node\Stmt\ClassMethod

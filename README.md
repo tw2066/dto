@@ -3,7 +3,7 @@
 [![Latest Stable Version](https://img.shields.io/packagist/v/tangwei/dto)](https://packagist.org/packages/tangwei/dto)
 [![Total Downloads](https://img.shields.io/packagist/dt/tangwei/dto)](https://packagist.org/packages/tangwei/dto)
 [![License](https://img.shields.io/packagist/l/tangwei/dto)](https://github.com/tw2066/dto)
-[![PHP Version](https://img.shields.io/badge/php-%3E%3D8.2-blue)](https://www.php.net)
+[![PHP Version](https://img.shields.io/badge/php-%3E%3D8.1-blue)](https://www.php.net)
 
 [English](./README_EN.md) | 中文
 
@@ -12,7 +12,7 @@
 ## ✨ 特性
 
 - 🚀 **自动映射** — 请求参数自动映射到 PHP DTO 类
-- 🎯 **类型安全** — 利用 PHP 8.2+ 的类型系统，提供完整的类型提示
+- 🎯 **类型安全** — 利用 PHP 8.1+ 的类型系统，提供完整的类型提示
 - 🔄 **递归支持** — 支持数组、嵌套对象、递归结构（最大嵌套深度 100）
 - ✅ **数据验证** — 集成 Hyperf 验证器，提供约 90 个验证注解
 - 📝 **多种参数源** — 支持 Body、Query、FormData、Header 等多种参数来源
@@ -22,8 +22,8 @@
 
 ## 📋 环境要求
 
-- PHP >= 8.2
-- Hyperf ~3.2
+- PHP >= 8.1
+- Hyperf ~3.1 或 ~3.2
 - （可选）hyperf/validation — 数据验证
 - （可选）symfony/serializer + symfony/property-access — RPC 对象序列化
 
@@ -370,6 +370,8 @@ class ApiRequest
 }
 ```
 
+4.0 中 `JSONField` 只描述外部别名与 PHP 属性的映射，不再生成输入 setter。别名输入与属性名输入使用相同的业务 setter/属性写入规则；同时传入同一字段的属性名、别名或等价合法变体时不再拒绝，按“显式 `JSONField` 别名 > PHP 属性名 > setter/大小写等兼容变体”的优先级取值，同为兼容变体时保留先出现的值。校验和后续映射消费同一选中值，未选中的候选值不会写入对象。验证错误返回给客户端时仍使用外部别名。升级说明见 [UPGRADE-4.0.md](UPGRADE-4.0.md)。
+
 ## ✅ 数据验证
 
 > 需要先安装 Hyperf 验证器：`composer require hyperf/validation`
@@ -440,7 +442,7 @@ class UserRequest
 
 #### 使用 Validation 注解
 
-`Validation` 注解支持 Laravel 风格的验证规则字符串，并可通过 `customKey` 验证数组元素：
+`Validation` 注解支持 Laravel 风格的验证规则字符串，并可通过 `customKey` 验证数组元素。4.0 的验证规则和跨字段引用统一使用真实 PHP 属性名（包括 `Same`、`RequiredIf` 和 `customKey`）；对外错误键和默认字段显示名再映射为 `JSONField` 别名。旧版本按别名书写的 `customKey` 会自动转换为 canonical 路径，并同步转换 messages/attributes 的键前缀；新代码仍推荐使用 PHP 属性路径：
 
 ```php
 use Hyperf\DTO\Annotation\Validation\Validation;
@@ -528,7 +530,7 @@ return [
 
 ### 手动映射
 
-脱离 HTTP 请求场景时，可直接使用 `Mapper` 静态门面：
+脱离 HTTP 请求场景时，可直接使用 `Mapper` 静态门面。普通映射由 JsonMapper 的类级字段计划驱动，不会为验证额外复制整棵输入树；HTTP `#[Valid]` 请求则通过一次 `ResolvedInput` 解析结果完成验证和映射：
 
 ```php
 use Hyperf\DTO\Mapper;
@@ -616,6 +618,8 @@ return [
 ];
 ```
 
+RPC 输入中的 DTO 参数直接消费 `ResolvedInput` 完成对象映射，嵌套 DTO 和 BackedEnum 不依赖 Symfony normalizer；非 DTO 参数仍按 `NormalizerInterface` 的 denormalize 流程注入。
+
 ## 💡 最佳实践
 
 ### 1. DTO 类结构设计
@@ -669,7 +673,8 @@ class ValidationExceptionHandler extends ExceptionHandler
 ### 4. 生产环境部署
 
 - 设置 `scan_cacheable = true`，在构建/发布阶段执行一次扫描生成代理文件（`runtime/container/proxy/*.dto.proxy.php`），运行时直接加载，减少启动开销
-- 代理文件按源文件修改时间自动过期重建（`scan_cacheable = false` 时）
+- 代理文件按源文件修改时间和生成器版本自动过期重建（`scan_cacheable = false` 时）
+- 4.0 的代理只负责响应序列化，不再生成输入别名 setter；升级后必须清理并重建旧代理目录，避免 scanned classmap 混用不同版本产物
 
 ## 📚 常见问题
 
@@ -705,7 +710,7 @@ A: 使用 `RequestFormData` 注解，然后通过 `$this->request->file()` 获�
 
 ### Q: 嵌套 DTO 的验证规则如何生效？
 
-A: 外层 DTO 验证通过后，组件会递归验证嵌套对象（含对象数组的每个元素），规则取嵌套类属性上的验证注解。嵌套字段为空时跳过递归验证，如需强制必填请在外层属性上加 `#[Required]`。
+A: 外层 DTO 验证通过后，组件会递归验证嵌套对象（含对象数组的每个非 null 元素），规则取嵌套类属性上的验证注解。嵌套字段未传入或为 null 时跳过递归验证；用空数组表示嵌套对象时仍会执行子类规则，如需强制必填请在外层属性上加 `#[Required]`。
 
 ### Q: DTO 嵌套层级有限制吗？
 

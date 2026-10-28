@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO;
 
+use ReflectionClass;
+use ReflectionMethod;
 use ReflectionParameter;
 use ReflectionProperty;
 
@@ -43,5 +45,20 @@ class DtoCommon extends JsonMapper
     public function getSafeName(string $name): string
     {
         return parent::getSafeName($name);
+    }
+
+    /**
+     * 复用映射器的属性访问器和类型判断，避免扫描阶段另维护一套规则.
+     *
+     * @return array{bool, null|ReflectionMethod|ReflectionProperty, null|string, bool}
+     */
+    public function inspectPropertyMetadata(ReflectionClass $rc, string $name): array
+    {
+        return $this->inspectProperty($rc, $name);
+    }
+
+    public function removeNullable(?string $type): ?string
+    {
+        return parent::removeNullable($type);
     }
 }

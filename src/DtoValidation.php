@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace Hyperf\DTO;
 
 use Hyperf\Context\ApplicationContext;
+use Hyperf\Contract\TranslatorInterface;
 use Hyperf\Contract\ValidatorInterface;
-use Hyperf\Di\ReflectionManager;
 use Hyperf\DTO\Exception\DtoException;
+use Hyperf\DTO\Mapping\MappingContext;
+use Hyperf\DTO\Mapping\ResolvedInput;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Scan\ValidationManager;
 use Hyperf\Validation\Contract\ValidatorFactoryInterface;
 use Hyperf\Validation\ValidationException;
-use ReflectionMethod;
-use ReflectionProperty;
 
 /**
  * DTO 验证类
@@ -26,49 +26,66 @@ class DtoValidation
      */
     public static bool $isValidationCustomAttributes = false;
 
-    /**
-     * 验证工厂实例.
-     */
     private ?ValidatorFactoryInterface $validationFactory = null;
 
-    private static array $keyMapCache = [];
+    private JsonMapper $mapper;
 
-    private DtoCommon $dtoCommon;
+    private ?TranslatorInterface $translator = null;
 
-    /**
-     * 构造函数.
-     *
-     * @param PropertyManager $propertyManager 属性管理器
-     * @param ValidationManager $validationManager 验证管理器
-     */
-    public function __construct(protected PropertyManager $propertyManager, protected ValidationManager $validationManager)
-    {
-        $this->dtoCommon = new DtoCommon();
+    private array $externalAttributes = [];
+
+    private array $validatorAttributes = [];
+
+    private array $validationData = [];
+
+    public function __construct(
+        protected PropertyManager $propertyManager,
+        protected ValidationManager $validationManager,
+        ?JsonMapper $mapper = null,
+    ) {
+        $this->mapper = $mapper ?? Mapper::getJsonMapper();
         $container = ApplicationContext::getContainer();
         if ($container->has(ValidatorFactoryInterface::class)) {
             $this->validationFactory = $container->get(ValidatorFactoryInterface::class);
+            if (method_exists($this->validationFactory, 'getTranslator')) {
+                $translator = $this->validationFactory->getTranslator();
+                $this->translator = $translator instanceof TranslatorInterface ? $translator : null;
+            }
         }
     }
 
     /**
      * 验证 DTO 数据.
-     *
-     * @param string $className DTO 类名
-     * @param mixed $data 要验证的数据
      */
     public function validate(string $className, $data): void
     {
-        if ($this->validationFactory == null) {
+        if ($this->validationFactory === null) {
             return;
         }
-        $this->validateResolved($className, $data);
+        $this->validateResolvedInput($this->prepare($className, $data));
+    }
+
+    /**
+     * @internal 由 JsonMapper 解析一次，供验证、映射或 RPC 共用。
+     */
+    public function prepare(string $className, mixed $data, ?MappingContext $context = null): ResolvedInput
+    {
+        return $this->mapper->resolveInput($data, $className, $context);
+    }
+
+    /**
+     * @internal 验证同一 ResolvedInput，不再解析输入键。
+     */
+    public function validateResolvedInput(ResolvedInput $input): void
+    {
+        if ($this->validationFactory === null) {
+            return;
+        }
+        $this->validateResolved($input->className, $input->data);
     }
 
     /**
      * 构建验证异常.
-     *
-     * @param ValidatorInterface $validator 验证器实例
-     * @return ValidationException 验证异常
      */
     protected function buildValidationException(ValidatorInterface $validator): ValidationException
     {
@@ -82,141 +99,167 @@ class DtoValidation
     }
 
     /**
-     * 解析并验证数据.
+     * 解析并验证规范化数据.
      *
-     * @param string $className DTO 类名
-     * @param mixed $data 要验证的数据
      * @throws DtoException 当数据不是数组或对象时抛出
      * @throws ValidationException 当验证失败时抛出
      */
-    protected function validateResolved(string $className, $data): void
+    protected function validateResolved(string $className, mixed $data): void
     {
         if (! is_array($data)) {
             throw new DtoException("Class: {$className} - data must be object or array");
         }
 
-        // 与映射器一致：safe key 后依次尝试别名、公共 setter 和公有属性。
-        if (! isset(static::$keyMapCache[$className])) {
-            $propertyArr = $this->propertyManager->getPropertyByClass($className);
-            $reflectionClass = ReflectionManager::reflectClass($className);
-            $methods = $reflectionClass->getMethods(ReflectionMethod::IS_PUBLIC);
-            $publicProperties = [];
-            foreach ($reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC) as $reflectionProperty) {
-                $publicProperties[$reflectionProperty->getName()] = true;
-            }
-
-            $exactKeyMap = [];
-            $setterKeyMap = [];
-            $propertyKeyMap = [];
-            $insensitivePropertyKeyMap = [];
-            foreach ($propertyArr as $fieldName => $property) {
-                $ruleKey = $property->alias ?? $fieldName;
-                $hasAlias = $property->alias !== null && $property->alias !== $fieldName;
-                if ($hasAlias) {
-                    $exactKeyMap[$fieldName] = $ruleKey;
-                    $exactKeyMap[$property->alias] = $ruleKey;
-                    $exactKeyMap[$this->dtoCommon->getSafeName($property->alias)] = $ruleKey;
-                }
-
-                foreach ($methods as $method) {
-                    $methodName = $method->getName();
-                    if (! str_starts_with($methodName, 'set')) {
-                        continue;
-                    }
-                    $suffix = substr($methodName, 3);
-                    if (strcasecmp($suffix, $fieldName) !== 0 || $this->dtoCommon->getSetterName($suffix) !== $methodName) {
-                        continue;
-                    }
-                    $exactKeyMap[$fieldName] = $ruleKey;
-                    $setterKeyMap[$methodName] = $ruleKey;
-                    break;
-                }
-
-                if (isset($publicProperties[$fieldName])) {
-                    $insensitivePropertyKeyMap[strtolower($fieldName)] = $ruleKey;
-                    if ($this->dtoCommon->getSafeName('-' . $fieldName) === $fieldName) {
-                        $propertyKeyMap[$fieldName] = $ruleKey;
-                    }
-                }
-            }
-            static::$keyMapCache[$className] = [$exactKeyMap, $setterKeyMap, $propertyKeyMap, $insensitivePropertyKeyMap];
-        }
-        [$exactKeyMap, $setterKeyMap, $propertyKeyMap, $insensitivePropertyKeyMap] = static::$keyMapCache[$className];
-
-        // 无别名或键变体时，精确声明键无需归一化。
-        $hasVariantKeys = $exactKeyMap !== [] || $setterKeyMap !== [] || $propertyKeyMap !== [];
-        if ($hasVariantKeys || $insensitivePropertyKeyMap !== []) {
-            $onlyInsensitiveProperties = ! $hasVariantKeys;
-            $keyOwners = [];
-            $normalizedValues = [];
-            foreach ($data as $key => $value) {
-                if (! is_string($key)) {
-                    continue;
-                }
-                if ($onlyInsensitiveProperties && ! str_contains($key, '-')) {
-                    continue;
-                }
-                $ruleKey = $exactKeyMap[$key] ?? null;
-                if ($ruleKey === null) {
-                    $safeKey = $this->dtoCommon->getSafeName($key);
-                    $ruleKey = $exactKeyMap[$safeKey] ?? null;
-                    if ($ruleKey === null) {
-                        $setter = $this->dtoCommon->getSetterName($safeKey);
-                        $ruleKey = $setterKeyMap[$setter] ?? $propertyKeyMap[$safeKey] ?? null;
-                    }
-                    if ($ruleKey === null && $safeKey !== $key) {
-                        $ruleKey = $insensitivePropertyKeyMap[strtolower($safeKey)] ?? null;
-                    }
-                }
-                if ($ruleKey === null) {
-                    continue;
-                }
-                $hasConflict = (isset($keyOwners[$ruleKey]) && $keyOwners[$ruleKey] !== $key)
-                    || ($key !== $ruleKey && array_key_exists($ruleKey, $data));
-                if ($hasConflict) {
-                    $ownerKey = $keyOwners[$ruleKey] ?? $ruleKey;
-                    $validator = $this->validationFactory->make($data, []);
-                    $validator->errors()->add($ruleKey, 'The ' . $ownerKey . ' and ' . $key . ' fields cannot both be present.');
-                    throw $this->buildValidationException($validator);
-                }
-                $keyOwners[$ruleKey] = $key;
-                if ($key !== $ruleKey) {
-                    $normalizedValues[$ruleKey] = $value;
-                }
-            }
-            foreach ($normalizedValues as $key => $value) {
-                $data[$key] = $value;
-            }
-        }
-
-        $validArr = $this->validationManager->getData($className);
+        $validArr = $this->validationData[$className] ??= $this->canonicalizeValidationData(
+            $className,
+            $this->validationManager->getData($className)
+        );
         if (! empty($validArr)) {
+            $data = $this->withCanonicalConfirmationFields($className, $data, $validArr);
+            $externalAttributes = $this->getExternalAttributes($className, $validArr);
             $validator = $this->validationFactory->make(
                 $data,
                 $validArr['rule'],
                 $validArr['messages'] ?? [],
-                static::$isValidationCustomAttributes ? ($validArr['attributes'] ?? []) : []
+                $this->getValidatorAttributes($className, $externalAttributes, $validArr)
             );
             if ($validator->fails()) {
-                throw $this->buildValidationException($validator);
+                throw $this->buildValidationException($this->externalizeValidator($className, $validator, $externalAttributes));
             }
         }
 
-        // 递归验证嵌套对象和数组（类自身无规则时也要递归，嵌套类的规则独立生效）
+        // 类自身无规则时也要递归，嵌套类的规则独立生效。
         $notSimplePropertyArr = $this->propertyManager->getPropertyAndNotSimpleType($className);
         foreach ($notSimplePropertyArr as $fieldName => $property) {
-            // 使用归一化后的 JSONField 别名或 PHP 属性名键
-            $dataKey = $property->alias ?? $fieldName;
-            $value = $data[$dataKey] ?? null;
-            if (array_key_exists($dataKey, $data) && (is_array($value) || ! empty($value))) {
+            $value = $data[$fieldName] ?? null;
+            if (array_key_exists($fieldName, $data) && (is_array($value) || ! empty($value))) {
                 if ($property->isClassArray()) {
-                    foreach ($value as $item) {
-                        $this->validateResolved($property->arrClassName, $item);
-                    }
+                    $this->validateClassArray($property->arrClassName, $value, max(1, $property->arrayDepth));
                 } elseif ($property->className != null) {
                     $this->validateResolved($property->className, $value);
                 }
             }
         }
+    }
+
+    private function validateClassArray(string $className, mixed $value, int $remainingDepth): void
+    {
+        if (! is_array($value)) {
+            // 非数组值（标量、枚举、对象）没有可递归的 DTO 规则，交给父级规则处理。
+            return;
+        }
+        foreach ($value as $item) {
+            if (! is_array($item)) {
+                // 枚举/标量/对象叶子在验证阶段不是 canonical DTO，不参与递归验证。
+                continue;
+            }
+            if ($remainingDepth > 1) {
+                $this->validateClassArray($className, $item, $remainingDepth - 1);
+            } else {
+                $this->validateResolved($className, $item);
+            }
+        }
+    }
+
+    private function canonicalizeValidationData(string $className, array $validArr): array
+    {
+        foreach ($validArr['rule'] ?? [] as $ruleKey => $rules) {
+            $canonicalKey = $this->propertyManager->getCanonicalFieldPath($className, $ruleKey);
+            if ($canonicalKey === $ruleKey) {
+                continue;
+            }
+            $validArr['rule'][$canonicalKey] = array_merge($validArr['rule'][$canonicalKey] ?? [], $rules);
+            unset($validArr['rule'][$ruleKey]);
+            foreach (['messages', 'attributes'] as $type) {
+                foreach ($validArr[$type] ?? [] as $key => $value) {
+                    if ($key !== $ruleKey && ! str_starts_with($key, $ruleKey . '.')) {
+                        continue;
+                    }
+                    $suffix = substr($key, strlen($ruleKey));
+                    unset($validArr[$type][$key]);
+                    $validArr[$type][$canonicalKey . $suffix] = $value;
+                }
+            }
+        }
+        return $validArr;
+    }
+
+    private function withCanonicalConfirmationFields(string $className, array $data, array $validArr): array
+    {
+        foreach ($validArr['rule'] ?? [] as $field => $rules) {
+            if (! in_array('confirmed', $rules, true)) {
+                continue;
+            }
+            $externalField = $this->propertyManager->getExternalFieldPath($className, $field);
+            $externalConfirmation = $externalField . '_confirmation';
+            if (array_key_exists($externalConfirmation, $data)) {
+                // 外部确认字段与主字段别名一致，并按外部契约优先。
+                $data[$field . '_confirmation'] = $data[$externalConfirmation];
+            }
+        }
+        return $data;
+    }
+
+    private function getExternalAttributes(string $className, array $validArr): array
+    {
+        if (! isset($this->externalAttributes[$className])) {
+            $this->externalAttributes[$className] = $this->propertyManager->getExternalAttributes(
+                $className,
+                array_keys($validArr['rule'] ?? [])
+            );
+        }
+        return $this->externalAttributes[$className];
+    }
+
+    private function getValidatorAttributes(string $className, array $externalAttributes, array $validArr): array
+    {
+        $attributes = $externalAttributes;
+        if ($this->translator !== null) {
+            $cacheKey = $className . ':' . $this->translator->getLocale();
+            if (! isset($this->validatorAttributes[$cacheKey])) {
+                foreach ($attributes as $field => $externalField) {
+                    // 外部别名保持基线优先级，同时允许项目按 PHP 属性名配置翻译。
+                    foreach ([$externalField, $field] as $translationField) {
+                        $translationKey = 'validation.attributes.' . $translationField;
+                        $translation = $this->translator->trans($translationKey);
+                        if (is_string($translation) && $translation !== $translationKey) {
+                            $attributes[$field] = $translation;
+                            break;
+                        }
+                    }
+                }
+                $this->validatorAttributes[$cacheKey] = $attributes;
+            }
+            $attributes = $this->validatorAttributes[$cacheKey];
+        }
+        if (static::$isValidationCustomAttributes) {
+            return array_replace($attributes, $validArr['attributes'] ?? []);
+        }
+        return $attributes;
+    }
+
+    private function externalizeValidator(string $className, ValidatorInterface $validator, array $externalAttributes): ValidatorInterface
+    {
+        if ($externalAttributes === []) {
+            return $validator;
+        }
+
+        $messages = $validator->errors()->messages();
+        $externalMessages = [];
+        foreach ($messages as $field => $fieldMessages) {
+            $externalField = $externalAttributes[$field]
+                ?? $this->propertyManager->getExternalFieldPath($className, $field);
+            foreach ($fieldMessages as $message) {
+                $externalMessages[$externalField][] = $message;
+            }
+        }
+        if ($messages !== $externalMessages) {
+            // 保留原 validator 的 failedRules、数据和后续回调，只替换对外错误键。
+            $messageBag = $validator->errors();
+            $messagesProperty = new \ReflectionProperty($messageBag, 'messages');
+            $messagesProperty->setAccessible(true);
+            $messagesProperty->setValue($messageBag, $externalMessages);
+        }
+        return $validator;
     }
 }

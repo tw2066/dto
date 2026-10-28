@@ -15,14 +15,14 @@ use Hyperf\Validation\Rules\Exists as ExistsRule;
 use HyperfTest\DTO\AbstractTestCase;
 
 /**
- * ValidationManager::generateValidation 规则生成测试（别名键 / customKey / messages 对齐 / attributes / 对象 rule）.
+ * ValidationManager::generateValidation 规则生成测试（PHP 属性键 / customKey / messages 对齐 / attributes / 对象 rule）.
  *
  * @internal
  * @coversNothing
  */
 class ValidationManagerAliasTest extends AbstractTestCase
 {
-    public function testAliasUsedAsRuleAndMessageKey(): void
+    public function testPhpPropertyUsedAsRuleAndMessageKey(): void
     {
         (new JSONField('userName'))->collectProperty(VmAliasDto::class, 'name');
         (new Required('名字必填'))->collectProperty(VmAliasDto::class, 'name');
@@ -31,10 +31,10 @@ class ValidationManagerAliasTest extends AbstractTestCase
         $manager->generateValidation(VmAliasDto::class, 'name');
 
         $data = $manager->getData(VmAliasDto::class);
-        // rule 键与 messages 键都用 JSONField 别名而非 PHP 属性名
-        $this->assertSame(['required'], $data['rule']['userName']);
-        $this->assertSame('名字必填', $data['messages']['userName.required']);
-        $this->assertArrayNotHasKey('name', $data['rule']);
+        // 内部规则与消息统一使用 PHP 属性名，JSONField 只负责输入/输出映射。
+        $this->assertSame(['required'], $data['rule']['name']);
+        $this->assertSame('名字必填', $data['messages']['name.required']);
+        $this->assertArrayNotHasKey('userName', $data['rule']);
     }
 
     public function testAliasWithoutValidationAnnotationsReturnsEmpty(): void

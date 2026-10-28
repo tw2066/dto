@@ -8,7 +8,6 @@ use Hyperf\Collection\Arr;
 use Hyperf\Di\Annotation\AnnotationCollector;
 use Hyperf\Di\ReflectionManager;
 use Hyperf\Di\ScanHandler\ScanHandlerInterface;
-use Hyperf\DTO\Annotation\ArrayType;
 use Hyperf\DTO\Annotation\Dto;
 use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\DtoConfig;
@@ -25,6 +24,8 @@ use function Hyperf\Support\make;
 
 class DtoProxyClass
 {
+    private const PROXY_MARKER = 'dto-proxy-version: 4.0';
+
     protected ?array $classJSONFieldArr = null;
 
     protected ScanHandlerInterface $handler;
@@ -69,6 +70,9 @@ class DtoProxyClass
             $classLoader = Composer::getLoader();
             $classMap = [];
             foreach ($finder->getIterator() as $value) {
+                if (! $this->isCurrentProxyFile($value->getPathname())) {
+                    continue;
+                }
                 $classname = str_replace('_', '\\', $value->getBasename('.dto.proxy.php'));
                 $classMap[$classname] = $value->getPathname();
             }
@@ -76,8 +80,8 @@ class DtoProxyClass
             $classLoader->register(true);
             return;
         }
-        // 代理文件齐全且开启扫描缓存时跳过(视为构建期产物); 否则走生成逻辑(内部按源文件 mtime 增量跳过)
-        if (! $this->dtoConfig->isScanCacheable() || $this->hasMissingProxyFile()) {
+        // 代理文件齐全且开启扫描缓存时跳过(视为构建期产物); 否则走生成逻辑(内部按版本与源文件 mtime 增量跳过)
+        if (! $this->dtoConfig->isScanCacheable() || $this->hasInvalidProxyFile()) {
             // $this->removeProxies($proxyDir);
             $this->genProxyFile();
         }
@@ -86,14 +90,15 @@ class DtoProxyClass
     }
 
     /**
-     * 是否存在尚未生成的代理文件: 遍历全部应生成的 DTO 类, 任一代理文件缺失即需要走生成逻辑.
+     * 是否存在缺失或旧版代理文件: 旧版本不能被扫描缓存直接复用.
      */
-    protected function hasMissingProxyFile(): bool
+    protected function hasInvalidProxyFile(): bool
     {
         foreach ($this->getScanClass() as $class) {
             $rc = ReflectionManager::reflectClass($class);
             $files = new SplFileInfo($rc->getFileName());
-            if (! file_exists($this->getProxyClassFilePath($class, $files->getRealPath()))) {
+            $proxyFile = $this->getProxyClassFilePath($class, $files->getRealPath());
+            if (! $this->isCurrentProxyFile($proxyFile)) {
                 return true;
             }
         }
@@ -110,7 +115,10 @@ class DtoProxyClass
             $rc = ReflectionManager::reflectClass($class);
             $files = new SplFileInfo($rc->getFileName());
             $proxyClassFilePath = $this->getProxyClassFilePath($class, $files->getRealPath());
-            if (file_exists($proxyClassFilePath) && filemtime($proxyClassFilePath) >= $files->getMTime()) {
+            if (file_exists($proxyClassFilePath)
+                && filemtime($proxyClassFilePath) >= $files->getMTime()
+                && $this->isCurrentProxyFile($proxyClassFilePath)
+            ) {
                 continue;
             }
             $arr = [];
@@ -119,10 +127,6 @@ class DtoProxyClass
                 $propertyInfo = new PropertyInfo();
                 $propertyName = $property->name;
                 $propertyInfo->propertyName = $propertyName;
-                $arrayType = $property->getAttributes(ArrayType::class)[0] ?? null;
-                if ($arrayType !== null) {
-                    $propertyInfo->arrayType = $arrayType->newInstance()->value;
-                }
 
                 $getMethodName = \Hyperf\Support\getter($property->name);
                 if ($rc->hasMethod($getMethodName)) {
@@ -158,6 +162,7 @@ class DtoProxyClass
                 $isCreateJsonSerialize = false;
             }
             $content = $this->phpParser($class, $files->getRealPath(), $arr, $isCreateJsonSerialize);
+            $content = substr_replace($content, "<?php\n// " . self::PROXY_MARKER, 0, 5);
             file_put_contents($proxyClassFilePath, $content);
         }
     }
@@ -195,6 +200,15 @@ class DtoProxyClass
         $ast = $traverser->traverse($ast);
         $prettyPrinter = new PrettyPrinter\Standard(['shortArraySyntax' => true]);
         return $prettyPrinter->prettyPrintFile($ast);
+    }
+
+    private function isCurrentProxyFile(string $filename): bool
+    {
+        if (! is_file($filename)) {
+            return false;
+        }
+        $content = file_get_contents($filename, false, null, 0, 256);
+        return is_string($content) && str_contains($content, '// ' . self::PROXY_MARKER);
     }
 
     private function removeProxies($dir): void

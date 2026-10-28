@@ -72,6 +72,17 @@ class ScanOrchestrationTest extends AbstractTestCase
         $this->assertSame($first, $second);
     }
 
+    public function testRepeatedRouteScanGeneratesRulesOnce(): void
+    {
+        (new Required())->collectProperty(ScanOrchRepeatedDto::class, 'name');
+        [$scan, $validationManager] = $this->makeScan([ScanOrchRepeatedDto::class]);
+
+        $scan->scan(ScanOrchRepeatedController::class, 'handle');
+        $scan->scan(ScanOrchRepeatedController::class, 'handle');
+
+        $this->assertSame(1, $validationManager->generateCounts[ScanOrchRepeatedDto::class]['name']);
+    }
+
     public function testClearScanClassArrayAllowsRescan(): void
     {
         (new Required())->collectProperty(ScanOrchClearDto::class, 'name');
@@ -100,7 +111,7 @@ class ScanOrchestrationTest extends AbstractTestCase
         $dtoCommon = new DtoCommon();
         $propertyEnum = new PropertyEnum();
         $propertyManager = new PropertyManager($dtoCommon, $propertyEnum);
-        $validationManager = new ValidationManager();
+        $validationManager = new CountingValidationManager();
         $methodParametersManager = new MethodParametersManager($dtoCommon, $propertyEnum, $propertyManager);
 
         $scan = new Scan(
@@ -177,4 +188,25 @@ class ScanOrchNestedItemDto
 class ScanOrchNestedController
 {
     public function handle(ScanOrchNestedParentDto $dto): void {}
+}
+
+class ScanOrchRepeatedDto
+{
+    public string $name = '';
+}
+
+class ScanOrchRepeatedController
+{
+    public function handle(ScanOrchRepeatedDto $dto): void {}
+}
+
+class CountingValidationManager extends ValidationManager
+{
+    public array $generateCounts = [];
+
+    public function generateValidation(string $className, string $fieldName): void
+    {
+        $this->generateCounts[$className][$fieldName] = ($this->generateCounts[$className][$fieldName] ?? 0) + 1;
+        parent::generateValidation($className, $fieldName);
+    }
 }

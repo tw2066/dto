@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace HyperfTest\DTO;
 
 use Hyperf\DTO\Annotation\ArrayType;
-use Hyperf\DTO\DtoConfig;
+use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\JsonMapper;
 use HyperfTest\DTO\Request\Address;
 use ReflectionMethod;
@@ -13,7 +13,7 @@ use ReflectionMethod;
 /**
  * JsonMapper::inspectProperty 类型推断分支测试.
  *
- * 优先级: 别名 setter > setter 类型声明 > setter @param > 属性(继承链/大小写兜底)
+ * 优先级: setter 类型声明 > setter @param > 属性(继承链/大小写兜底)
  * > ArrayType 注解 > @var(联合截断) > 构造器 @param > PHP 原生类型.
  *
  * @internal
@@ -21,24 +21,23 @@ use ReflectionMethod;
  */
 class JsonMapperInspectPropertyTest extends AbstractTestCase
 {
-    public function testAliasSetterNameContractIsStable(): void
+    public function testJsonFieldAliasMapsToPublicPropertyWithoutGeneratedSetter(): void
     {
-        // 防漂移: DtoVisitor 生成侧与本消费侧共用此命名规则，两侧必须同步
-        $this->assertSame(
-            '_set_dto_alias_c56f5648d4c0e137f9de3dfc7a54d55b',
-            DtoConfig::getDtoAliasMethodName('user_name')
-        );
+        $mapper = $this->makeMapper();
+
+        $result = $mapper->map(['user_name' => 'alias-value'], new InspectPublicAliasDto());
+
+        $this->assertSame('alias-value', $result->name);
     }
 
-    public function testPrivateAliasSetterMapsJsonKey(): void
+    public function testLegacyPrivateAliasSetterIsNotUsed(): void
     {
-        // 别名 setter 是私有方法，isSetDtoMethod 分支放行（无需 bIgnoreVisibility）
         $mapper = $this->makeMapper();
         $dto = new InspectAliasDto();
 
         $result = $mapper->map(['user_name' => 'alias-value'], $dto);
 
-        $this->assertSame('alias-value', $result->getName());
+        $this->assertSame('', $result->getName());
     }
 
     public function testSetterTypeDeclarationWinsOverDocblock(): void
@@ -173,6 +172,12 @@ class JsonMapperInspectPropertyTest extends AbstractTestCase
     }
 }
 
+class InspectPublicAliasDto
+{
+    #[JSONField('user_name')]
+    public string $name = '';
+}
+
 class InspectAliasDto
 {
     private string $name = '';
@@ -182,7 +187,7 @@ class InspectAliasDto
         return $this->name;
     }
 
-    // 与 DtoConfig::getDtoAliasMethodName('user_name') 生成规则一致（代理类同款私有别名 setter）
+    // 3.x 遗留方法：4.0 不再识别或调用该私有别名 setter。
     private function _set_dto_alias_c56f5648d4c0e137f9de3dfc7a54d55b(string $param): void
     {
         $this->name = $param;

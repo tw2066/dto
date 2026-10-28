@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-`tangwei/dto` — 基于 Hyperf ~3.2 的 DTO 映射与验证 **Composer 组件库**（非应用）。命名空间 `Hyperf\DTO\`，要求 PHP >= 8.2。通过 `ConfigProvider` 被 Hyperf 自动发现注册，无需消费方配置。
+`tangwei/dto` — 基于 Hyperf ~3.1|~3.2 的 DTO 映射与验证 **Composer 组件库**（非应用）。命名空间 `Hyperf\DTO\`，要求 PHP >= 8.1。通过 `ConfigProvider` 被 Hyperf 自动发现注册，无需消费方配置。
 
 ## 常用命令
 
@@ -19,14 +19,14 @@ php composer test
 php vendor/bin/phpunit -c phpunit.xml --filter ScanAnnotationTest
 php vendor/bin/phpunit -c phpunit.xml tests/JsonMapperTest.php
 
-# 静态分析（phpstan level 0，仅分析 src/，phpstan.neon 中排除了 5 个文件）
+# 静态分析（phpstan level 0，仅分析 src/，phpstan.neon 中排除了 3 个文件）
 php composer analyse
 
 # 代码风格修复（php-cs-fixer，规则集 @PSR2 + @Symfony + @PhpCsFixer）
 php composer cs-fix
 ```
 
-CI（`.github/workflows/test.yml`）在 hyperf/hyperf 8.2/8.3/ swoole 容器矩阵中执行 `composer analyse` + `composer test`。
+CI（`.github/workflows/test.yml`）在 Hyperf 3.1 的 PHP 8.1/8.2/8.3/8.4 与 Hyperf 3.2 的 PHP 8.2/8.3/8.4 Swoole 容器矩阵中执行 `composer analyse` + `composer test`。
 
 ## 核心架构：启动扫描 + 运行时拦截
 
@@ -34,7 +34,7 @@ CI（`.github/workflows/test.yml`）在 hyperf/hyperf 8.2/8.3/ swoole 容器矩�
 
 ### 启动阶段
 
-1. **代理类生成**：`BootApplicationListener`（BootApplication 事件）→ `Ast/DtoProxyClass::generic()`：用 nikic/php-parser 为带 `#[Dto]` 或 `#[JSONField]` 注解的类生成 `runtime/container/proxy/*.dto.proxy.php` —— 注入 `jsonSerialize()`（响应字段名转换）和私有别名 setter（`_set_dto_alias_<md5(字段名)>`）。已扫描则仅注册 classmap 后返回；生成完毕后 `exit()` 是正常流程（Hyperf 扫描进程模式）。
+1. **代理类生成**：`BootApplicationListener`（BootApplication 事件）→ `Ast/DtoProxyClass::generic()`：用 nikic/php-parser 为带 `#[Dto]` 或 `#[JSONField]` 注解的类生成 `runtime/container/proxy/*.dto.proxy.php` —— 注入 `jsonSerialize()`（响应字段名转换）和类型默认值处理，不再生成输入别名 setter。代理产物带有 4.0 版本标识，旧版本不进入 scanned classmap；已扫描则仅注册当前版本 classmap 后返回，生成完毕后 `exit()` 是正常流程（Hyperf 扫描进程模式）。
 2. **路由扫描**：`BeforeServerListener`（BeforeServerStart / MainCoroutineServerStart 事件）遍历三种路由（HTTP `DispatcherFactory`、JSON-RPC TCP、JSON-RPC HTTP），对每个控制器方法调用 `Scan\Scan::scan()`，填充：
    - `MethodParametersManager` — 方法参数的 `#[RequestBody]/#[RequestQuery]/#[RequestFormData]/#[RequestHeader]/#[Valid]` 元数据；互斥约束在此校验（同一参数只能标一个来源注解、同一方法 RequestBody 与 RequestFormData 不共存、RequestHeader 唯一），违反即在启动期抛 `DtoException`
    - `PropertyManager` — 递归解析 DTO 属性类型（简单类型 / 嵌套类 / `@var` 或 `#[ArrayType]` 数组元素类型 / 枚举 / JSONField 别名），最大嵌套深度 100（`MAX_SCAN_DEPTH`）
@@ -44,12 +44,14 @@ CI（`.github/workflows/test.yml`）在 hyperf/hyperf 8.2/8.3/ swoole 容器矩�
 
 `Aspect/CoreMiddlewareAspect` 拦截 `CoreMiddleware` 两个方法：
 
-- `getInjections` — 控制器参数注入：按扫描元数据从请求对应来源（body/query/formData/header）取数据 → 标了 `#[Valid]` 则经 `DtoValidation` 验证（失败抛 `ValidationException`，并递归验证嵌套对象与对象数组）→ `Mapper::map()` 映射为 DTO。也支持 `array` 形参 + `@param User[]` docblock 的 JSON 数组批量映射（RPC 场景走 `isValid` 分支）。
+- `getInjections` — 控制器参数注入：按扫描元数据从请求对应来源（body/query/formData/header）取数据。普通映射直接由 JsonMapper 的类级字段计划完成；标了 `#[Valid]` 则先通过 JsonMapper 生成一次 `ResolvedInput`，用 canonical PHP 属性名数组执行 `DtoValidation`（失败抛 `ValidationException`，错误对外转换回外部别名，并递归验证嵌套对象与对象数组），再把同一结果交给映射器。也支持 `array` 形参 + `@param User[]` docblock 的 JSON 数组批量映射（RPC 场景走 `isValid` 分支）。
 - `transferToResponse` — 对象/数组响应统一序列化为 JSON 输出。
 
-### 数据映射与 AST 代理的协作
+### 数据映射与 JsonMapper 字段计划
 
-`Mapper`（静态门面）→ `JsonMapper`（继承 `netresearch/jsonmapper`，扩展了 `inspectProperty`）：属性类型推断优先级为 `#[ArrayType]` 注解 > phpdocumentor 解析 `@var`（用 ContextFactory 正确解析命名空间）> PHP 原生类型。`#[JSONField('user_name')]` 别名映射依赖代理类生成的私有 setter —— **修改 `DtoConfig::getDtoAliasMethodName()` 的命名规则会同时影响 `DtoVisitor`（生成端）和 `JsonMapper`（消费端），两侧必须同步**。
+`Mapper`（静态门面）→ `JsonMapper`（继承 `netresearch/jsonmapper`）。JsonMapper 首次遇到 DTO 类时，复用 `PropertyManager` 的属性/别名/嵌套类型元数据并结合 `inspectProperty` 构建类级映射计划。普通 `map()` 遍历 DTO 字段，按候选键直接读取、类型转换和写入，不复制整棵输入；只有出现兼容变体或未知键时才走输入侧解析。`MappingContext` 只在单次公开调用中保存键预算和深度，不能放进 worker 静态状态。
+
+`#[JSONField('user_name')]` 只提供外部别名与 PHP 属性的映射，不再依赖代理 setter。`Mapper::resolveInput()` 只为 Valid/RPC DTO 物化一次 `ResolvedInput`，供验证和后续 DTO 映射共用；非 DTO 参数保持原 Symfony denormalize 流程。这些内部 API 不是新的业务编程模型。`ArrayType` > phpdocumentor 解析 `@var`（用 ContextFactory 正确解析命名空间）> PHP 原生类型的优先级保留，docblock factory/context 按类复用。
 
 ### 响应字段名转换
 

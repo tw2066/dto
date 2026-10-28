@@ -6,7 +6,6 @@ namespace HyperfTest\DTO\Ast;
 
 use Hyperf\DTO\Ast\DtoVisitor;
 use Hyperf\DTO\Ast\PropertyInfo;
-use Hyperf\DTO\DtoConfig;
 use HyperfTest\DTO\AbstractTestCase;
 use PhpParser\NodeTraverser;
 use PhpParser\ParserFactory;
@@ -95,7 +94,7 @@ PHP;
         $this->assertStringContainsString('public int $a = 5;', $output);
     }
 
-    public function testAliasSetterGeneratedForAliasedProperty(): void
+    public function testAliasOnlyAffectsJsonSerialize(): void
     {
         $code = <<<'PHP'
 <?php
@@ -112,57 +111,11 @@ PHP;
         $propertyInfo->alias = 'user_name';
         $propertyInfo->jsonArrKey = 'user_name';
 
-        [$output] = $this->traverse($code, ['name' => $propertyInfo], false, 0);
+        [$output] = $this->traverse($code, ['name' => $propertyInfo], true, 0);
 
-        $setter = DtoConfig::getDtoAliasMethodName('user_name');
-        $this->assertStringContainsString('private function ' . $setter . '(string $param): void', $output);
-        $this->assertStringContainsString('$this->name = $param;', $output);
-    }
-
-    public function testAliasSetterCopiesVarDocblock(): void
-    {
-        $code = <<<'PHP'
-<?php
-
-namespace AstDemo;
-
-class Demo
-{
-    /** @var Item[] */
-    public array $items;
-}
-PHP;
-        $propertyInfo = new PropertyInfo();
-        $propertyInfo->propertyName = 'items';
-        $propertyInfo->alias = 'user_items';
-        $propertyInfo->jsonArrKey = 'user_items';
-
-        [$output] = $this->traverse($code, ['items' => $propertyInfo], false, 0);
-
-        $this->assertStringContainsString('@param Item[] $param', $output);
-    }
-
-    public function testAliasSetterUsesArrayTypeMetadata(): void
-    {
-        $code = <<<'PHP'
-<?php
-
-namespace AstDemo;
-
-class Demo
-{
-    public array $items;
-}
-PHP;
-        $propertyInfo = new PropertyInfo();
-        $propertyInfo->propertyName = 'items';
-        $propertyInfo->alias = 'user_items';
-        $propertyInfo->jsonArrKey = 'user_items';
-        $propertyInfo->arrayType = 'AstDemo\\Item';
-
-        [$output] = $this->traverse($code, ['items' => $propertyInfo], false, 0);
-
-        $this->assertStringContainsString('@param \\AstDemo\\Item[] $param', $output);
+        $this->assertStringNotContainsString('_set_dto_alias_', $output);
+        $this->assertStringContainsString("'user_name' => \$this->name", $output);
+        $this->assertStringContainsString('function jsonSerialize(): array', $output);
     }
 
     public function testJsonSerializeUsesCoalesceFallbackAndGetter(): void

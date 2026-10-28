@@ -61,9 +61,9 @@ abstract class AbstractTestCase extends TestCase
         $property->setValue(null, null);
     }
 
-    protected function makeValidatorFactory(): ValidatorFactory
+    protected function makeValidatorFactory(array $translationGroups = []): ValidatorFactory
     {
-        $translator = new Translator(new FakeTranslatorLoader(), 'en');
+        $translator = new Translator(new FakeTranslatorLoader($translationGroups), 'en');
         $translator->setFallback('en');
         return new ValidatorFactory($translator);
     }
@@ -71,9 +71,9 @@ abstract class AbstractTestCase extends TestCase
     /**
      * 设置一个持有真实 ValidatorFactory 的容器到 ApplicationContext.
      */
-    protected function setContainerWithValidatorFactory(): ContainerInterface
+    protected function setContainerWithValidatorFactory(array $translationGroups = []): ContainerInterface
     {
-        $factory = $this->makeValidatorFactory();
+        $factory = $this->makeValidatorFactory($translationGroups);
         $container = \Mockery::mock(ContainerInterface::class);
         // 注意: Mockery 后声明的期望优先匹配，withAnyArgs 兜底必须先声明
         $container->shouldReceive('has')->withAnyArgs()->andReturn(false)->byDefault();

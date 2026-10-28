@@ -33,6 +33,11 @@ class Property
     public ?string $arrSimpleType = null;
 
     /**
+     * 数组嵌套维度，Child[] 为 1，Child[][] 为 2.
+     */
+    public int $arrayDepth = 0;
+
+    /**
      * 枚举类.
      */
     public ?PropertyEnum $enum = null;

@@ -26,7 +26,7 @@ use Mockery as m;
  */
 class DtoProxyClassTest extends AbstractTestCase
 {
-    public function testProxyContainsAliasSetterAndJsonSerialize(): void
+    public function testProxyContainsAliasJsonSerializeWithoutInputSetter(): void
     {
         (new JSONField('user_name'))->collectProperty(ProxyAliasDto::class, 'name');
         $proxyDir = $this->createTempDir();
@@ -37,15 +37,15 @@ class DtoProxyClassTest extends AbstractTestCase
         $proxyFile = $this->proxyFilePath($proxyDir, ProxyAliasDto::class);
         $this->assertFileExists($proxyFile);
         $content = file_get_contents($proxyFile);
-        // 别名 setter 生成（命名与 DtoConfig 契约一致）
-        $this->assertStringContainsString('private function ' . DtoConfig::getDtoAliasMethodName('user_name'), $content);
+        $this->assertStringContainsString('// dto-proxy-version: 4.0', $content);
+        $this->assertStringNotContainsString('_set_dto_alias_', $content);
         // jsonSerialize 生成: key 为别名，有 getter 走 getter
         $this->assertStringContainsString('function jsonSerialize()', $content);
         $this->assertStringContainsString("'user_name' => \$this->getName()", $content);
         $this->assertStringContainsString('implements \JsonSerializable', $content);
     }
 
-    public function testProxyAliasSetterContainsArrayTypeParam(): void
+    public function testProxyAliasArrayKeepsResponseWithoutInputSetter(): void
     {
         (new JSONField('user_items'))->collectProperty(ProxyArrayTypeAliasDto::class, 'items');
         $proxyDir = $this->createTempDir();
@@ -54,7 +54,9 @@ class DtoProxyClassTest extends AbstractTestCase
         $proxyClass->exposeGenProxyFile();
 
         $content = file_get_contents($this->proxyFilePath($proxyDir, ProxyArrayTypeAliasDto::class));
-        $this->assertStringContainsString('@param \\HyperfTest\\DTO\\Ast\\Fixtures\\ProxyArrayTypeItem[] $param', $content);
+        $this->assertStringContainsString("'user_items' => \$this->items", $content);
+        $this->assertStringNotContainsString('_set_dto_alias_', $content);
+        $this->assertStringNotContainsString('@param \\HyperfTest\\DTO\\Ast\\Fixtures\\ProxyArrayTypeItem[] $param', $content);
     }
 
     public function testProxySkippedWhenFresh(): void
@@ -66,10 +68,11 @@ class DtoProxyClassTest extends AbstractTestCase
         $proxyFile = $this->proxyFilePath($proxyDir, ProxyAliasDto::class);
         $this->assertFileExists($proxyFile);
 
-        // proxy mtime >= 源文件 mtime 时跳过再生成
-        file_put_contents($proxyFile, 'MARKER');
+        // 当前版本且 proxy mtime >= 源文件 mtime 时跳过再生成
+        $content = file_get_contents($proxyFile) . "\n// MANUAL MARKER";
+        file_put_contents($proxyFile, $content);
         $proxyClass->exposeGenProxyFile();
-        $this->assertSame('MARKER', file_get_contents($proxyFile));
+        $this->assertSame($content, file_get_contents($proxyFile));
     }
 
     public function testExistingJsonSerializeIsNotDuplicated(): void
@@ -83,10 +86,26 @@ class DtoProxyClassTest extends AbstractTestCase
         $proxyFile = $this->proxyFilePath($proxyDir, ProxyExistingSerializeDto::class);
         $this->assertFileExists($proxyFile);
         $content = file_get_contents($proxyFile);
-        // 已有 jsonSerialize 的类不再生成（只有原有的一个）
+        // 已有 jsonSerialize 的类不再生成，也不再生成输入别名 setter
         $this->assertSame(1, substr_count($content, 'function jsonSerialize'));
-        // 别名 setter 仍正常生成
-        $this->assertStringContainsString(DtoConfig::getDtoAliasMethodName('dto_title'), $content);
+        $this->assertStringNotContainsString('_set_dto_alias_', $content);
+    }
+
+    public function testFreshLegacyProxyIsRegenerated(): void
+    {
+        (new JSONField('user_name'))->collectProperty(ProxyAliasDto::class, 'name');
+        $proxyDir = $this->createTempDir();
+        $proxyClass = new TestableDtoProxyClass($this->makeDtoConfig($proxyDir));
+        $proxyClass->exposeGenProxyFile();
+        $proxyFile = $this->proxyFilePath($proxyDir, ProxyAliasDto::class);
+
+        file_put_contents($proxyFile, '<?php // legacy 3.x proxy with _set_dto_alias_');
+        touch($proxyFile, time() + 10);
+        $proxyClass->exposeGenProxyFile();
+
+        $content = file_get_contents($proxyFile);
+        $this->assertStringContainsString('// dto-proxy-version: 4.0', $content);
+        $this->assertStringNotContainsString('_set_dto_alias_', $content);
     }
 
     public function testDtoAnnotatedAndJsonFieldClassesBothGenerated(): void

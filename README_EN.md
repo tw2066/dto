@@ -22,7 +22,7 @@ A Data Transfer Object (DTO) mapping and validation library for the [Hyperf](htt
 ## 📋 Requirements
 
 - PHP >= 8.1
-- Hyperf >= 3.0
+- Hyperf ~3.1 或 ~3.2
 - Swoole >= 5.0
 
 ## 📦 Installation
@@ -259,6 +259,8 @@ class CreateRequest
 
 #### Nested Object DTO
 
+Nested objects are mapped recursively and validated using the annotations on the nested class. A missing or null nested value is skipped; an empty array representing a nested object still runs the nested rules. Object arrays validate every non-null element.
+
 ```php
 namespace App\Request;
 
@@ -316,7 +318,7 @@ use Hyperf\DTO\Annotation\JSONField;
 
 class ApiRequest
 {
-    // Map user_name from the request to userName
+    // Map user_name from the request to userName and serialize it back as user_name
     #[JSONField('user_name')]
     public string $userName;
     
@@ -324,6 +326,8 @@ class ApiRequest
     public int $userAge;
 }
 ```
+
+In 4.0, `JSONField` only describes the mapping between an external alias and a PHP property; it no longer generates an input setter. Alias and property-name inputs follow the same setter/property write rules. When a property name, its alias, or equivalent supported variants are submitted together, they are no longer rejected. The selected source follows this priority: explicit `JSONField` alias, PHP property name, then setter/case-compatible variants; when variants have the same priority, the first value wins. Validation and subsequent mapping consume the same selected value, and unselected candidate values are never written to the object. Validation errors returned to clients still use the external alias. See [UPGRADE-4.0.md](UPGRADE-4.0.md).
 
 ## ✅ Data Validation
 
@@ -401,7 +405,7 @@ class UserRequest
 
 #### Using Validation Annotation
 
-The `Validation` annotation supports Laravel-style validation rules:
+The `Validation` annotation supports Laravel-style validation rules. In 4.0, validation rules and cross-field references use real PHP property names, including `Same`, `RequiredIf`, and `customKey`. External error keys and default attribute names are converted back to `JSONField` aliases when an error is returned. A legacy `customKey` written with a `JSONField` alias is automatically converted to the canonical path, including the corresponding message and attribute key prefixes; new code should still use PHP property paths:
 
 ```php
 use Hyperf\DTO\Annotation\Validation\Validation;
@@ -488,6 +492,8 @@ return [
     Hyperf\Contract\NormalizerInterface::class => new SerializerFactory(Serializer::class),
 ];
 ```
+
+For RPC input, DTO parameters are mapped directly from their `ResolvedInput`; nested DTOs and backed enums do not depend on Symfony normalizers. Non-DTO parameters still follow the original `NormalizerInterface` denormalization flow.
 
 ### Custom Type Conversion
 

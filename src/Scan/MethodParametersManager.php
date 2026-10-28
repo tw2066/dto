@@ -131,32 +131,21 @@ class MethodParametersManager
             $isSimpleType = true;
             $phpSimpleType = null;
             $propertyClassName = null;
-            $arrSimpleType = null;
-            $arrClassName = null;
             $type = $this->dtoCommon->getTypeName($reflectionParameter);
 
             // php简单类型
             if ($this->dtoCommon->isSimpleType($type)) {
                 $phpSimpleType = $type;
             }
-            // 数组类型
             $propertyEnum = $this->propertyEnum->get($type);
-            if ($type == 'array') {
-                if (! empty($annotations)) {
-                    $varType = $annotations[$paramName] ?? null;
-                    $varType = $this->dtoCommon->getFullNamespace($varType, $strNs);
-                    // 数组类型
-                    if ($varType !== null && $this->dtoCommon->isArrayOfType($varType)) {
-                        $isSimpleType = false;
-                        $arrType = substr($varType, 0, -2);
-                        // 数组的简单类型 eg: int[]  string[]
-                        if ($this->dtoCommon->isSimpleType($arrType)) {
-                            $arrSimpleType = $arrType;
-                        } elseif (class_exists($arrType)) {
-                            $arrClassName = $arrType;
-                            $this->propertyManager->scanClassProperties($arrType);
-                        }
-                    }
+            // 数组类型复用属性扫描器，保留标量元素、嵌套类和数组维度。
+            if ($type == 'array' && ! empty($annotations)) {
+                $varType = $annotations[$paramName] ?? null;
+                $varType = $this->dtoCommon->getFullNamespace($varType, $strNs);
+                if ($varType !== null && $this->dtoCommon->isArrayOfType($varType)) {
+                    $property = $this->propertyManager->createPropertyFromType($varType, $strNs);
+                    $this->setProperty($className, $methodName, $paramName, $property);
+                    continue;
                 }
             } elseif ($propertyEnum) {
                 $isSimpleType = false;
@@ -169,8 +158,6 @@ class MethodParametersManager
             $property = new Property();
             $property->phpSimpleType = $phpSimpleType;
             $property->isSimpleType = $isSimpleType;
-            $property->arrSimpleType = $arrSimpleType;
-            $property->arrClassName = $arrClassName ? trim($arrClassName, '\\') : null;
             $property->className = $propertyClassName ? trim($propertyClassName, '\\') : null;
             $property->enum = $propertyEnum;
 
