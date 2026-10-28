@@ -162,7 +162,7 @@ class PropertyManager
                         $reflectionProperty,
                         $reflectionProperty->getDocComment()
                     );
-                    if (! empty($annotations)) {
+                    if (! empty($annotations['var'])) {
                         [$type] = explode(' ', $annotations['var'][0]);
                     }
                 }

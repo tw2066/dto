@@ -85,15 +85,37 @@ class JsonMapperInspectPropertyTest extends AbstractTestCase
         $this->assertFalse($hasProperty);
     }
 
-    public function testConstructorDocblockDoesNotProvideParamType(): void
+    public function testConstructorDocblockIgnoredWhenPropertyHasNoType(): void
     {
-        // src 现状: parseAnnotationsNew 只读 @var，构造器 @param 匹配分支不可达，
-        // 无类型属性最终返回 null 类型（此用例锁定该行为）
+        // 与上游一致: 属性无原生类型声明时不采用构造器 @param
         [$hasProperty, $accessor, $type] = $this->inspect(InspectCtorDocblockDto::class, 'code');
 
         $this->assertTrue($hasProperty);
         $this->assertSame('code', $accessor->getName());
         $this->assertNull($type);
+    }
+
+    public function testConstructorDocblockProvidesParamTypeForTypedProperty(): void
+    {
+        [$hasProperty, $accessor, $type] = $this->inspect(InspectCtorTypedDocblockDto::class, 'code');
+
+        $this->assertTrue($hasProperty);
+        $this->assertSame('code', $accessor->getName());
+        $this->assertSame('int', $type);
+    }
+
+    public function testPromotedPropertyUsesConstructorParamArrayType(): void
+    {
+        $mapper = $this->makeMapper();
+        $mapper->bIgnoreVisibility = true;
+
+        $dto = $mapper->map(
+            json_decode('{"files":[{"value":"test.txt"}]}'),
+            InspectPromotedArrayDto::class
+        );
+
+        $this->assertInstanceOf(InspectPromotedFileDto::class, $dto->getFiles()[0]);
+        $this->assertSame('test.txt', $dto->getFiles()[0]->value);
     }
 
     public function testNativeSimpleTypeProperty(): void
@@ -253,6 +275,37 @@ class InspectCtorDocblockDto
     {
         $this->code = $code;
     }
+}
+
+class InspectCtorTypedDocblockDto
+{
+    /**
+     * @param int $code 状态码
+     */
+    public function __construct(public int $code = 0) {}
+
+    public function getCode(): int
+    {
+        return $this->code;
+    }
+}
+
+class InspectPromotedArrayDto
+{
+    /**
+     * @param InspectPromotedFileDto[] $files
+     */
+    public function __construct(private array $files) {}
+
+    public function getFiles(): array
+    {
+        return $this->files;
+    }
+}
+
+class InspectPromotedFileDto
+{
+    public string $value = '';
 }
 
 class InspectNativeTypeDto

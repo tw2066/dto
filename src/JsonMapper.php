@@ -12,6 +12,7 @@ use Hyperf\DTO\Mapping\ResolvedInput;
 use Hyperf\DTO\Scan\PropertyEnum;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Type\PhpType;
+use phpDocumentor\Reflection\DocBlock\Tags\Param;
 use phpDocumentor\Reflection\DocBlock\Tags\Var_;
 use phpDocumentor\Reflection\DocBlockFactory;
 use phpDocumentor\Reflection\Type;
@@ -1430,6 +1431,14 @@ class JsonMapper extends \JsonMapper
                 $normalized = $this->normalizeDocblockType($tag->getType());
                 if ($normalized !== null) {
                     $annotations[$tag->getName()][] = $normalized;
+                }
+            } elseif ($tag instanceof Param) {
+                // 构造器 @param 是提升属性与无 @var 属性的类型回退来源，
+                // 保留变量名供 inspectProperty 按属性名匹配。
+                $normalized = $this->normalizeDocblockType($tag->getType());
+                $variableName = $tag->getVariableName();
+                if ($normalized !== null && $variableName !== null) {
+                    $annotations[$tag->getName()][] = $normalized . ' $' . $variableName;
                 }
             }
         }
