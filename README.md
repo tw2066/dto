@@ -149,6 +149,26 @@ public function info(#[RequestHeader] HeaderRequest $headers)
 }
 ```
 
+Header 名大小写不敏感（RFC 7230），组件会把 Header 键统一转为小写后再映射。标准 Header 是连字符命名（如 `X-Token` → `x-token`），与 camelCase 属性名不一致，需要用 `#[JSONField]` 显式声明小写线上键名作为别名：
+
+```php
+use Hyperf\DTO\Annotation\JSONField;
+
+class HeaderRequest
+{
+    #[JSONField('x-token')]
+    public string $xToken = '';
+
+    #[JSONField('x-request-id')]
+    public string $xRequestId = '';
+
+    #[JSONField('authorization')]
+    public string $authorization = '';
+}
+```
+
+未声明别名的属性按属性名精确匹配（如 `xRequestId` 属性匹配 `xRequestId` 头）；别名同时用于验证规则键与响应输出键，输入/输出保持一致。
+
 #### Valid
 
 启用验证，必须与参数来源注解一起使用：
@@ -627,6 +647,7 @@ RPC 输入统一走 `NormalizerInterface::denormalize()`；`ObjectNormalizerAspe
 - 为不同的请求类型创建独立的 DTO 类
 - 使用有意义的类名，如 `CreateUserRequest`、`UpdateUserRequest`
 - 将 Request DTO 和 Response DTO 分开存放
+- **属性类型优先使用具体类，避免接口类型**。DTO 描述的是数据形状，接口属性意味着形状要到运行时才能确定，验证、映射和 API 文档生成都需要额外的类型解析。确需多态时，推荐用具体 DTO + `type` 判别字段的扁平结构；必须使用接口/抽象类属性时，通过 `classMap` 显式声明具体类（验证与映射都会按 `classMap` 解析），未配置时接口属性不参与递归验证、映射会抛出异常。注意 `classFactories` 只在映射阶段调用，其产出的具体类规则不参与验证，需要验证的输入请使用 `classMap`
 
 ### 2. 验证规则
 
