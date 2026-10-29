@@ -21,7 +21,7 @@ class JsonMapperDocblockTypeTest extends TestCase
         $mapper = new JsonMapper();
         $mapper->bEnforceMapType = false;
         $mapper->bStrictNullTypes = false;
-        $dto = $mapper->map([
+        $dto = $mapper->simpleMap([
             'x' => [['city' => 'A']],
             'y' => [['city' => 'B']],
             'z' => [['city' => 'C']],
@@ -46,7 +46,7 @@ class JsonMapperDocblockTypeTest extends TestCase
         $mapper = new JsonMapper();
         $mapper->bEnforceMapType = false;
 
-        $dto = $mapper->map(['items' => [['city' => 'A']]], new DocblockUnsupportedUnionDto());
+        $dto = $mapper->simpleMap(['items' => [['city' => 'A']]], new DocblockUnsupportedUnionDto());
 
         // 不支持的联合类型被忽略，回退到反射类型 array，子项按原值保留
         $this->assertSame([['city' => 'A']], $dto->items);
@@ -57,11 +57,11 @@ class JsonMapperDocblockTypeTest extends TestCase
         $mapper = new JsonMapper();
         $mapper->bEnforceMapType = false;
 
-        $dto = $mapper->map(['name' => 'alice'], new DocblockUnionHolderDto());
+        $dto = $mapper->simpleMap(['name' => 'alice'], new DocblockUnionHolderDto());
         $this->assertSame('alice', $dto->name);
 
         // 第一次调用不再抛错，后续映射仍保持完整元数据
-        $dto = $mapper->map(['name' => 'bob'], new DocblockUnionHolderDto());
+        $dto = $mapper->simpleMap(['name' => 'bob'], new DocblockUnionHolderDto());
         $this->assertSame('bob', $dto->name);
     }
 
@@ -70,7 +70,7 @@ class JsonMapperDocblockTypeTest extends TestCase
         $mapper = new JsonMapper();
         $mapper->bEnforceMapType = false;
 
-        $dto = $mapper->map(['value' => 'hello'], new DocblockUnionHolderDto());
+        $dto = $mapper->simpleMap(['value' => 'hello'], new DocblockUnionHolderDto());
 
         // 联合类型无法确定映射目标，按原值写入
         $this->assertSame('hello', $dto->value);
@@ -81,7 +81,7 @@ class JsonMapperDocblockTypeTest extends TestCase
         $mapper = new JsonMapper();
         $mapper->bEnforceMapType = false;
 
-        $server = $mapper->map(['url' => 'http://localhost'], new DocblockThirdPartyServer());
+        $server = $mapper->simpleMap(['url' => 'http://localhost'], new DocblockThirdPartyServer());
         $this->assertSame('http://localhost', $server->url);
 
         // 启动扫描同样不应抛错，且字段元数据完整

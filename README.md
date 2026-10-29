@@ -370,7 +370,7 @@ class ApiRequest
 }
 ```
 
-4.0 中 `JSONField` 只描述外部别名与 PHP 属性的映射，不再生成输入 setter。别名输入与属性名输入使用相同的业务 setter/属性写入规则；同时传入同一字段的属性名、别名或等价合法变体时不再拒绝，按“显式 `JSONField` 别名 > PHP 属性名 > setter/大小写等兼容变体”的优先级取值，同为兼容变体时保留先出现的值。校验和后续映射消费同一选中值，未选中的候选值不会写入对象。验证错误返回给客户端时仍使用外部别名。升级说明见 [UPGRADE-4.0.md](UPGRADE-4.0.md)。
+4.0 中 `JSONField` 只描述外部别名与 PHP 属性的映射，不再生成输入 setter。普通映射、验证和 RPC 输入只接受字段的 `primaryKey`：存在 `JSONField` 时使用显式别名，否则使用 PHP 属性名；不再接受属性名与别名互换或隐式 setter/大小写/连字符/下划线变体。同时提供主键和其他键时只读取主键，非主键默认忽略且不记录日志。验证错误返回给客户端时仍使用外部别名。升级说明见 [UPGRADE-4.0.md](UPGRADE-4.0.md)。
 
 ## ✅ 数据验证
 
@@ -442,7 +442,7 @@ class UserRequest
 
 #### 使用 Validation 注解
 
-`Validation` 注解支持 Laravel 风格的验证规则字符串，并可通过 `customKey` 验证数组元素。4.0 的验证规则和跨字段引用统一使用真实 PHP 属性名（包括 `Same`、`RequiredIf` 和 `customKey`）；对外错误键和默认字段显示名再映射为 `JSONField` 别名。旧版本按别名书写的 `customKey` 会自动转换为 canonical 路径，并同步转换 messages/attributes 的键前缀；新代码仍推荐使用 PHP 属性路径：
+`Validation` 注解支持 Laravel 风格的验证规则字符串，并可通过 `customKey` 验证数组元素。验证规则、跨字段引用和 `customKey` 统一使用与请求一致的外部 primaryKey：存在 `JSONField` 时使用别名，否则使用 PHP 属性名。验证器直接读取原始输入，错误键也直接使用该 primaryKey，无需 canonical 数据转换：
 
 ```php
 use Hyperf\DTO\Annotation\Validation\Validation;
@@ -530,7 +530,7 @@ return [
 
 ### 手动映射
 
-脱离 HTTP 请求场景时，可直接使用 `Mapper` 静态门面。普通映射由 JsonMapper 的类级字段计划驱动，不会为验证额外复制整棵输入树；HTTP `#[Valid]` 请求则通过一次 `ResolvedInput` 解析结果完成验证和映射：
+脱离 HTTP 请求场景时，可直接使用 `Mapper` 静态门面。普通映射由 JsonMapper 的类级字段计划驱动；HTTP `#[Valid]` 请求先按外部 primaryKey 直接验证原始输入，再由同一字段计划完成 DTO 映射：
 
 ```php
 use Hyperf\DTO\Mapper;
@@ -618,7 +618,7 @@ return [
 ];
 ```
 
-RPC 输入中的 DTO 参数直接消费 `ResolvedInput` 完成对象映射，嵌套 DTO 和 BackedEnum 不依赖 Symfony normalizer；非 DTO 参数仍按 `NormalizerInterface` 的 denormalize 流程注入。
+RPC 输入中的 DTO 数组参数直接使用普通字段计划完成对象映射，嵌套 DTO 和 BackedEnum 不依赖 Symfony normalizer；非 DTO 参数仍按 `NormalizerInterface` 的 denormalize 流程注入。
 
 ## 💡 最佳实践
 

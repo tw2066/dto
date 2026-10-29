@@ -14,7 +14,7 @@ use Hyperf\DTO\Scan\ValidationManager;
 
 /**
  * 声明属性为 snake_case、setter 为 camelCase 时不得生成重复字段；
- * 等价键同时出现时以声明属性名为准。
+ * 输入只接受声明主键，非主键直接忽略。
  *
  * @internal
  * @coversNothing
@@ -24,24 +24,23 @@ class SnakeCaseSetterMappingTest extends AbstractTestCase
     public function testPlanDoesNotDuplicateDeclaredSnakeCaseProperty(): void
     {
         $mapper = $this->mapper();
-        $mapper->map(['user_name' => 'ok'], new SnakeCaseSetterDto());
+        $mapper->simpleMap(['user_name' => 'ok'], new SnakeCaseSetterDto());
 
         $plan = $this->plan($mapper, SnakeCaseSetterDto::class);
         $this->assertCount(1, $plan['fields']);
-        $this->assertSame(['user_name'], array_keys($plan['keyMap']));
-        $this->assertSame(['setUserName'], array_keys($plan['setterMap']));
+        $this->assertSame('user_name', $plan['fields'][0]['primaryKey']);
     }
 
-    public function testCamelCaseSetterKeyMapsToDeclaredSnakeCaseProperty(): void
+    public function testCamelCaseSetterKeyIsIgnored(): void
     {
-        $dto = $this->mapper()->map(['userName' => 'ok'], new SnakeCaseSetterDto());
+        $dto = $this->mapper()->simpleMap(['userName' => 'ignored'], new SnakeCaseSetterDto());
 
-        $this->assertSame('ok', $dto->getUserName());
+        $this->assertSame('', $dto->getUserName());
     }
 
     public function testDeclaredSnakeCaseKeyWinsWhenEquivalentKeysAreBothPresent(): void
     {
-        $dto = $this->mapper()->map([
+        $dto = $this->mapper()->simpleMap([
             'user_name' => 'ok',
             'userName' => 'this-is-way-too-long',
         ], new SnakeCaseSetterDto());
@@ -51,25 +50,11 @@ class SnakeCaseSetterMappingTest extends AbstractTestCase
 
     public function testDeclaredSnakeCaseKeyWinsRegardlessOfInputOrder(): void
     {
-        $dto = $this->mapper()->map([
+        $dto = $this->mapper()->simpleMap([
             'userName' => 'this-is-way-too-long',
             'user_name' => 'ok',
         ], new SnakeCaseSetterDto());
 
-        $this->assertSame('ok', $dto->getUserName());
-    }
-
-    public function testResolvedInputUsesDeclaredSnakeCaseKey(): void
-    {
-        $mapper = $this->mapper();
-        $resolved = $mapper->resolveInput([
-            'user_name' => 'ok',
-            'userName' => 'this-is-way-too-long',
-        ], SnakeCaseSetterDto::class);
-
-        $this->assertSame(['user_name' => 'ok'], $resolved->data);
-
-        $dto = $mapper->mapResolvedInput($resolved, new SnakeCaseSetterDto());
         $this->assertSame('ok', $dto->getUserName());
     }
 

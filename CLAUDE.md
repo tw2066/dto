@@ -44,14 +44,14 @@ CI（`.github/workflows/test.yml`）在 Hyperf 3.1 的 PHP 8.1/8.2/8.3/8.4 与 H
 
 `Aspect/CoreMiddlewareAspect` 拦截 `CoreMiddleware` 两个方法：
 
-- `getInjections` — 控制器参数注入：按扫描元数据从请求对应来源（body/query/formData/header）取数据。普通映射直接由 JsonMapper 的类级字段计划完成；标了 `#[Valid]` 则先通过 JsonMapper 生成一次 `ResolvedInput`，用 canonical PHP 属性名数组执行 `DtoValidation`（失败抛 `ValidationException`，错误对外转换回外部别名，并递归验证嵌套对象与对象数组），再把同一结果交给映射器。也支持 `array` 形参 + `@param User[]` docblock 的 JSON 数组批量映射（RPC 场景走 `isValid` 分支）。
+- `getInjections` — 控制器参数注入：按扫描元数据从请求对应来源（body/query/formData/header）取数据。普通映射直接由 JsonMapper 的类级字段计划完成；标了 `#[Valid]` 则由 `DtoValidation` 按外部 primaryKey 直接验证原始输入（失败抛 `ValidationException`，并递归验证嵌套对象与对象数组），验证后再由字段计划映射。也支持 `array` 形参 + `@param User[]` docblock 的 JSON 数组批量映射。RPC DTO 数组输入也使用普通字段计划完成对象映射，验证仍直接读取原始数组。
 - `transferToResponse` — 对象/数组响应统一序列化为 JSON 输出。
 
 ### 数据映射与 JsonMapper 字段计划
 
-`Mapper`（静态门面）→ `JsonMapper`（继承 `netresearch/jsonmapper`）。JsonMapper 首次遇到 DTO 类时，复用 `PropertyManager` 的属性/别名/嵌套类型元数据并结合 `inspectProperty` 构建类级映射计划。普通 `map()` 遍历 DTO 字段，按候选键直接读取、类型转换和写入，不复制整棵输入；只有出现兼容变体或未知键时才走输入侧解析。`MappingContext` 只在单次公开调用中保存键预算和深度，不能放进 worker 静态状态。
+`Mapper`（静态门面）→ `JsonMapper`（继承 `netresearch/jsonmapper`）。JsonMapper 首次遇到 DTO 类时，复用 `PropertyManager` 的属性/别名/嵌套类型元数据并结合 `inspectProperty` 构建类级映射计划。DTO 专用 `simpleMap()` 遍历 DTO 字段，只按唯一 primaryKey 直接读取、类型转换和写入，不复制整棵输入，也不做 snake/kebab/setter/大小写等动态回退；非主键直接忽略，不执行 unknown/missing/removeUndefined/postMapping 或日志逻辑。`MappingContext` 只在单次公开调用中保存键预算和深度，不能放进 worker 静态状态。
 
-`#[JSONField('user_name')]` 只提供外部别名与 PHP 属性的映射，不再依赖代理 setter。`Mapper::resolveInput()` 只为 Valid/RPC DTO 物化一次 `ResolvedInput`，供验证和后续 DTO 映射共用；非 DTO 参数保持原 Symfony denormalize 流程。这些内部 API 不是新的业务编程模型。`ArrayType` > phpdocumentor 解析 `@var`（用 ContextFactory 正确解析命名空间）> PHP 原生类型的优先级保留，docblock factory/context 按类复用。
+`#[JSONField('user_name')]` 只提供外部别名与 PHP 属性的映射，不再依赖代理 setter。验证规则、跨字段引用和 `customKey` 使用与请求一致的外部 primaryKey，`DtoValidation` 直接验证原始输入，不再依赖 JsonMapper 或 canonical 数据。HTTP 与 RPC DTO 均直接使用普通字段计划映射；非 DTO 参数保持原 Symfony denormalize 流程。`ArrayType` > phpdocumentor 解析 `@var`（用 ContextFactory 正确解析命名空间）> PHP 原生类型的优先级保留，docblock factory/context 按类复用。
 
 ### 响应字段名转换
 

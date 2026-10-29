@@ -19,10 +19,10 @@ class JsonMapperIntKeyTest extends TestCase
         $mapper->bEnforceMapType = false;
         $mapper->bStrictNullTypes = false;
 
-        $dto = $mapper->map([1, 2], new IntKeyDto());
+        $dto = $mapper->simpleMap([1, 2], new IntKeyDto());
         $this->assertSame('', $dto->name);
 
-        $holder = $mapper->map(['items' => [[1, 2]]], new IntKeyItemArrayDto());
+        $holder = $mapper->simpleMap(['items' => [[1, 2]]], new IntKeyItemArrayDto());
         $this->assertInstanceOf(IntKeyItem::class, $holder->items[0]);
         $this->assertSame(0, $holder->items[0]->id);
     }

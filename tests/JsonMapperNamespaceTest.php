@@ -23,7 +23,7 @@ class JsonMapperNamespaceTest extends TestCase
         $mapper = new JsonMapper();
         $mapper->bEnforceMapType = false;
         $mapper->bStrictNullTypes = false;
-        $dto = $mapper->map([
+        $dto = $mapper->simpleMap([
             'price' => ['currency' => 'CNY', 'amount' => 5],
             'prices' => [['currency' => 'USD', 'amount' => 6]],
         ], new OrderDto());

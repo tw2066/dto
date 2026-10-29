@@ -25,7 +25,7 @@ class JsonMapperInspectPropertyTest extends AbstractTestCase
     {
         $mapper = $this->makeMapper();
 
-        $result = $mapper->map(['user_name' => 'alias-value'], new InspectPublicAliasDto());
+        $result = $mapper->simpleMap(['user_name' => 'alias-value'], new InspectPublicAliasDto());
 
         $this->assertSame('alias-value', $result->name);
     }
@@ -35,7 +35,7 @@ class JsonMapperInspectPropertyTest extends AbstractTestCase
         $mapper = $this->makeMapper();
         $dto = new InspectAliasDto();
 
-        $result = $mapper->map(['user_name' => 'alias-value'], $dto);
+        $result = $mapper->simpleMap(['user_name' => 'alias-value'], $dto);
 
         $this->assertSame('', $result->getName());
     }
@@ -109,7 +109,7 @@ class JsonMapperInspectPropertyTest extends AbstractTestCase
         $mapper = $this->makeMapper();
         $mapper->bIgnoreVisibility = true;
 
-        $dto = $mapper->map(
+        $dto = $mapper->simpleMap(
             json_decode('{"files":[{"value":"test.txt"}]}'),
             InspectPromotedArrayDto::class
         );
@@ -149,7 +149,7 @@ class JsonMapperInspectPropertyTest extends AbstractTestCase
         $mapper = $this->makeMapper();
         $dto = new InspectPrivateNoSetterDto();
 
-        $result = $mapper->map(['secret' => 'new-value'], $dto);
+        $result = $mapper->simpleMap(['secret' => 'new-value'], $dto);
 
         $this->assertSame('default', $result->getSecret());
     }

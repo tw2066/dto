@@ -33,7 +33,7 @@ class DtoConfig
         $jsonMapper = Mapper::getJsonMapper('bIgnoreVisibility');
         // Enable private property and method access
         $jsonMapper->bIgnoreVisibility = true;
-        $jsonMapper->map($data, $this);
+        $jsonMapper->simpleMap($data, $this);
     }
 
     public function getResponsesGlobalConvert(): ?Convert

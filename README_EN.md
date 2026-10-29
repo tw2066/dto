@@ -327,7 +327,7 @@ class ApiRequest
 }
 ```
 
-In 4.0, `JSONField` only describes the mapping between an external alias and a PHP property; it no longer generates an input setter. Alias and property-name inputs follow the same setter/property write rules. When a property name, its alias, or equivalent supported variants are submitted together, they are no longer rejected. The selected source follows this priority: explicit `JSONField` alias, PHP property name, then setter/case-compatible variants; when variants have the same priority, the first value wins. Validation and subsequent mapping consume the same selected value, and unselected candidate values are never written to the object. Validation errors returned to clients still use the external alias. See [UPGRADE-4.0.md](UPGRADE-4.0.md).
+In 4.0, `JSONField` only describes the mapping between an external alias and a PHP property; it no longer generates an input setter. Normal mapping, validation, and RPC input accept only the field's `primaryKey`: the explicit `JSONField` alias when present, otherwise the PHP property name. Property-name/alias interchange and implicit setter, case, hyphen, or underscore variants are not accepted. When a primary key and other keys are submitted together, only the primary key is read; non-primary keys are ignored without logging by default. Validation errors returned to clients still use the external alias. See [UPGRADE-4.0.md](UPGRADE-4.0.md).
 
 ## ✅ Data Validation
 
@@ -405,7 +405,7 @@ class UserRequest
 
 #### Using Validation Annotation
 
-The `Validation` annotation supports Laravel-style validation rules. In 4.0, validation rules and cross-field references use real PHP property names, including `Same`, `RequiredIf`, and `customKey`. External error keys and default attribute names are converted back to `JSONField` aliases when an error is returned. A legacy `customKey` written with a `JSONField` alias is automatically converted to the canonical path, including the corresponding message and attribute key prefixes; new code should still use PHP property paths:
+The `Validation` annotation supports Laravel-style validation rules. Validation rules, cross-field references, and `customKey` use the same external primaryKey as the request: the `JSONField` alias when present, otherwise the PHP property name. The validator reads the original input directly, and validation errors use that primaryKey without canonical data conversion:
 
 ```php
 use Hyperf\DTO\Annotation\Validation\Validation;
@@ -493,7 +493,7 @@ return [
 ];
 ```
 
-For RPC input, DTO parameters are mapped directly from their `ResolvedInput`; nested DTOs and backed enums do not depend on Symfony normalizers. Non-DTO parameters still follow the original `NormalizerInterface` denormalization flow.
+For RPC input, DTO array parameters are mapped directly through the regular field mapping plan; nested DTOs and backed enums do not depend on Symfony normalizers. Non-DTO parameters still follow the original `NormalizerInterface` denormalization flow.
 
 ### Custom Type Conversion
 

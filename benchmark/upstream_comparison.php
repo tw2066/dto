@@ -31,29 +31,29 @@ for ($i = 0; $i < 1000; ++$i) {
 
 $cases = [
     'simple_map' => [
-        static fn (JsonMapper $mapper) => $mapper->map($simpleInput, new UpstreamBenchmarkSimpleDto()),
+        static fn (JsonMapper $mapper) => mapDto($mapper, $simpleInput, new UpstreamBenchmarkSimpleDto()),
         static fn ($dto) => $dto->name === 'alice' && $dto->age === 30,
         $iterations,
     ],
     'unknown_key_map' => [
-        static fn (JsonMapper $mapper) => $mapper->map($unknownInput, new UpstreamBenchmarkSimpleDto()),
+        static fn (JsonMapper $mapper) => mapDto($mapper, $unknownInput, new UpstreamBenchmarkSimpleDto()),
         static fn ($dto) => $dto->name === 'alice' && $dto->age === 30,
         $iterations,
     ],
     'setter_map' => [
-        static fn (JsonMapper $mapper) => $mapper->map($setterInput, new UpstreamBenchmarkSetterDto()),
+        static fn (JsonMapper $mapper) => mapDto($mapper, $setterInput, new UpstreamBenchmarkSetterDto()),
         static fn ($dto) => $dto->getName() === 'setter',
         $iterations,
     ],
     'nested_object_map' => [
-        static fn (JsonMapper $mapper) => $mapper->map($nestedInput, new UpstreamBenchmarkNestedDto()),
+        static fn (JsonMapper $mapper) => mapDto($mapper, $nestedInput, new UpstreamBenchmarkNestedDto()),
         static fn ($dto) => $dto->child?->name === 'child'
             && $dto->child->age === 3
             && $dto->note === 'nested',
         $iterations,
     ],
     'object_array_map' => [
-        static fn (JsonMapper $mapper) => $mapper->map($objectArrayInput, new UpstreamBenchmarkObjectArrayDto()),
+        static fn (JsonMapper $mapper) => mapDto($mapper, $objectArrayInput, new UpstreamBenchmarkObjectArrayDto()),
         static fn ($dto) => count($dto->items) === 2
             && $dto->items[0]->name === 'first'
             && $dto->items[1]->age === 2,
@@ -137,6 +137,14 @@ echo json_encode([
     'peak_memory_bytes' => memory_get_peak_usage(true),
     'cases' => $results,
 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), PHP_EOL;
+
+function mapDto(JsonMapper $mapper, array $input, object $dto): object
+{
+    if ($mapper instanceof DtoJsonMapper) {
+        return $mapper->simpleMap($input, $dto);
+    }
+    return $mapper->map($input, $dto);
+}
 
 class UpstreamBenchmarkSimpleDto
 {

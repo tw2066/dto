@@ -9,7 +9,6 @@ use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\JsonMapper;
 use Hyperf\DTO\Mapping\MappingContext;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\LoggerInterface;
 
 /**
  * @internal
@@ -20,42 +19,43 @@ class MappingPlanTest extends TestCase
     public function testPlanIsBuiltOnceAndDoesNotContainRequestKeys(): void
     {
         $mapper = $this->mapper();
-        $mapper->map(['name' => 'first', 'unknown_a' => 1], new PlanProbeDto());
-        $mapper->map(['name' => 'second', 'unknown_b' => 2], new PlanProbeDto());
+        $mapper->simpleMap(['name' => 'first', 'unknown_a' => 1], new PlanProbeDto());
+        $mapper->simpleMap(['name' => 'second', 'unknown_b' => 2], new PlanProbeDto());
 
         $this->assertSame(1, $mapper->buildCounts[PlanProbeDto::class]);
         $plan = $this->plans($mapper)[PlanProbeDto::class];
-        $this->assertSame(['name'], array_keys($plan['keyMap']));
-        $this->assertArrayNotHasKey('unknown_a', $plan['keyMap']);
-        $this->assertArrayNotHasKey('unknown_b', $plan['keyMap']);
+        $this->assertCount(1, $plan['fields']);
+        $this->assertSame('name', $plan['fields'][0]['primaryKey']);
     }
 
-    public function testVariantKeysUseSamePlanWithoutRawKeyCache(): void
+    public function testOnlyPrimaryKeyIsAccepted(): void
     {
         $mapper = $this->mapper();
+        $dto = $mapper->simpleMap(['userName' => 'ok'], new PlanSetterDto());
+        $this->assertSame('ok', $dto->getUserName());
+
         foreach (['user_name', 'user-name', ' userName', 'UserName'] as $key) {
-            $dto = $mapper->map([$key => 'ok'], new PlanSetterDto());
-            $this->assertSame('ok', $dto->getUserName());
+            $dto = $mapper->simpleMap([$key => 'ignored'], new PlanSetterDto());
+            $this->assertSame('', $dto->getUserName());
         }
 
         $this->assertSame(1, $mapper->buildCounts[PlanSetterDto::class]);
         $plan = $this->plans($mapper)[PlanSetterDto::class];
-        $this->assertSame(['userName'], array_keys($plan['keyMap']));
-        $this->assertSame(['setUserName'], array_keys($plan['setterMap']));
+        $this->assertSame('userName', $plan['fields'][0]['primaryKey']);
         $this->assertSame([], $this->legacyInspectedCache($mapper));
     }
 
-    public function testPropertyNameWinsOverEquivalentVariant(): void
+    public function testPrimaryKeyWinsWhenNonPrimaryKeyAlsoPresent(): void
     {
         $mapper = $this->mapper();
 
-        $dto = $mapper->map([
+        $dto = $mapper->simpleMap([
             'userName' => 'declared-value',
             'user_name' => 'variant-value',
         ], new PlanSetterDto());
         $this->assertSame('declared-value', $dto->getUserName());
 
-        $dto = $mapper->map([
+        $dto = $mapper->simpleMap([
             'user_name' => 'variant-value',
             'userName' => 'declared-value',
         ], new PlanSetterDto());
@@ -70,7 +70,7 @@ class MappingPlanTest extends TestCase
             . '::other is ambiguous with safe key [UserName]; use an alias without hyphens'
         );
 
-        $this->mapper()->map([], new PlanVariantCollisionDto());
+        $this->mapper()->simpleMap([], new PlanVariantCollisionDto());
     }
 
     public function testAliasCollisionWithAnotherPropertyFails(): void
@@ -81,7 +81,7 @@ class MappingPlanTest extends TestCase
         ];
         foreach ($cases as $className => $fields) {
             try {
-                $this->mapper()->map([], new $className());
+                $this->mapper()->simpleMap([], new $className());
                 $this->fail("Expected alias collision to fail: {$className}");
             } catch (\Hyperf\DTO\Exception\DtoException $exception) {
                 $this->assertSame(
@@ -102,19 +102,19 @@ class MappingPlanTest extends TestCase
             . 'each field must have a unique property or alias key'
         );
 
-        $this->mapper()->map([], new PlanDuplicateAliasDto());
+        $this->mapper()->simpleMap([], new PlanDuplicateAliasDto());
     }
 
-    public function testAliasInputWinsOverPropertyName(): void
+    public function testAliasPrimaryKeyWinsWhenPropertyNameAlsoPresent(): void
     {
-        $dto = $this->mapper()->map([
+        $dto = $this->mapper()->simpleMap([
             'user_name' => 'alias-value',
             'userName' => 'property-value',
         ], new PlanAliasDto());
 
         $this->assertSame('alias-value', $dto->userName);
 
-        $dto = $this->mapper()->map([
+        $dto = $this->mapper()->simpleMap([
             'userName' => 'property-value',
             'user_name' => 'alias-value',
         ], new PlanAliasDto());
@@ -122,9 +122,9 @@ class MappingPlanTest extends TestCase
         $this->assertSame('alias-value', $dto->userName);
     }
 
-    public function testLowerPriorityInvalidValueDoesNotBlockAlias(): void
+    public function testNonPrimaryPropertyValueIsIgnored(): void
     {
-        $dto = $this->mapper()->map([
+        $dto = $this->mapper()->simpleMap([
             'userName' => ['invalid'],
             'user_name' => 'alias-value',
         ], new PlanAliasDto());
@@ -135,7 +135,7 @@ class MappingPlanTest extends TestCase
     public function testEquivalentKeysDoNotBlockEarlierFields(): void
     {
         $dto = new PlanVariantConflictOrderDto();
-        $this->mapper()->map([
+        $this->mapper()->simpleMap([
             'first' => 'changed',
             'userName' => 'declared-value',
             'UserName' => 'variant-value',
@@ -154,7 +154,7 @@ class MappingPlanTest extends TestCase
 
         $this->expectException(\JsonMapper_Exception::class);
         $this->expectExceptionMessage('maximum is 1024');
-        $this->mapper()->map($data, new PlanProbeDto());
+        $this->mapper()->simpleMap($data, new PlanProbeDto());
     }
 
     public function testTotalKeyBudgetIsSharedAcrossRootNodes(): void
@@ -162,11 +162,11 @@ class MappingPlanTest extends TestCase
         $mapper = $this->mapper();
         $context = new MappingContext();
         $context->totalKeys = MappingContext::MAX_TOTAL_KEYS - 1;
-        $mapper->mapWithContext(['name' => 'first'], new PlanProbeDto(), $context);
+        $mapper->simpleMap(['name' => 'first'], new PlanProbeDto(), $context);
 
         $this->expectException(\JsonMapper_Exception::class);
         $this->expectExceptionMessage('maximum is 65536');
-        $mapper->mapWithContext(['name' => 'second'], new PlanProbeDto(), $context);
+        $mapper->simpleMap(['name' => 'second'], new PlanProbeDto(), $context);
     }
 
     public function testNestedDepthLimitIsEnforced(): void
@@ -178,67 +178,27 @@ class MappingPlanTest extends TestCase
 
         $this->expectException(\JsonMapper_Exception::class);
         $this->expectExceptionMessage('nesting too deep');
-        $this->mapper()->map($input, new PlanNestedDto());
+        $this->mapper()->simpleMap($input, new PlanNestedDto());
     }
 
     public function testUnknownKeysAreIgnoredByDefault(): void
     {
         $mapper = $this->mapper();
-        $dto = $mapper->map(['name' => 'ok', 'unknown' => 1], new PlanProbeDto());
+        $dto = $mapper->simpleMap(['name' => 'ok', 'unknown' => 1], new PlanProbeDto());
 
         $this->assertSame('ok', $dto->name);
         $this->assertSame(1, $mapper->buildCounts[PlanProbeDto::class]);
     }
 
-    public function testUnknownKeysCanThrow(): void
+    public function testMapHandlesNestedAliasesAndNullItemsWithSamePlans(): void
     {
         $mapper = $this->mapper();
-        $mapper->bExceptionOnUndefinedProperty = true;
-
-        $this->expectException(\JsonMapper_Exception::class);
-        $this->expectExceptionMessage('does not exist');
-        $mapper->map(['unknown' => 1], new PlanProbeDto());
-    }
-
-    public function testUnknownPropertyHandlerCanMapToDeclaredField(): void
-    {
-        $mapper = $this->mapper();
-        $mapper->undefinedPropertyHandler = static fn ($object, $key, $value) => $key === 'display_name' ? 'name' : null;
-
-        $dto = $mapper->map(['display_name' => 'handled'], new PlanProbeDto());
-
-        $this->assertSame('handled', $dto->name);
-    }
-
-    public function testUnknownKeysAreNotLogged(): void
-    {
-        $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects($this->never())->method('log');
-        $mapper = $this->mapper();
-        $mapper->setLogger($logger);
-        $data = [];
-        for ($i = 0; $i < 100; ++$i) {
-            $data['unknown_' . $i] = $i;
-        }
-
-        $mapper->map($data, new PlanProbeDto());
-    }
-
-    public function testResolvedInputMapsNestedAliasesAndNullItemsWithSamePlans(): void
-    {
-        $mapper = $this->mapper();
-        $resolved = $mapper->resolveInput([
+        $dto = $mapper->simpleMap([
             'child_data' => ['display_name' => 'child'],
             'item_list' => [['display_name' => 'first'], null],
             'setter_items' => [['display_name' => 'second']],
-        ], PlanResolvedParentDto::class);
+        ], new PlanResolvedParentDto());
 
-        $this->assertSame('child', $resolved->data['child']['name']);
-        $this->assertSame('first', $resolved->data['items'][0]['name']);
-        $this->assertNull($resolved->data['items'][1]);
-        $this->assertSame('second', $resolved->data['setterItems'][0]['name']);
-
-        $dto = $mapper->mapResolvedInput($resolved, new PlanResolvedParentDto());
         $this->assertSame('child', $dto->child->name);
         $this->assertSame('first', $dto->items[0]->name);
         $this->assertNull($dto->items[1]);
@@ -247,95 +207,87 @@ class MappingPlanTest extends TestCase
         $this->assertSame(1, $mapper->buildCounts[PlanResolvedChildDto::class]);
     }
 
-    public function testResolvedInputUsesClassMappedNestedType(): void
+    public function testMapUsesClassMappedNestedType(): void
     {
         $mapper = $this->mapper();
         $mapper->classMap[PlanDeclaredChildDto::class] = PlanMappedChildDto::class;
-        $resolved = $mapper->resolveInput([
+        $dto = $mapper->simpleMap([
             'child' => ['display_name' => 'mapped'],
-        ], PlanClassMapParentDto::class);
+        ], new PlanClassMapParentDto());
 
-        $dto = $mapper->mapResolvedInput($resolved, new PlanClassMapParentDto());
         $this->assertInstanceOf(PlanMappedChildDto::class, $dto->child);
         $this->assertSame('mapped', $dto->child->title);
     }
 
-    public function testResolvedInputUsesClassFactoryNestedType(): void
+    public function testMapUsesClassFactoryNestedType(): void
     {
         $mapper = $this->mapper();
         $mapper->classFactories[PlanFactoryBaseDto::class] = static fn () => new PlanFactoryChildDto();
 
-        $resolved = $mapper->resolveInput([
+        $dto = $mapper->simpleMap([
             'child' => ['display_name' => 'factory'],
-        ], PlanFactoryParentDto::class);
+        ], new PlanFactoryParentDto());
 
-        $dto = $mapper->mapResolvedInput($resolved, new PlanFactoryParentDto());
         $this->assertInstanceOf(PlanFactoryChildDto::class, $dto->child);
         $this->assertSame('factory', $dto->child->title);
     }
 
-    public function testResolvedInputUsesClassMapForInterfaceProperty(): void
+    public function testMapUsesClassMapForInterfaceProperty(): void
     {
         $mapper = $this->mapper();
         $mapper->classMap[PlanShapeInterface::class] = PlanCircleDto::class;
 
-        $resolved = $mapper->resolveInput([
+        $dto = $mapper->simpleMap([
             'shape' => ['radius_cm' => 5],
-        ], PlanShapeParentDto::class);
+        ], new PlanShapeParentDto());
 
-        $dto = $mapper->mapResolvedInput($resolved, new PlanShapeParentDto());
         $this->assertInstanceOf(PlanCircleDto::class, $dto->shape);
         $this->assertSame(5, $dto->shape->radiusCm);
     }
 
-    public function testResolvedInputUsesClassMapWithLeadingSlash(): void
+    public function testMapUsesClassMapWithLeadingSlash(): void
     {
         $mapper = $this->mapper();
         $mapper->classMap['\\' . PlanShapeInterface::class] = PlanCircleDto::class;
 
-        $resolved = $mapper->resolveInput([
+        $dto = $mapper->simpleMap([
             'shape' => ['radius_cm' => 5],
-        ], PlanShapeParentDto::class);
+        ], new PlanShapeParentDto());
 
-        $dto = $mapper->mapResolvedInput($resolved, new PlanShapeParentDto());
         $this->assertInstanceOf(PlanCircleDto::class, $dto->shape);
         $this->assertSame(5, $dto->shape->radiusCm);
     }
 
-    public function testResolvedInputUsesPlanTypeForVisibilityOnlyField(): void
+    public function testMapUsesPlanTypeForVisibilityOnlyField(): void
     {
         $mapper = new JsonMapper();
         $mapper->bEnforceMapType = false;
         $mapper->bIgnoreVisibility = true;
 
-        $resolved = $mapper->resolveInput([
+        $dto = $mapper->simpleMap([
             'child' => ['display_name' => 'hidden'],
-        ], PlanHiddenParentDto::class);
+        ], new PlanHiddenParentDto());
 
-        $dto = $mapper->mapResolvedInput($resolved, new PlanHiddenParentDto());
         $this->assertSame('hidden', $dto->getChild()?->title);
     }
 
     public function testTraversableInputIsReadLikeArrayInput(): void
     {
         $mapper = $this->mapper();
-        $dto = $mapper->map(new \ArrayObject(['name' => 'traversable']), new PlanProbeDto());
-
+        $dto = $mapper->simpleMap(new \ArrayObject(['name' => 'traversable']), new PlanProbeDto());
         $this->assertSame('traversable', $dto->name);
-        $resolved = $mapper->resolveInput(new \ArrayObject(['user_name' => 'resolved']), PlanAliasDto::class);
-        $this->assertSame(['userName' => 'resolved'], $resolved->data);
+
+        $dto = $mapper->simpleMap(new \ArrayObject(['user_name' => 'resolved']), new PlanAliasDto());
+        $this->assertSame('resolved', $dto->userName);
     }
 
-    public function testResolvedInputSupportsMultiDimensionalClassArrays(): void
+    public function testMapSupportsMultiDimensionalClassArrays(): void
     {
         $mapper = $this->mapper();
         $input = ['groups' => [[['display_name' => 'nested']]]];
-        $resolved = $mapper->resolveInput($input, PlanMultiArrayDto::class);
+        $dto = $mapper->simpleMap($input, new PlanMultiArrayDto());
 
-        $this->assertSame('nested', $resolved->data['groups'][0][0]['name']);
-        $dto = $mapper->mapResolvedInput($resolved, new PlanMultiArrayDto());
         $this->assertSame('nested', $dto->groups[0][0]->name);
-        $this->assertSame('nested', $mapper->map($input, new PlanMultiArrayDto())->groups[0][0]->name);
     }
 
     public function testDynamicClassMapUsesOriginalNestedValueOnlyOnce(): void
@@ -346,11 +298,10 @@ class MappingPlanTest extends TestCase
             ++$calls;
             return $value instanceof \stdClass ? PlanDynamicADto::class : PlanDynamicBDto::class;
         };
-        $resolved = $mapper->resolveInput([
+        $dto = $mapper->simpleMap([
             'child' => (object) ['display_name' => 'dynamic'],
-        ], PlanDynamicParentDto::class);
+        ], new PlanDynamicParentDto());
 
-        $dto = $mapper->mapResolvedInput($resolved, new PlanDynamicParentDto());
         $this->assertInstanceOf(PlanDynamicADto::class, $dto->child);
         $this->assertSame('dynamic', $dto->child->value);
         $this->assertSame(1, $calls);
@@ -361,17 +312,12 @@ class MappingPlanTest extends TestCase
         $mapper = $this->mapper();
         $input = ['items' => [['name' => 'ok']]];
 
-        $dto = $mapper->map($input, new PlanArrayTypeSetterDto());
-        $this->assertInstanceOf(PlanArrayTypeItemDto::class, $dto->getItems()[0]);
-        $this->assertSame('ok', $dto->getItems()[0]->name);
-
-        $resolved = $mapper->resolveInput($input, PlanArrayTypeSetterDto::class);
-        $dto = $mapper->mapResolvedInput($resolved, new PlanArrayTypeSetterDto());
+        $dto = $mapper->simpleMap($input, new PlanArrayTypeSetterDto());
         $this->assertInstanceOf(PlanArrayTypeItemDto::class, $dto->getItems()[0]);
         $this->assertSame('ok', $dto->getItems()[0]->name);
     }
 
-    public function testResolvedInputReusesClassFactorySelection(): void
+    public function testClassFactoryIsSelectedOnceDuringMapping(): void
     {
         $mapper = $this->mapper();
         $calls = 0;
@@ -379,17 +325,16 @@ class MappingPlanTest extends TestCase
             return ++$calls % 2 === 1 ? new PlanDynamicADto() : new PlanDynamicBDto();
         };
 
-        $resolved = $mapper->resolveInput([
+        $dto = $mapper->simpleMap([
             'child' => ['display_name' => 'factory'],
-        ], PlanDynamicParentDto::class);
-        $dto = $mapper->mapResolvedInput($resolved, new PlanDynamicParentDto());
+        ], new PlanDynamicParentDto());
 
         $this->assertSame(1, $calls);
         $this->assertInstanceOf(PlanDynamicADto::class, $dto->child);
         $this->assertSame('factory', $dto->child->value);
     }
 
-    public function testResolvedInputKeepsRawValuesWhenClassMapReturnsNull(): void
+    public function testMapKeepsRawValuesWhenClassMapReturnsNull(): void
     {
         $mapper = $this->mapper();
         $mapper->classMap[PlanDeclaredChildDto::class] = static fn () => null;
@@ -398,22 +343,19 @@ class MappingPlanTest extends TestCase
             'items' => [['name' => 'first']],
         ];
 
-        $resolved = $mapper->resolveInput($input, PlanNullClassMapParentDto::class);
-        $this->assertSame($input, $resolved->data);
-
-        $dto = $mapper->mapResolvedInput($resolved, new PlanNullClassMapParentDto());
+        $dto = $mapper->simpleMap($input, new PlanNullClassMapParentDto());
         $this->assertSame($input['child'], $dto->child);
         $this->assertSame($input['items'], $dto->items);
     }
 
-    public function testIgnoreVisibilityMapsHyphenatedPrivateProperty(): void
+    public function testIgnoreVisibilityDoesNotAcceptHyphenatedVariant(): void
     {
         $mapper = $this->mapper();
         $mapper->bIgnoreVisibility = true;
 
-        $dto = $mapper->map(['user-name' => 'hidden'], new PlanPrivateHyphenDto());
+        $dto = $mapper->simpleMap(['user-name' => 'ignored'], new PlanPrivateHyphenDto());
 
-        $this->assertSame('hidden', $dto->getUserName());
+        $this->assertSame('', $dto->getUserName());
     }
 
     public function testIgnoreVisibilityIncludesParentPrivateProperties(): void
@@ -421,7 +363,7 @@ class MappingPlanTest extends TestCase
         $mapper = $this->mapper();
         $mapper->bIgnoreVisibility = true;
 
-        $dto = $mapper->map(['secret' => 'inherited'], new PlanChildPrivateDto());
+        $dto = $mapper->simpleMap(['secret' => 'inherited'], new PlanChildPrivateDto());
 
         $this->assertSame('inherited', $dto->getSecret());
     }
@@ -429,32 +371,17 @@ class MappingPlanTest extends TestCase
     public function testChangingVisibilityRebuildsAccessorPlans(): void
     {
         $mapper = $this->mapper();
-        $mapper->map(['a' => 'first'], new PlanVisibilityDto());
+        $mapper->simpleMap(['a' => 'first'], new PlanVisibilityDto());
         $mapper->bIgnoreVisibility = true;
 
-        $dto = $mapper->map(['b' => 'second'], new PlanVisibilityDto());
+        $dto = $mapper->simpleMap(['b' => 'second'], new PlanVisibilityDto());
 
         $this->assertSame('second', $dto->getB());
     }
 
-    public function testUnknownPropertyHandlerReceivesSafeKey(): void
-    {
-        $mapper = $this->mapper();
-        $receivedKey = null;
-        $mapper->undefinedPropertyHandler = static function ($object, $key, $value) use (&$receivedKey) {
-            $receivedKey = $key;
-            return $key === 'DisplayName' ? 'name' : null;
-        };
-
-        $dto = $mapper->map(['display-name' => 'handled'], new PlanProbeDto());
-
-        $this->assertSame('handled', $dto->name);
-        $this->assertSame('DisplayName', $receivedKey);
-    }
-
     public function testSetterWithoutDeclaredPropertyIsMapped(): void
     {
-        $dto = $this->mapper()->map(['name' => 'setter-only'], new PlanSetterOnlyDto());
+        $dto = $this->mapper()->simpleMap(['name' => 'setter-only'], new PlanSetterOnlyDto());
 
         $this->assertSame('setter-only', $dto->stored);
     }

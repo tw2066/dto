@@ -19,7 +19,7 @@ class JsonMapperPropertyAccessTest extends TestCase
         try {
             $mapper = new JsonMapper();
             $mapper->bEnforceMapType = false;
-            $dto = $mapper->map(['cache' => ['pwned' => true], 'name' => 'x'], new PropertyAccessStaticDto());
+            $dto = $mapper->simpleMap(['cache' => ['pwned' => true], 'name' => 'x'], new PropertyAccessStaticDto());
 
             $this->assertSame(['clean' => true], PropertyAccessStaticDto::$cache);
             $this->assertSame('x', $dto->name);
@@ -32,7 +32,7 @@ class JsonMapperPropertyAccessTest extends TestCase
     {
         $mapper = new JsonMapper();
         $mapper->bEnforceMapType = false;
-        $dto = $mapper->map(['id' => 'evil'], new PropertyAccessReadonlyDto());
+        $dto = $mapper->simpleMap(['id' => 'evil'], new PropertyAccessReadonlyDto());
 
         $this->assertSame('fixed', $dto->id);
     }

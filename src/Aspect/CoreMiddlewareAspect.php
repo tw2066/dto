@@ -147,12 +147,9 @@ class CoreMiddlewareAspect
             }, $request->getHeaders());
         }
         if ($methodParameter->isValid()) {
-            $validation = $this->container->get(DtoValidation::class);
-            $resolved = $validation->prepare($className, $param);
-            $validation->validateResolvedInput($resolved);
-            return Mapper::mapResolvedInput($resolved, make($className));
+            $this->container->get(DtoValidation::class)->validate($className, $param);
         }
-        return $this->mapRequest($className, $param, new MappingContext());
+        return Mapper::mapWithContext($param, make($className), new MappingContext());
     }
 
     protected function arrayValidateAndMap(string $callableName, string $paramName): array
@@ -209,19 +206,11 @@ class CoreMiddlewareAspect
                 continue;
             }
             if ($validation !== null) {
-                $resolved = $validation->prepare($className, $item, $context);
-                $validation->validateResolvedInput($resolved);
-                $result[$key] = Mapper::mapResolvedInput($resolved, make($className));
-            } else {
-                $result[$key] = $this->mapRequest($className, $item, $context);
+                $validation->validate($className, $item);
             }
+            $result[$key] = Mapper::mapWithContext($item, make($className), $context);
         }
         return $result;
-    }
-
-    private function mapRequest(string $className, mixed $value, MappingContext $context): object
-    {
-        return Mapper::mapWithContext($value, make($className), $context);
     }
 
     private function hasDtoAnnotations(string $className): bool
@@ -265,27 +254,20 @@ class CoreMiddlewareAspect
                         . "of {$callableName} should not be null");
                 }
             } else {
-                // RPC DTO 与验证共用一次解析结果；非 DTO 保持原 denormalize 流程。
+                // RPC DTO 使用普通字段计划映射；非 DTO 保持原 denormalize 流程。
                 [$controllerName, $methodName] = explode('::', $callableName);
                 $className = $definition->getName();
                 $methodParameter = $this->methodParametersManager->getMethodParameter($controllerName, $methodName, $definition->getMeta('name'));
-                $resolved = null;
-                if (class_exists($className) && (is_array($value) || is_object($value))
+                if ($methodParameter?->isValid()) {
+                    $this->container->get(DtoValidation::class)->validate($className, $value);
+                }
+                if (class_exists($className) && is_array($value)
                     && ($methodParameter !== null || $this->hasDtoAnnotations($className))
                 ) {
-                    $resolved = Mapper::resolveInput($value, $className);
+                    $injections[] = Mapper::mapWithContext($value, make($className), new MappingContext());
+                } else {
+                    $injections[] = $coreMiddleware->getNormalizer()->denormalize($value, $className);
                 }
-                if ($methodParameter?->isValid()) {
-                    $validation = $this->container->get(DtoValidation::class);
-                    if ($resolved !== null) {
-                        $validation->validateResolvedInput($resolved);
-                    } else {
-                        $validation->validate($className, $value);
-                    }
-                }
-                $injections[] = $resolved !== null
-                    ? Mapper::mapResolvedInput($resolved, make($className))
-                    : $coreMiddleware->getNormalizer()->denormalize($value, $className);
             }
         }
         return $injections;

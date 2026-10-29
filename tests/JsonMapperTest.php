@@ -28,7 +28,7 @@ class JsonMapperTest extends TestCase
         $data = ['name' => 'John', 'age' => 30];
         $dto = new JsonMapperSimpleTestDto();
 
-        $result = $this->jsonMapper->map($data, $dto);
+        $result = $this->jsonMapper->simpleMap($data, $dto);
 
         $this->assertSame('John', $result->name);
         $this->assertSame(30, $result->age);
@@ -39,7 +39,7 @@ class JsonMapperTest extends TestCase
         $data = ['name' => 'Test', 'age' => null];
         $dto = new JsonMapperSimpleTestDto();
 
-        $result = $this->jsonMapper->map($data, $dto);
+        $result = $this->jsonMapper->simpleMap($data, $dto);
 
         $this->assertSame('Test', $result->name);
         $this->assertNull($result->age);
@@ -81,7 +81,7 @@ class JsonMapperTest extends TestCase
         $data = ['name' => 'Private', 'value' => 123];
         $dto = new JsonMapperPrivatePropertyDto();
 
-        $result = $this->jsonMapper->map($data, $dto);
+        $result = $this->jsonMapper->simpleMap($data, $dto);
 
         $this->assertSame('Private', $result->getName());
         $this->assertSame(123, $result->getValue());

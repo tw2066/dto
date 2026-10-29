@@ -18,8 +18,6 @@ use Hyperf\DTO\Aspect\CoreMiddlewareAspect;
 use Hyperf\DTO\DtoCommon;
 use Hyperf\DTO\DtoValidation;
 use Hyperf\DTO\Exception\DtoException;
-use Hyperf\DTO\Mapping\MappingContext;
-use Hyperf\DTO\Mapping\ResolvedInput;
 use Hyperf\DTO\Scan\MethodParametersManager;
 use Hyperf\DTO\Scan\PropertyEnum;
 use Hyperf\DTO\Scan\PropertyManager;
@@ -67,7 +65,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         Context::set(ServerRequestInterface::class, $request);
 
         $dtoValidation = m::mock(DtoValidation::class);
-        $this->expectPreparedValidation($dtoValidation, AspectInjectDto::class, $body);
+        $this->expectValidation($dtoValidation, AspectInjectDto::class, $body);
 
         $container = $this->makeContainer($dtoValidation, AspectInjectDto::class);
         $aspect = new CoreMiddlewareAspect($container, $manager);
@@ -95,7 +93,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         Context::set(ServerRequestInterface::class, $request);
 
         $dtoValidation = m::mock(DtoValidation::class);
-        $this->expectPreparedValidation($dtoValidation, AspectInjectDto::class, $query);
+        $this->expectValidation($dtoValidation, AspectInjectDto::class, $query);
 
         $aspect = new CoreMiddlewareAspect($this->makeContainer($dtoValidation, AspectInjectDto::class), $manager);
         $injections = $aspect->process($this->makePjp(
@@ -119,7 +117,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         Context::set(ServerRequestInterface::class, $request);
 
         $dtoValidation = m::mock(DtoValidation::class);
-        $this->expectPreparedValidation($dtoValidation, AspectInjectDto::class, $form);
+        $this->expectValidation($dtoValidation, AspectInjectDto::class, $form);
 
         $aspect = new CoreMiddlewareAspect($this->makeContainer($dtoValidation, AspectInjectDto::class), $manager);
         $injections = $aspect->process($this->makePjp(
@@ -143,7 +141,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
 
         $dtoValidation = m::mock(DtoValidation::class);
         // 多值头被截断为首值
-        $this->expectPreparedValidation($dtoValidation, AspectInjectDto::class, ['name' => 'john', 'age' => '5']);
+        $this->expectValidation($dtoValidation, AspectInjectDto::class, ['name' => 'john', 'age' => '5']);
 
         $aspect = new CoreMiddlewareAspect($this->makeContainer($dtoValidation, AspectInjectDto::class), $manager);
         $injections = $aspect->process($this->makePjp(
@@ -165,7 +163,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         Context::set(ServerRequestInterface::class, m::mock(ServerRequestInterface::class));
 
         $dtoValidation = m::mock(DtoValidation::class);
-        $this->expectPreparedValidation($dtoValidation, AspectInjectDto::class, []);
+        $this->expectValidation($dtoValidation, AspectInjectDto::class, []);
 
         $aspect = new CoreMiddlewareAspect($this->makeContainer($dtoValidation, AspectInjectDto::class), $manager);
         $injections = $aspect->process($this->makePjp(
@@ -185,8 +183,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         $manager->setMethodParameters(AspectPlainController::class, 'handle');
 
         $dtoValidation = m::mock(DtoValidation::class);
-        $dtoValidation->shouldNotReceive('prepare');
-        $dtoValidation->shouldNotReceive('validateResolvedInput');
+        $dtoValidation->shouldNotReceive('validate');
 
         $obj = new AspectInjectDto();
         $container = $this->makeContainer($dtoValidation, AspectInjectDto::class, $obj);
@@ -215,8 +212,8 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         Context::set(ServerRequestInterface::class, $request);
 
         $dtoValidation = m::mock(DtoValidation::class);
-        $this->expectPreparedValidation($dtoValidation, AspectInjectDto::class, $body[0], true);
-        $this->expectPreparedValidation($dtoValidation, AspectInjectDto::class, $body[1], true);
+        $this->expectValidation($dtoValidation, AspectInjectDto::class, $body[0]);
+        $this->expectValidation($dtoValidation, AspectInjectDto::class, $body[1]);
 
         $aspect = new CoreMiddlewareAspect($this->makeContainer($dtoValidation), $manager);
         $injections = $aspect->process($this->makePjp(
@@ -240,8 +237,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         $manager->scanClassMethodParam(AspectArrayQueryController::class, 'handle');
 
         $dtoValidation = m::mock(DtoValidation::class);
-        $dtoValidation->shouldNotReceive('prepare');
-        $dtoValidation->shouldNotReceive('validateResolvedInput');
+        $dtoValidation->shouldNotReceive('validate');
 
         $aspect = new CoreMiddlewareAspect($this->makeContainer($dtoValidation), $manager);
         $injections = $aspect->process($this->makePjp(
@@ -290,8 +286,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         Context::set(ServerRequestInterface::class, $request);
 
         $dtoValidation = m::mock(DtoValidation::class);
-        $dtoValidation->shouldNotReceive('prepare');
-        $dtoValidation->shouldNotReceive('validateResolvedInput');
+        $dtoValidation->shouldNotReceive('validate');
         $aspect = new CoreMiddlewareAspect($this->makeContainer($dtoValidation), $manager);
 
         $this->expectException(DtoException::class);
@@ -314,8 +309,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         Context::set(ServerRequestInterface::class, $request);
 
         $dtoValidation = m::mock(DtoValidation::class);
-        $dtoValidation->shouldNotReceive('prepare');
-        $dtoValidation->shouldNotReceive('validateResolvedInput');
+        $dtoValidation->shouldNotReceive('validate');
 
         $aspect = new CoreMiddlewareAspect($this->makeContainer($dtoValidation), $manager);
         $injections = $aspect->process($this->makePjp(
@@ -361,14 +355,14 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
 
     // ---------------- RPC 路径（$value !== null） ----------------
 
-    public function testRpcValidParameterValidatesThenMapsResolvedDto(): void
+    public function testRpcValidParameterValidatesThenMapsDto(): void
     {
         $manager = $this->makeManager();
         $manager->setMethodParameters(AspectRpcValidController::class, 'handle');
 
         $value = ['name' => 'rpc', 'age' => 1];
         $dtoValidation = m::mock(DtoValidation::class);
-        $this->expectResolvedValidation($dtoValidation, AspectInjectDto::class, $value);
+        $this->expectValidation($dtoValidation, AspectInjectDto::class, $value);
 
         $container = m::mock(ContainerInterface::class);
         $container->shouldReceive('get')->with(DtoValidation::class)->andReturn($dtoValidation);
@@ -393,8 +387,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
 
         $value = ['name' => 'rpc'];
         $dtoValidation = m::mock(DtoValidation::class);
-        $dtoValidation->shouldNotReceive('prepare');
-        $dtoValidation->shouldNotReceive('validateResolvedInput');
+        $dtoValidation->shouldNotReceive('validate');
 
         $dto = new AspectInjectDto();
         $normalizer = m::mock(NormalizerInterface::class);
@@ -421,7 +414,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
 
         $value = ['name' => 'rpc'];
         $dtoValidation = m::mock(DtoValidation::class);
-        $this->expectResolvedValidation($dtoValidation, AspectInjectDto::class, $value);
+        $this->expectValidation($dtoValidation, AspectInjectDto::class, $value);
 
         $container = m::mock(ContainerInterface::class);
         $container->shouldReceive('get')->with(DtoValidation::class)->andReturn($dtoValidation);
@@ -438,7 +431,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         $this->assertSame('rpc', $injections[0]->name);
     }
 
-    public function testHttpAliasIsValidatedAndMappedFromSameNormalizedData(): void
+    public function testHttpAliasIsValidatedAndMappedFromPrimaryData(): void
     {
         $manager = $this->makeManager();
         $manager->setMethodParameters(AspectAliasController::class, 'handle');
@@ -446,9 +439,8 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         $request->shouldReceive('getParsedBody')->andReturn(['user_name' => 'http']);
         Context::set(ServerRequestInterface::class, $request);
 
-        $normalized = ['userName' => 'http'];
         $dtoValidation = m::mock(DtoValidation::class);
-        $this->expectPreparedValidation($dtoValidation, AspectAliasDto::class, $normalized, false, ['user_name' => 'http']);
+        $this->expectValidation($dtoValidation, AspectAliasDto::class, ['user_name' => 'http']);
         $container = $this->makeContainer($dtoValidation, AspectAliasDto::class);
         $container->shouldNotReceive('get')->with(AspectAliasDto::class);
         $aspect = new CoreMiddlewareAspect($container, $manager);
@@ -463,7 +455,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         $this->assertSame('http', $injections[0]->userName);
     }
 
-    public function testHttpAliasArrayValidatesAndMapsEachNormalizedItem(): void
+    public function testHttpAliasArrayValidatesAndMapsEachPrimaryItem(): void
     {
         $manager = $this->makeManager();
         $manager->setMethodParameters(AspectAliasArrayController::class, 'handle');
@@ -476,8 +468,8 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         Context::set(ServerRequestInterface::class, $request);
 
         $dtoValidation = m::mock(DtoValidation::class);
-        $this->expectPreparedValidation($dtoValidation, AspectAliasDto::class, ['userName' => 'first'], true, ['user_name' => 'first']);
-        $this->expectPreparedValidation($dtoValidation, AspectAliasDto::class, ['userName' => 'second'], true, ['user_name' => 'second']);
+        $this->expectValidation($dtoValidation, AspectAliasDto::class, ['user_name' => 'first']);
+        $this->expectValidation($dtoValidation, AspectAliasDto::class, ['user_name' => 'second']);
         $aspect = new CoreMiddlewareAspect($this->makeContainer($dtoValidation), $manager);
 
         $injections = $aspect->process($this->makePjp(
@@ -491,13 +483,13 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         $this->assertSame('second', $injections[0][1]->userName);
     }
 
-    public function testRpcAliasValidationAndMappingShareResolvedData(): void
+    public function testRpcAliasValidationAndMappingUsePrimaryData(): void
     {
         $manager = $this->makeManager();
         $manager->setMethodParameters(AspectRpcAliasController::class, 'handle');
-        $normalized = ['userName' => 'rpc'];
+        $value = ['user_name' => 'rpc'];
         $dtoValidation = m::mock(DtoValidation::class);
-        $this->expectResolvedValidation($dtoValidation, AspectAliasDto::class, $normalized);
+        $this->expectValidation($dtoValidation, AspectAliasDto::class, $value);
 
         $container = m::mock(ContainerInterface::class);
         $container->shouldReceive('get')->with(DtoValidation::class)->andReturn($dtoValidation);
@@ -507,7 +499,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
             null,
             [$this->makeDefinition(AspectAliasDto::class, 'req')],
             AspectRpcAliasController::class . '::handle',
-            [0 => ['user_name' => 'rpc']]
+            [0 => $value]
         ));
 
         $this->assertInstanceOf(AspectAliasDto::class, $injections[0]);
@@ -561,7 +553,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
 
         $value = ['address' => ['city' => 'Shanghai'], 'status' => 1];
         $dtoValidation = m::mock(DtoValidation::class);
-        $this->expectResolvedValidation($dtoValidation, AspectRpcOrderDto::class, $value);
+        $this->expectValidation($dtoValidation, AspectRpcOrderDto::class, $value);
 
         $normalizer = (new SerializerFactory(Serializer::class))();
         $coreMiddleware = m::mock(CoreMiddleware::class);
@@ -593,8 +585,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         $request->shouldReceive('getParsedBody')->andReturn([1, 2]);
         Context::set(ServerRequestInterface::class, $request);
         $dtoValidation = m::mock(DtoValidation::class);
-        $dtoValidation->shouldNotReceive('prepare');
-        $dtoValidation->shouldNotReceive('validateResolvedInput');
+        $dtoValidation->shouldNotReceive('validate');
         $aspect = new CoreMiddlewareAspect($this->makeContainer($dtoValidation), $manager);
 
         $injections = $aspect->process($this->makePjp(
@@ -617,7 +608,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         $request->shouldReceive('getParsedBody')->andReturn([[['name' => 'a', 'age' => 1]]]);
         Context::set(ServerRequestInterface::class, $request);
         $dtoValidation = m::mock(DtoValidation::class);
-        $this->expectPreparedValidation($dtoValidation, AspectInjectDto::class, ['name' => 'a', 'age' => 1], true);
+        $this->expectValidation($dtoValidation, AspectInjectDto::class, ['name' => 'a', 'age' => 1]);
         $aspect = new CoreMiddlewareAspect($this->makeContainer($dtoValidation), $manager);
 
         $injections = $aspect->process($this->makePjp(
@@ -641,8 +632,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         $request->shouldReceive('getParsedBody')->andReturn([]);
         Context::set(ServerRequestInterface::class, $request);
         $dtoValidation = m::mock(DtoValidation::class);
-        $dtoValidation->shouldNotReceive('prepare');
-        $dtoValidation->shouldNotReceive('validateResolvedInput');
+        $dtoValidation->shouldNotReceive('validate');
         $aspect = new CoreMiddlewareAspect($this->makeContainer($dtoValidation), $manager);
 
         $injections = $aspect->process($this->makePjp(
@@ -657,38 +647,9 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
 
     // ---------------- 工具方法 ----------------
 
-    private function expectPreparedValidation(
-        m\MockInterface $mock,
-        string $className,
-        array $data,
-        bool $withContext = false,
-        ?array $rawData = null,
-    ): void {
-        $expectedInput = $rawData ?? $data;
-        $resolved = null;
-        if ($withContext) {
-            $mock->shouldReceive('prepare')->once()
-                ->with($className, $expectedInput, m::type(MappingContext::class))
-                ->andReturnUsing(function (string $class, array $input, MappingContext $context) use (&$resolved, $data) {
-                    return $resolved = new ResolvedInput($class, $data, $context);
-                });
-        } else {
-            $resolved = new ResolvedInput($className, $data, new MappingContext());
-            $mock->shouldReceive('prepare')->once()->with($className, $expectedInput)->andReturn($resolved);
-        }
-        $mock->shouldReceive('validateResolvedInput')->once()
-            ->with(m::on(static function ($input) use (&$resolved) {
-                return $input === $resolved;
-            }));
-    }
-
-    private function expectResolvedValidation(m\MockInterface $mock, string $className, array $data): void
+    private function expectValidation(m\MockInterface $mock, string $className, array $data): void
     {
-        $mock->shouldReceive('validateResolvedInput')->once()->with(m::on(
-            static fn ($input) => $input instanceof ResolvedInput
-                && $input->className === $className
-                && $input->data === $data
-        ));
+        $mock->shouldReceive('validate')->once()->with($className, $data);
     }
 
     private function makeManager(): MethodParametersManager

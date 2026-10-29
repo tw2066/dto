@@ -8,7 +8,6 @@ use Hyperf\Di\ReflectionManager;
 use Hyperf\DTO\Annotation\ArrayType;
 use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\Mapping\MappingContext;
-use Hyperf\DTO\Mapping\ResolvedInput;
 use Hyperf\DTO\Scan\PropertyEnum;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Type\PhpType;
@@ -32,10 +31,7 @@ use ReflectionProperty;
  * DTO 输入映射内核。
  *
  * 普通 map 按类级字段计划直接读取输入并完成类型转换，不复制整棵输入树。
- * Valid/RPC 才通过 resolveInput() 物化一次 ResolvedInput，供验证和后续映射共用。
- * 实例缓存只保存类元数据；请求级预算保存在
- * MappingContext 中，canonical 输入和动态类型决策保存在 ResolvedInput 中，
- * 避免协程间串扰。
+ * 实例缓存只保存类元数据；请求级预算保存在 MappingContext 中，避免协程间串扰。
  */
 class JsonMapper extends \JsonMapper
 {
@@ -58,20 +54,28 @@ class JsonMapper extends \JsonMapper
     private array $docBlockContexts = [];
 
     /**
-     * 普通映射入口：每次公开调用创建独立预算，嵌套对象共享该预算。
-     * 支持对象/数组输入以及类名字符串目标，行为与上游 JsonMapper 对齐。
+     * 禁止回退到上游通用映射，DTO 统一使用 simpleMap()。
      */
     public function map($json, $object)
     {
+        throw new \BadMethodCallException('JsonMapper::map() is disabled; use simpleMap().');
+    }
+
+    /**
+     * DTO 专用映射入口：每次公开调用创建独立预算，嵌套对象共享该预算。
+     * 支持对象/数组输入以及类名字符串目标。
+     */
+    public function simpleMap($json, $object, ?MappingContext $context = null)
+    {
         if ($this->bEnforceMapType && ! is_object($json)) {
             throw new \InvalidArgumentException(
-                'JsonMapper::map() requires first argument to be an object'
+                'JsonMapper::simpleMap() requires first argument to be an object'
                 . ', ' . gettype($json) . ' given.'
             );
         }
         if (! is_object($object) && (! is_string($object) || ! class_exists($object))) {
             throw new \InvalidArgumentException(
-                'JsonMapper::map() requires second argument to '
+                'JsonMapper::simpleMap() requires second argument to '
                 . 'be an object or existing class name'
                 . ', ' . gettype($object) . ' given.'
             );
@@ -79,37 +83,7 @@ class JsonMapper extends \JsonMapper
         if (is_string($object)) {
             $object = $this->createInstance($object);
         }
-        return $this->mapWithContext($json, $object, new MappingContext());
-    }
-
-    /**
-     * @internal DTO 数组中的多个根节点共享同一个请求级预算。
-     */
-    public function mapWithContext(mixed $json, object $object, MappingContext $context): object
-    {
-        return $this->mapNode($json, $object, $context, 0, '', false);
-    }
-
-    /**
-     * @internal 仅为验证或 RPC DTO 映射物化 canonical 输入；普通 map 不调用。
-     */
-    public function resolveInput(mixed $json, string $className, ?MappingContext $context = null): ResolvedInput
-    {
-        $className = ltrim($className, '\\');
-        $context ??= new MappingContext();
-        // 路径 => 实际类型：动态 classMap 只看原始输入，映射阶段不再二次分派。
-        $mappedTypes = [];
-        $data = $this->resolveData($className, $json, $context, 0, '', $mappedTypes);
-        return new ResolvedInput($className, $data, $context, $mappedTypes);
-    }
-
-    /**
-     * @internal 直接消费 resolveInput() 的结果，不重新解析别名或嵌套输入。
-     * resolved=true 会复用 canonical 键、已计算的键预算和 mappedTypes。
-     */
-    public function mapResolvedInput(ResolvedInput $input, object $object): object
-    {
-        return $this->mapNode($input->data, $object, $input->context, 0, '', true, $input->mappedTypes);
+        return $this->mapNode($json, $object, $context ?? new MappingContext(), 0);
     }
 
     /**
@@ -125,386 +99,40 @@ class JsonMapper extends \JsonMapper
             $class,
             $parent_key,
             new MappingContext(),
-            0,
-            '',
-            false
+            0
         );
     }
 
     /**
-     * 映射单个 DTO 节点。
-     *
-     * $resolved=false：输入为原始外部键，计入节点预算并解析别名/兼容变体。
-     * $resolved=true：输入已由 resolveInput() 处理，只按 PHP 属性名读取，
-     * 不重复计入预算，也不再执行键规范化。$mappedTypes 仅在该模式使用。
+     * 映射单个 DTO 节点，只按字段主键读取输入。
      */
     private function mapNode(
         mixed $json,
         object $object,
         MappingContext $context,
         int $depth,
-        string $path,
-        bool $resolved,
-        array $mappedTypes = [],
     ): object {
         $className = get_class($object);
         $plan = $this->getMappingPlan($className);
         $input = $this->inputArray($json, $className);
-        if (! $resolved) {
-            $context->enterNode(count($input), $className, $depth);
-        }
-
-        $providedProperties = [];
-        // 常规输入按字段主键一次读取；主键未传入时才扫描输入查找兼容键。
-        foreach ($plan['fields'] as $index => $field) {
-            if ($resolved) {
-                $key = array_key_exists($field['name'], $input) ? $field['name'] : null;
-            } else {
-                $primaryKey = $field['primaryKey'];
-                $key = array_key_exists($primaryKey, $input)
-                    ? $primaryKey
-                    : $this->selectFieldKey($field, $plan, $input, $index);
-            }
-            if ($key === null) {
-                continue;
-            }
-            $providedProperties[$field['name']] = true;
-            $this->writeField($object, $plan, $index, $input[$key], $context, $depth, $path, $resolved, $mappedTypes);
-        }
-
-        $unknown = [];
-        $needsUnknownHandling = $this->bExceptionOnUndefinedProperty
-            || $this->undefinedPropertyHandler !== null;
-        // 每个已选字段消费一个不同的输入键；数量相等时不存在未知键。
-        if ($needsUnknownHandling && count($input) !== count($providedProperties)) {
-            if ($resolved) {
-                $unknown = array_diff_key($input, $plan['propertyKeys']);
-            } else {
-                foreach ($input as $key => $value) {
-                    $index = $plan['directMap'][$key] ?? null;
-                    $known = $index !== null || $this->resolveFieldIndex((string) $key, $plan) !== null;
-                    if (! $known) {
-                        $unknown[$key] = $value;
-                    }
-                }
-            }
-        }
-        if ($unknown !== []) {
-            $this->handleUnknownProperties(
-                $object,
-                $plan,
-                $unknown,
-                $providedProperties,
-                $context,
-                $depth,
-                $path,
-            );
-        }
-
-        $rc = $plan['reflection'];
-        if ($this->bExceptionOnMissingData) {
-            $this->checkMissingData($providedProperties, $rc);
-        }
-        if ($this->bRemoveUndefinedAttributes) {
-            $this->removeUndefinedAttributes($object, $providedProperties);
-        }
-        if ($this->postMappingMethod !== null && $rc->hasMethod($this->postMappingMethod)) {
-            $rc->getMethod($this->postMappingMethod)->invoke($object, ...$this->postMappingMethodArguments);
-        }
-        return $object;
-    }
-
-    /**
-     * 一次遍历完成直接键选择；遇到兼容变体时把已选直接键并入 selected，
-     * 后续键继续使用完整解析，避免二次扫描输入。
-     *
-     * @return array{bool, array<int, string>, array<int, array{string, mixed}>, array}
-     */
-    private function selectFields(array $input, array $plan): array
-    {
-        $selected = [];
-        $unknown = [];
-        $directKeys = [];
-        $directInput = true;
-        foreach ($input as $key => $value) {
-            $rawKey = (string) $key;
-            if ($directInput) {
-                $index = $plan['directMap'][$key] ?? null;
-                if ($index !== null) {
-                    if (isset($directKeys[$index])) {
-                        $directKeys[$index] = $this->selectPreferredKey(
-                            $plan['fields'][$index],
-                            $directKeys[$index],
-                            $rawKey
-                        );
-                    } else {
-                        $directKeys[$index] = $rawKey;
-                    }
-                    continue;
-                }
-                $directInput = false;
-                foreach ($directKeys as $directIndex => $directKey) {
-                    $selected[$directIndex] = [$directKey, $input[$directKey]];
-                }
-                $directKeys = [];
-            }
-            $index = $this->resolveFieldIndex($rawKey, $plan);
-            if ($index === null) {
-                $unknown[$key] = $value;
-                continue;
-            }
-            if (isset($selected[$index]) && $selected[$index][0] !== $rawKey) {
-                $winner = $this->selectPreferredKey($plan['fields'][$index], $selected[$index][0], $rawKey);
-                if ($winner === $rawKey) {
-                    $selected[$index] = [$rawKey, $value];
-                }
-                continue;
-            }
-            $selected[$index] = [$rawKey, $value];
-        }
-        return [$directInput, $directKeys, $selected, $unknown];
-    }
-
-    /**
-     * 主键未传入时，按原输入顺序选择该字段的最终键。
-     * 常规 canonical 输入不会进入此回退路径。
-     */
-    private function selectFieldKey(array $field, array $plan, array $input, int $fieldIndex): ?string
-    {
-        $selectedKey = null;
-        foreach ($input as $key => $value) {
-            $rawKey = (string) $key;
-            $index = $plan['directMap'][$key] ?? null;
-            if ($index === null) {
-                $index = $this->resolveFieldIndex($rawKey, $plan);
-            }
-            if ($index !== $fieldIndex) {
-                continue;
-            }
-            if ($selectedKey === null) {
-                $selectedKey = $rawKey;
-                continue;
-            }
-            $selectedKey = $this->selectPreferredKey($field, $selectedKey, $rawKey);
-        }
-        return $selectedKey;
-    }
-
-    /**
-     * 将原始节点解析为验证/RPC 所需的 canonical 数组。
-     * 只解析键和嵌套结构，不做对象写入；$mappedTypes 按引用收集各嵌套路径
-     * 的实际类型。未知键不会被丢弃，避免改变自定义验证规则的输入语义。
-     */
-    private function resolveData(
-        string $className,
-        mixed $json,
-        MappingContext $context,
-        int $depth,
-        string $path,
-        array &$mappedTypes,
-    ): array {
-        $plan = $this->getMappingPlan($className);
-        $input = $this->inputArray($json, $className);
         $context->enterNode(count($input), $className, $depth);
-        [$directInput, $directKeys, $selected, $unknown] = $this->selectFields($input, $plan);
 
-        $data = [];
         foreach ($plan['fields'] as $index => $field) {
-            if ($directInput) {
-                if (! array_key_exists($index, $directKeys)) {
-                    continue;
-                }
-                $value = $input[$directKeys[$index]];
-            } else {
-                if (! isset($selected[$index])) {
-                    continue;
-                }
-                [, $value] = $selected[$index];
-            }
-            $property = $field['property'];
-            if ($property->className === null && $property->arrClassName === null
-                && ($field['type'] === null || $field['simple'] || $field['flat'])
-            ) {
-                $data[$field['name']] = $value;
+            $primaryKey = $field['primaryKey'];
+            if (! array_key_exists($primaryKey, $input)) {
                 continue;
             }
-            $fieldPath = $this->appendPath($path, $field['name']);
-            $data[$field['name']] = $this->resolveNestedValue(
-                $field,
-                $value,
-                $context,
-                $depth,
-                $fieldPath,
-                $mappedTypes
-            );
-        }
-        foreach ($unknown as $key => $value) {
-            $data[$key] = $value;
-        }
-        return $data;
-    }
-
-    private function resolveNestedValue(
-        array $field,
-        mixed $value,
-        MappingContext $context,
-        int $depth,
-        string $path,
-        array &$mappedTypes,
-    ): mixed {
-        $property = $field['property'];
-        $className = $property->className;
-        $arrClassName = $property->arrClassName;
-        $arrayDepth = max(1, $property->arrayDepth);
-
-        // PropertyManager 未识别的类型（接口、bIgnoreVisibility 私有字段等）
-        // 回退到映射计划的字段类型，与 writeField 的类型选择保持一致。
-        if ($className === null && $arrClassName === null) {
-            $planType = $field['type'];
-            if ($planType !== null && ! $field['simple'] && ! $field['flat']) {
-                $arrayDepth = 0;
-                $elementType = $planType;
-                while ($this->isArrayOfType($elementType)) {
-                    ++$arrayDepth;
-                    $elementType = substr($elementType, 0, -2);
-                }
-                if ($arrayDepth > 0) {
-                    $arrClassName = $elementType;
-                } elseif ($this->isNestableClass($elementType)) {
-                    $className = $elementType;
-                }
-            }
+            $this->writeField($object, $plan, $index, $input[$primaryKey], $context, $depth);
         }
 
-        if ($className !== null) {
-            if ((! is_array($value) && ! is_object($value)) || $value instanceof $className) {
-                return $value;
-            }
-            $resolvedClass = $this->resolveMappedClass($className, $value);
-            if ($resolvedClass === null || $value instanceof $resolvedClass) {
-                return $value;
-            }
-            $mappedTypes[$path] = $resolvedClass;
-            return $this->resolveData(
-                $resolvedClass,
-                $value,
-                $context,
-                $depth + 1,
-                $path,
-                $mappedTypes
-            );
-        }
-
-        if ($arrClassName === null || (! is_array($value) && ! is_object($value))) {
-            return $value;
-        }
-
-        return $this->resolveClassArray(
-            $arrClassName,
-            max(1, $arrayDepth),
-            $value,
-            $context,
-            $depth,
-            $path,
-            $mappedTypes
-        );
-    }
-
-    /**
-     * 递归解析 Child[]、Child[][] 等数组，直到叶子 DTO。
-     * 中间数组只保留结构；叶节点才执行 classMap/classFactories 和字段解析。
-     * null 元素保留，由 strict-null 配置和验证递归决定后续行为，不在这里强制转换。
-     */
-    private function resolveClassArray(
-        string $className,
-        int $remainingDepth,
-        mixed $value,
-        MappingContext $context,
-        int $depth,
-        string $path,
-        array &$mappedTypes,
-    ): array {
-        $result = [];
-        foreach ($value as $key => $item) {
-            $itemPath = $this->appendPath($path, $key);
-            if ($remainingDepth > 1) {
-                $result[$key] = is_array($item) || is_object($item)
-                    ? $this->resolveClassArray(
-                        $className,
-                        $remainingDepth - 1,
-                        $item,
-                        $context,
-                        $depth,
-                        $itemPath,
-                        $mappedTypes
-                    )
-                    : $item;
-                continue;
-            }
-
-            if ($item === null || (! is_array($item) && ! is_object($item))) {
-                $result[$key] = $item;
-                continue;
-            }
-            $itemClass = $this->resolveMappedClass($className, $item);
-            if ($itemClass === null || $item instanceof $itemClass) {
-                $result[$key] = $item;
-                continue;
-            }
-            $mappedTypes[$itemPath] = $itemClass;
-            $result[$key] = $this->resolveData(
-                $itemClass,
-                $item,
-                $context,
-                $depth + 1,
-                $itemPath,
-                $mappedTypes
-            );
-        }
-        return $result;
-    }
-
-    /**
-     * 应用 classMap/classFactories 找到实际待解析的类。
-     * classFactories 需要实例化一次以确定具体类，与 createInstance 的选择顺序一致。
-     */
-    private function resolveMappedClass(string $className, mixed $value): ?string
-    {
-        $className = ltrim($className, '\\');
-        if ($this->classMap !== []) {
-            $registeredType = isset($this->classMap[$className]) ? $className : '\\' . $className;
-            $mapped = $this->getMappedType($registeredType, $value);
-            if ($mapped === null) {
-                return null;
-            }
-            $className = ltrim($mapped, '\\');
-        }
-        $factory = $this->classFactories[$className] ?? $this->classFactories['\\' . $className] ?? null;
-        if ($factory !== null) {
-            $instance = is_array($value) || is_object($value) ? $factory() : $factory($value);
-            $className = get_class($instance);
-        }
-        return class_exists($className) ? $className : null;
-    }
-
-    /**
-     * 计划类型是否可能指向可实例化的类（含 classMap/classFactories 目标）。
-     */
-    private function isNestableClass(string $type): bool
-    {
-        $type = ltrim($type, '\\');
-        return class_exists($type)
-            || isset($this->classMap[$type])
-            || isset($this->classMap['\\' . $type])
-            || isset($this->classFactories[$type])
-            || isset($this->classFactories['\\' . $type]);
+        return $object;
     }
 
     /**
      * 转换并写入单个字段。
      * accessor 为 null 表示不可写（如 readonly、static 或无可见访问器），
      * 与未知字段区分处理。简单类型判断在计划中预计算；嵌套对象/数组继续
-     * 使用当前请求的 context、resolved 标记和 mappedTypes。
+     * 使用当前请求的 MappingContext。
      */
     private function writeField(
         object $object,
@@ -513,24 +141,10 @@ class JsonMapper extends \JsonMapper
         mixed $jvalue,
         MappingContext $context,
         int $depth,
-        string $path,
-        bool $resolved,
-        array $mappedTypes = [],
     ): void {
         $field = $plan['fields'][$index];
         $accessor = $field['accessor'];
         if ($accessor === null) {
-            if ($this->bExceptionOnUndefinedProperty) {
-                throw new \JsonMapper_Exception(
-                    'JSON property "' . $field['name'] . '" has no public setter method'
-                    . ' in object of type ' . $plan['className']
-                );
-            }
-            $this->log(
-                'info',
-                'Property {property} has no public setter method in {class}',
-                ['property' => $field['name'], 'class' => $plan['className']]
-            );
             return;
         }
         $type = $field['type'];
@@ -548,16 +162,7 @@ class JsonMapper extends \JsonMapper
             );
         }
 
-        $fieldPath = null;
-        if ($resolved && ! $field['simple'] && $mappedTypes !== []) {
-            $fieldPath = $this->appendPath($path, $key);
-            if (isset($mappedTypes[$fieldPath])) {
-                // Valid 路径复用解析阶段选定的 classMap/classFactory 结果，避免二次调用工厂。
-                $type = $mappedTypes[$fieldPath];
-            } elseif ($this->classMap !== []) {
-                $type = $this->getMappedType($type, $jvalue);
-            }
-        } elseif ($this->classMap !== []) {
+        if ($this->classMap !== []) {
             $type = $this->getMappedType($type, $jvalue);
         }
         if ($type === null || $type === 'mixed') {
@@ -585,7 +190,6 @@ class JsonMapper extends \JsonMapper
         if ($type === '') {
             throw new \JsonMapper_Exception('Empty type at property "' . $className . '::$' . $key . '"');
         }
-        $fieldPath ??= $this->appendPath($path, $key);
         if (strpos(str_replace('|null', '', $type), '|')) {
             throw new \JsonMapper_Exception('Cannot decide which of the union types shall be used: ' . $type);
         }
@@ -627,10 +231,7 @@ class JsonMapper extends \JsonMapper
                 $subtype,
                 $key,
                 $context,
-                $depth,
-                $fieldPath,
-                $resolved,
-                $mappedTypes
+                $depth
             );
         } elseif ($this->isFlatType(gettype($jvalue))) {
             if ($this->bStrictObjectTypeChecking
@@ -644,7 +245,7 @@ class JsonMapper extends \JsonMapper
             $child = $this->createInstance($type, true, $jvalue);
         } else {
             $child = $this->createInstance($type, false, $jvalue);
-            $this->mapNode($jvalue, $child, $context, $depth + 1, $fieldPath, $resolved, $mappedTypes);
+            $this->mapNode($jvalue, $child, $context, $depth + 1);
         }
         $this->setProperty($object, $accessor, $child);
     }
@@ -663,8 +264,7 @@ class JsonMapper extends \JsonMapper
 
     /**
      * 保留上游 JsonMapper 的数组转换、null、class factory 和 ArrayObject 行为。
-     * 与公共 map 分离是为了透传请求预算和 resolved 类型信息，避免嵌套数组
-     * 重置上下文或重复解析输入。
+     * 与公共 map 分离是为了透传请求预算，避免嵌套数组重置上下文。
      */
     private function mapArrayInternal(
         array|object $json,
@@ -673,9 +273,6 @@ class JsonMapper extends \JsonMapper
         string $parentKey,
         MappingContext $context,
         int $depth,
-        string $path,
-        bool $resolved,
-        array $mappedTypes = [],
     ): mixed {
         $isNullable = $this->isNullable($class);
         $class = $this->removeNullable($class);
@@ -687,10 +284,7 @@ class JsonMapper extends \JsonMapper
                 );
             }
 
-            $itemPath = $this->appendPath($path, $key);
-            $class = $resolved && isset($mappedTypes[$itemPath])
-                ? $mappedTypes[$itemPath]
-                : ($this->classMap === [] ? $originalClass : $this->getMappedType($originalClass, $jvalue));
+            $class = $this->classMap === [] ? $originalClass : $this->getMappedType($originalClass, $jvalue);
             if ($class === null) {
                 $array[$key] = $jvalue;
             } elseif ($this->isArrayOfType($class)) {
@@ -700,10 +294,7 @@ class JsonMapper extends \JsonMapper
                     substr($class, 0, -2),
                     $parentKey,
                     $context,
-                    $depth,
-                    $itemPath,
-                    $resolved,
-                    $mappedTypes
+                    $depth
                 );
             } elseif ($this->isFlatType(gettype($jvalue))) {
                 if ($jvalue === null) {
@@ -734,10 +325,7 @@ class JsonMapper extends \JsonMapper
                     null,
                     $parentKey,
                     $context,
-                    $depth,
-                    $path,
-                        $resolved,
-                    $mappedTypes
+                    $depth
                 );
             } else {
                 $child = $this->createInstance($class, false, $jvalue);
@@ -745,58 +333,11 @@ class JsonMapper extends \JsonMapper
                     $jvalue,
                     $child,
                     $context,
-                    $depth + 1,
-                    $itemPath,
-                    $resolved,
-                    $mappedTypes
+                    $depth + 1
                 );
             }
         }
         return $array;
-    }
-
-    /**
-     * 处理需要异常或回调的未消费输入键。
-     * handler 和异常消息使用上游 JsonMapper 的 safe key；handler 映射到已知
-     * 字段后复用正常写入流程。普通映射忽略未知键，不记录日志或缓存原始键。
-     */
-    private function handleUnknownProperties(
-        object $object,
-        array $plan,
-        array $unknown,
-        array &$providedProperties,
-        MappingContext $context,
-        int $depth,
-        string $path,
-    ): void {
-        foreach ($unknown as $key => $value) {
-            $safeKey = $this->getSafeName((string) $key);
-            if ($this->bExceptionOnUndefinedProperty) {
-                throw new \JsonMapper_Exception(
-                    'JSON property "' . $safeKey . '" does not exist in object of type ' . $plan['className']
-                );
-            }
-            if ($this->undefinedPropertyHandler !== null) {
-                $undefinedPropertyKey = call_user_func($this->undefinedPropertyHandler, $object, $safeKey, $value);
-                if (is_string($undefinedPropertyKey)) {
-                    $index = $this->resolveFieldIndex($undefinedPropertyKey, $plan);
-                    if ($index !== null) {
-                        $providedProperties[$plan['fields'][$index]['name']] = true;
-                        $this->writeField(
-                            $object,
-                            $plan,
-                            $index,
-                            $value,
-                            $context,
-                            $depth,
-                            $path,
-                                        false
-                        );
-                    }
-                }
-                continue;
-            }
-        }
     }
 
     /**
@@ -821,22 +362,15 @@ class JsonMapper extends \JsonMapper
      *
      * 关键结构：
      * - fields：字段索引 => 主键、属性、访问器、类型、可空性和简单类型标记。
-     * - keyMap：可直接匹配的 PHP 属性名/JSONField 别名 => 字段索引。
-     * - variantMap：预计算的常见兼容变体（snake/kebab/Pascal/setter 形式）=> 字段索引。
-     * - directMap：keyMap + variantMap，供回退解析使用。
-     * - safeMap：连字符等安全键形式 => 字段索引。
-     * - setterMap：合法 setter 名（含 setID 等缩写）=> 字段索引。
-     * - insensitiveMap：仅供规范化键使用的受限大小写回退表。
-     * - propertyKeys：真实 PHP 属性名集合，供 ResolvedInput 使用。
-     * - namespace/className/reflection：类型解析和 postMapping 所需类信息。
+     * - namespace/className：嵌套类型解析和异常信息。
      *
-     * 各表共用同一个字段索引，避免输入解析与最终写入访问器错配。
+     * 字段索引贯穿整个计划，避免输入解析与最终写入访问器错配。
      */
     protected function buildMappingPlan(string $className): array
     {
         $className = ltrim($className, '\\');
         $rc = ReflectionManager::reflectClass($className);
-        [$methods, $reflectionProperties] = $this->getClassMetadata($rc);
+        [$methods] = $this->getClassMetadata($rc);
         $methodsBySuffix = [];
         foreach ($methods as $method) {
             $methodName = $method->getName();
@@ -850,10 +384,6 @@ class JsonMapper extends \JsonMapper
 
         $fields = [];
         $keyMap = [];
-        $setterMap = [];
-        $setterSuffixes = [];
-        $insensitiveMap = [];
-        $propertyKeys = [];
         $propertyManager = $this->getPropertyManager();
         $properties = $propertyManager->getPropertyByClass($className);
         $declaredFields = [];
@@ -902,7 +432,6 @@ class JsonMapper extends \JsonMapper
                 'flat' => $type !== null && $this->isFlatType($type),
                 'variadic' => $accessor !== null && $this->hasVariadicArrayType($accessor),
             ];
-            $propertyKeys[$fieldName] = true;
             $this->registerDirectKey($keyMap, $fields, $fieldName, $index, $className);
 
             $alias = $property->alias;
@@ -920,85 +449,12 @@ class JsonMapper extends \JsonMapper
                 $fields[$index]['primaryKey'] = $alias;
                 $this->registerDirectKey($keyMap, $fields, $alias, $index, $className);
             }
-
-            $setterMethods = $methodsBySuffix[strtolower($fieldName)] ?? [];
-            if ($setterMethods === [] && str_contains($fieldName, '_')) {
-                $normalizedSuffix = strtolower(str_replace('_', '', $fieldName));
-                // 仅当没有同名 camelCase 属性时，才把 setUserName 归给 user_name。
-                if (! isset($declaredFields[$normalizedSuffix])) {
-                    $setterMethods = $methodsBySuffix[$normalizedSuffix] ?? [];
-                }
-            }
-            foreach ($setterMethods as $method) {
-                $methodName = $method->getName();
-                if ($this->getSetterName(substr($methodName, 3)) !== $methodName) {
-                    continue;
-                }
-                if (isset($setterMap[$methodName]) && $setterMap[$methodName] !== $index) {
-                    throw new DtoException("Input setter {$methodName} for class {$className} is ambiguous");
-                }
-                $setterMap[$methodName] = $index;
-                $setterSuffixes[$index] = substr($methodName, 3);
-                break;
-            }
-
-            $reflectionProperty = $reflectionProperties[$fieldName] ?? null;
-            if ($reflectionProperty !== null && ($reflectionProperty->isPublic() || $this->bIgnoreVisibility)) {
-                $insensitiveMap[strtolower($fieldName)] ??= $index;
-            }
-        }
-
-        $safeMap = [];
-        foreach ($keyMap as $key => $index) {
-            $safeKey = $this->getSafeName((string) $key);
-            if (isset($safeMap[$safeKey]) && $safeMap[$safeKey] !== $index) {
-                throw new DtoException("Input key [{$safeKey}] for class {$className} is ambiguous");
-            }
-            $safeMap[$safeKey] = $index;
-        }
-
-        // 预计算常见兼容变体，避免热路径反复做 camelCase/setter 名推导。
-        // 候选项必须通过 getCamelCaseName 验证，保证与既有解析结果一致。
-        $variantMap = [];
-        foreach ($fields as $index => $field) {
-            $fieldName = $field['name'];
-
-            $kebab = strtolower((string) preg_replace('/(?<!^)([A-Z])/', '-$1', $fieldName));
-            if ($kebab !== $fieldName && strtolower($this->getCamelCaseName($kebab)) === strtolower($fieldName)) {
-                $this->addVariantKey($variantMap, $keyMap, $safeMap, $setterMap, $insensitiveMap, $kebab, $index);
-            }
-
-            $setterSuffix = $setterSuffixes[$index] ?? null;
-            if ($setterSuffix !== null) {
-                $snake = strtolower((string) preg_replace('/(?<!^)([A-Z])/', '_$1', $setterSuffix));
-                foreach ([lcfirst($setterSuffix), $setterSuffix, $snake, str_replace('_', '-', $snake)] as $candidate) {
-                    if ($candidate === '' || $candidate === $fieldName) {
-                        continue;
-                    }
-                    if ($this->getCamelCaseName($candidate) !== $setterSuffix) {
-                        continue;
-                    }
-                    $this->addVariantKey($variantMap, $keyMap, $safeMap, $setterMap, $insensitiveMap, $candidate, $index);
-                }
-            }
-        }
-        $directMap = $keyMap;
-        foreach ($variantMap as $key => $index) {
-            $directMap[$key] = $index;
         }
 
         return [
             'fields' => $fields,
-            'keyMap' => $keyMap,
-            'variantMap' => $variantMap,
-            'directMap' => $directMap,
-            'safeMap' => $safeMap,
-            'setterMap' => $setterMap,
-            'insensitiveMap' => $insensitiveMap,
-            'propertyKeys' => $propertyKeys,
             'namespace' => $rc->getNamespaceName(),
             'className' => $className,
-            'reflection' => $rc,
         ];
     }
 
@@ -1024,101 +480,6 @@ class JsonMapper extends \JsonMapper
     }
 
     /**
-     * 登记预计算的兼容变体；仅缓存既有解析逻辑本身会映射到同一字段的键。
-     */
-    private function addVariantKey(
-        array &$variantMap,
-        array $keyMap,
-        array $safeMap,
-        array $setterMap,
-        array $insensitiveMap,
-        string $key,
-        int $index,
-    ): void {
-        if (isset($keyMap[$key])) {
-            return;
-        }
-        $safeKey = strpos($key, '-') !== false ? $this->getCamelCaseName($key) : $key;
-        $resolved = $safeMap[$safeKey] ?? null;
-        if ($resolved === null && $setterMap !== []) {
-            $resolved = $setterMap[$this->getSetterName($safeKey)] ?? null;
-        }
-        if ($resolved === null && $safeKey !== $key) {
-            $resolved = $insensitiveMap[strtolower($safeKey)] ?? null;
-        }
-        if ($resolved !== $index) {
-            return;
-        }
-        if (isset($variantMap[$key]) && $variantMap[$key] !== $index) {
-            return;
-        }
-        $variantMap[$key] = $index;
-    }
-
-    /**
-     * 按兼容优先级解析字段：精确键 → 预计算变体 → 安全键 → setter → 受限大小写回退。
-     * 不在这里做任意大小写猜测；未命中即交给未知字段策略。
-     */
-    private function resolveFieldIndex(string $rawKey, array $plan): ?int
-    {
-        $index = $plan['keyMap'][$rawKey] ?? null;
-        if ($index !== null) {
-            return $index;
-        }
-        $index = $plan['variantMap'][$rawKey] ?? null;
-        if ($index !== null) {
-            return $index;
-        }
-        $safeKey = $rawKey;
-        if (strpos($rawKey, '-') !== false) {
-            $safeKey = $this->getCamelCaseName($rawKey);
-        }
-        $index = $plan['safeMap'][$safeKey] ?? null;
-        if ($index !== null) {
-            return $index;
-        }
-        if ($plan['setterMap'] !== []) {
-            $index = $plan['setterMap'][$this->getSetterName($safeKey)] ?? null;
-            if ($index !== null) {
-                return $index;
-            }
-        }
-        if ($safeKey !== $rawKey) {
-            return $plan['insensitiveMap'][strtolower($safeKey)] ?? null;
-        }
-        return null;
-    }
-
-    /**
-     * 同一字段命中多个候选键时的优先级：
-     * 显式外部别名 > PHP 属性名 > 兼容变体。
-     * 同一优先级的键保留先出现的值，不再拒绝重复等价键。
-     */
-    private function selectPreferredKey(array $field, string $currentKey, string $newKey): string
-    {
-        return $this->keyPriority($field, $newKey) < $this->keyPriority($field, $currentKey)
-            ? $newKey
-            : $currentKey;
-    }
-
-    /**
-     * 键优先级：别名 0，PHP 属性名 1，setter/大小写等兼容变体 2。
-     */
-    private function keyPriority(array $field, string $key): int
-    {
-        $alias = $field['property']->alias;
-        if ($alias !== null && $alias !== $field['name']
-            && ($key === $alias || $key === $this->getSafeName($alias))
-        ) {
-            return 0;
-        }
-        if ($key === $field['name']) {
-            return 1;
-        }
-        return 2;
-    }
-
-    /**
      * 将输入节点转为按键读取的数组。
      * Traversable 必须走迭代器，不能使用 get_object_vars()；普通对象则只读取
      * 当前作用域可见的 public 属性，与直接 foreach 对象的输入语义一致。
@@ -1138,11 +499,6 @@ class JsonMapper extends \JsonMapper
             return get_object_vars($json);
         }
         throw new DtoException("Class: {$className} - data must be object or array");
-    }
-
-    private function appendPath(string $path, string|int $segment): string
-    {
-        return $path === '' ? (string) $segment : $path . '.' . $segment;
     }
 
     private function getPropertyManager(): PropertyManager
@@ -1165,13 +521,6 @@ class JsonMapper extends \JsonMapper
             return $type;
         }
         return $type . '[]';
-    }
-
-    protected function log(string $level, string $message, array $context = []): void
-    {
-        if ($this->logger) {
-            $this->logger->log('debug', $message, $context);
-        }
     }
 
     /**

@@ -22,7 +22,7 @@ use HyperfTest\DTO\AbstractTestCase;
  */
 class ValidationManagerAliasTest extends AbstractTestCase
 {
-    public function testPhpPropertyUsedAsRuleAndMessageKey(): void
+    public function testJsonFieldUsedAsRuleAndMessageKey(): void
     {
         (new JSONField('userName'))->collectProperty(VmAliasDto::class, 'name');
         (new Required('名字必填'))->collectProperty(VmAliasDto::class, 'name');
@@ -31,10 +31,10 @@ class ValidationManagerAliasTest extends AbstractTestCase
         $manager->generateValidation(VmAliasDto::class, 'name');
 
         $data = $manager->getData(VmAliasDto::class);
-        // 内部规则与消息统一使用 PHP 属性名，JSONField 只负责输入/输出映射。
-        $this->assertSame(['required'], $data['rule']['name']);
-        $this->assertSame('名字必填', $data['messages']['name.required']);
-        $this->assertArrayNotHasKey('userName', $data['rule']);
+        // 验证规则和消息使用外部 primaryKey，与原始输入保持一致。
+        $this->assertSame(['required'], $data['rule']['userName']);
+        $this->assertSame('名字必填', $data['messages']['userName.required']);
+        $this->assertArrayNotHasKey('name', $data['rule']);
     }
 
     public function testAliasWithoutValidationAnnotationsReturnsEmpty(): void

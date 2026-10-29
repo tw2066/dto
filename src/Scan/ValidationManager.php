@@ -6,6 +6,7 @@ namespace Hyperf\DTO\Scan;
 
 use Hyperf\ApiDocs\Annotation\ApiModelProperty;
 use Hyperf\Di\Annotation\MultipleAnnotation;
+use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\Annotation\Validation\BaseValidation;
 use Hyperf\DTO\ApiAnnotation;
 use Hyperf\Stringable\Str;
@@ -39,7 +40,11 @@ class ValidationManager
         /** @var BaseValidation[] $validation */
         $validationArr = [];
         $allAnnotationArray = ApiAnnotation::getClassProperty($className, $fieldName);
+        $aliasName = null;
         foreach ($allAnnotationArray as $multipleAnnotation) {
+            if ($multipleAnnotation instanceof JSONField) {
+                $aliasName = $multipleAnnotation->name;
+            }
             if (! $multipleAnnotation instanceof MultipleAnnotation) {
                 continue;
             }
@@ -61,7 +66,7 @@ class ValidationManager
             if (empty($validation->getRule())) {
                 continue;
             }
-            $validation->setFieldName($fieldName);
+            $validation->setFieldName($aliasName ?? $fieldName);
             // Support custom key for nested validation (e.g., 'items.*')
             // 注意: 用局部变量，避免 customKey 污染同一属性后续注解的键
             $ruleKey = $validation->getCustomKey() ?: $validation->getFieldName();

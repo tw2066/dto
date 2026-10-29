@@ -67,8 +67,8 @@ $validation = new DtoValidation(new PropertyManager(new DtoCommon(), new Propert
 $simpleInput = ['name' => 'alice', 'age' => 30];
 $unknownInput = ['name' => 'alice', 'age' => 30, 'unknown' => 'ignored'];
 $aliasInput = ['user_name' => 'alice'];
-$setterInput = ['user_name' => 'setter'];
-$headerInput = ['x-request-id' => 'request-id'];
+$setterInput = ['userName' => 'setter'];
+$headerInput = ['xRequestId' => 'request-id'];
 $nestedInput = [
     'child' => ['user_name' => 'child'],
     'items' => [['user_name' => 'first'], ['user_name' => 'second']],
@@ -94,7 +94,7 @@ $cases = [
         static fn ($dto) => $dto->getUserName() === 'setter',
         $iterations,
     ],
-    'hyphen_header_map' => [
+    'header_map' => [
         static fn () => Mapper::map($headerInput, new BenchmarkHeaderDto()),
         static fn ($dto) => $dto->xRequestId === 'request-id',
         $iterations,
@@ -118,11 +118,6 @@ $cases = [
     ],
     'alias_validate_map' => [
         static function () use ($validation, $aliasInput) {
-            if (method_exists($validation, 'prepare')) {
-                $resolved = $validation->prepare(BenchmarkAliasDto::class, $aliasInput);
-                $validation->validateResolvedInput($resolved);
-                return Mapper::mapResolvedInput($resolved, new BenchmarkAliasDto());
-            }
             $validation->validate(BenchmarkAliasDto::class, $aliasInput);
             return Mapper::map($aliasInput, new BenchmarkAliasDto());
         },
