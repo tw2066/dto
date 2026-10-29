@@ -9,10 +9,7 @@ use Hyperf\Context\Context;
 use Hyperf\Contract\Arrayable;
 use Hyperf\Contract\Jsonable;
 use Hyperf\Di\Aop\ProceedingJoinPoint;
-use Hyperf\Di\ReflectionManager;
 use Hyperf\Di\ReflectionType;
-use Hyperf\DTO\Annotation\Dto;
-use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\DtoValidation;
 use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\Mapper;
@@ -213,22 +210,6 @@ class CoreMiddlewareAspect
         return $result;
     }
 
-    private function hasDtoAnnotations(string $className): bool
-    {
-        $reflection = ReflectionManager::reflectClass($className);
-        do {
-            if ($reflection->getAttributes(Dto::class) !== []) {
-                return true;
-            }
-            foreach ($reflection->getProperties() as $property) {
-                if ($property->getAttributes(JSONField::class) !== []) {
-                    return true;
-                }
-            }
-        } while ($reflection = $reflection->getParentClass());
-        return false;
-    }
-
     /**
      * @param ReflectionType[] $definitions
      * @param mixed $coreMiddleware
@@ -254,20 +235,14 @@ class CoreMiddlewareAspect
                         . "of {$callableName} should not be null");
                 }
             } else {
-                // RPC DTO 使用普通字段计划映射；非 DTO 保持原 denormalize 流程。
+                // RPC 参数统一走 Symfony denormalize；带 #[Valid] 的仍先验证。
                 [$controllerName, $methodName] = explode('::', $callableName);
                 $className = $definition->getName();
                 $methodParameter = $this->methodParametersManager->getMethodParameter($controllerName, $methodName, $definition->getMeta('name'));
                 if ($methodParameter?->isValid()) {
                     $this->container->get(DtoValidation::class)->validate($className, $value);
                 }
-                if (class_exists($className) && is_array($value)
-                    && ($methodParameter !== null || $this->hasDtoAnnotations($className))
-                ) {
-                    $injections[] = Mapper::mapWithContext($value, make($className), new MappingContext());
-                } else {
-                    $injections[] = $coreMiddleware->getNormalizer()->denormalize($value, $className);
-                }
+                $injections[] = $coreMiddleware->getNormalizer()->denormalize($value, $className);
             }
         }
         return $injections;

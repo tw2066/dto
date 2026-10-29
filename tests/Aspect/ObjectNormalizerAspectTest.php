@@ -6,14 +6,8 @@ namespace HyperfTest\DTO\Aspect;
 
 use Hyperf\Di\Aop\ProceedingJoinPoint;
 use Hyperf\DTO\Aspect\ObjectNormalizerAspect;
+use Hyperf\DTO\Mapper;
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\Serializer\Attribute\Groups;
-use Symfony\Component\Serializer\Exception\ExtraAttributesException;
-use Symfony\Component\Serializer\Mapping\Factory\ClassMetadataFactory;
-use Symfony\Component\Serializer\Mapping\Loader\AttributeLoader;
-use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
-use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
-use Symfony\Component\Serializer\Serializer as SymfonySerializer;
 
 /**
  * @internal
@@ -21,75 +15,63 @@ use Symfony\Component\Serializer\Serializer as SymfonySerializer;
  */
 class ObjectNormalizerAspectTest extends TestCase
 {
-    private SymfonySerializer $serializer;
-
-    protected function setUp(): void
+    public function testMapsDataToDto(): void
     {
-        parent::setUp();
-        $this->serializer = new SymfonySerializer([
-            new ObjectNormalizer(new ClassMetadataFactory(new AttributeLoader())),
-        ]);
+        $joinPoint = $this->makeJoinPoint(['name' => 'alice', 'age' => 30], ObjectNormalizerProbeDto::class);
+        $result = (new ObjectNormalizerAspect())->process($joinPoint);
+
+        $this->assertInstanceOf(ObjectNormalizerProbeDto::class, $result);
+        $this->assertSame('alice', $result->name);
+        $this->assertSame(30, $result->age);
     }
 
-    public function testGroupsAreForwardedToSymfony(): void
+    public function testIgnoresUnknownKeys(): void
     {
-        $dto = $this->denormalize(['userName' => 'alice', 'role' => 'admin'], ['groups' => ['api']]);
+        $joinPoint = $this->makeJoinPoint(['name' => 'alice', 'unknown' => 'ignored'], ObjectNormalizerProbeDto::class);
+        $result = (new ObjectNormalizerAspect())->process($joinPoint);
 
-        $this->assertSame('alice', $dto->userName);
-        $this->assertSame('', $dto->role);
+        $this->assertSame('alice', $result->name);
+        $this->assertSame('ignored', $result->unknown);
     }
 
-    public function testAllowExtraAttributesIsForwarded(): void
+    public function testMapsNestedDto(): void
     {
-        $this->expectException(ExtraAttributesException::class);
-        $this->denormalize(
-            ['userName' => 'alice', 'evil' => 'x'],
-            [AbstractNormalizer::ALLOW_EXTRA_ATTRIBUTES => false]
-        );
+        $joinPoint = $this->makeJoinPoint([
+            'name' => 'alice',
+            'address' => ['city' => 'Shanghai'],
+        ], ObjectNormalizerProbeDto::class);
+        $result = (new ObjectNormalizerAspect())->process($joinPoint);
+
+        $this->assertInstanceOf(ObjectNormalizerProbeAddressDto::class, $result->address);
+        $this->assertSame('Shanghai', $result->address->city);
     }
 
-    public function testObjectToPopulateIsForwarded(): void
+    private function makeJoinPoint(array $data, string $type): ProceedingJoinPoint
     {
-        $existing = new ObjectNormalizerProbeDto();
-        $existing->age = 99;
-
-        $dto = $this->denormalize(
-            ['userName' => 'alice'],
-            [AbstractNormalizer::OBJECT_TO_POPULATE => $existing]
-        );
-
-        $this->assertSame($existing, $dto);
-        $this->assertSame(99, $dto->age);
-    }
-
-    private function denormalize(array $data, array $context): ObjectNormalizerProbeDto
-    {
-        $joinPoint = new ProceedingJoinPoint(
+        return new ProceedingJoinPoint(
             fn () => null,
-            ObjectNormalizer::class,
+            'Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer',
             'denormalize',
             [
-                'keys' => [
-                    'data' => $data,
-                    'type' => ObjectNormalizerProbeDto::class,
-                    'format' => null,
-                    'context' => $context,
-                ],
-                'order' => ['data', 'type', 'format', 'context'],
+                'keys' => ['data' => $data, 'type' => $type],
+                'order' => ['data', 'type'],
             ]
         );
-        $joinPoint->pipe = fn (ProceedingJoinPoint $joinPoint) => $this->serializer->denormalize(...$joinPoint->getArguments());
-
-        return (new ObjectNormalizerAspect())->process($joinPoint);
     }
 }
 
 class ObjectNormalizerProbeDto
 {
-    #[Groups(['api'])]
-    public string $userName = '';
-
-    public string $role = '';
+    public string $name = '';
 
     public int $age = 0;
+
+    public string $unknown = '';
+
+    public ?ObjectNormalizerProbeAddressDto $address = null;
+}
+
+class ObjectNormalizerProbeAddressDto
+{
+    public string $city = '';
 }

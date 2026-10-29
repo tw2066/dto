@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Hyperf\DTO\Aspect;
 
 use Hyperf\Di\Aop\ProceedingJoinPoint;
+use Hyperf\DTO\Mapper;
+
+use function Hyperf\Support\make;
 
 class ObjectNormalizerAspect
 {
@@ -17,6 +20,8 @@ class ObjectNormalizerAspect
      */
     public function process(ProceedingJoinPoint $proceedingJoinPoint)
     {
-        return $proceedingJoinPoint->process();
+        $data = $proceedingJoinPoint->arguments['keys']['data'];
+        $type = $proceedingJoinPoint->arguments['keys']['type'];
+        return Mapper::map($data, make($type));
     }
 }

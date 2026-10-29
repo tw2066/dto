@@ -355,7 +355,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
 
     // ---------------- RPC 路径（$value !== null） ----------------
 
-    public function testRpcValidParameterValidatesThenMapsDto(): void
+    public function testRpcValidParameterValidatesThenDenormalizes(): void
     {
         $manager = $this->makeManager();
         $manager->setMethodParameters(AspectRpcValidController::class, 'handle');
@@ -367,17 +367,21 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         $container = m::mock(ContainerInterface::class);
         $container->shouldReceive('get')->with(DtoValidation::class)->andReturn($dtoValidation);
 
+        $dto = new AspectInjectDto();
+        $normalizer = m::mock(NormalizerInterface::class);
+        $normalizer->shouldReceive('denormalize')->once()->with($value, AspectInjectDto::class)->andReturn($dto);
+        $coreMiddleware = m::mock(CoreMiddleware::class);
+        $coreMiddleware->shouldReceive('getNormalizer')->andReturn($normalizer);
+
         $aspect = new CoreMiddlewareAspect($container, $manager);
         $injections = $aspect->process($this->makePjp(
-            null,
+            $coreMiddleware,
             [$this->makeDefinition(AspectInjectDto::class, 'req')],
             AspectRpcValidController::class . '::handle',
             [0 => $value]
         ));
 
-        $this->assertInstanceOf(AspectInjectDto::class, $injections[0]);
-        $this->assertSame('rpc', $injections[0]->name);
-        $this->assertSame(1, $injections[0]->age);
+        $this->assertSame($dto, $injections[0]);
     }
 
     public function testRpcNonValidParameterOnlyDenormalizes(): void
@@ -419,16 +423,21 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         $container = m::mock(ContainerInterface::class);
         $container->shouldReceive('get')->with(DtoValidation::class)->andReturn($dtoValidation);
 
+        $dto = new AspectInjectDto();
+        $normalizer = m::mock(NormalizerInterface::class);
+        $normalizer->shouldReceive('denormalize')->once()->with($value, AspectInjectDto::class)->andReturn($dto);
+        $coreMiddleware = m::mock(CoreMiddleware::class);
+        $coreMiddleware->shouldReceive('getNormalizer')->andReturn($normalizer);
+
         $aspect = new CoreMiddlewareAspect($container, $manager);
         $injections = $aspect->process($this->makePjp(
-            null,
+            $coreMiddleware,
             [$this->makeDefinition(AspectInjectDto::class, 'req')],
             AspectRpcValidController::class . '::handle',
             ['req' => $value]
         ));
 
-        $this->assertInstanceOf(AspectInjectDto::class, $injections[0]);
-        $this->assertSame('rpc', $injections[0]->name);
+        $this->assertSame($dto, $injections[0]);
     }
 
     public function testHttpAliasIsValidatedAndMappedFromPrimaryData(): void
@@ -483,7 +492,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         $this->assertSame('second', $injections[0][1]->userName);
     }
 
-    public function testRpcAliasValidationAndMappingUsePrimaryData(): void
+    public function testRpcAliasValidationThenDenormalize(): void
     {
         $manager = $this->makeManager();
         $manager->setMethodParameters(AspectRpcAliasController::class, 'handle');
@@ -491,19 +500,24 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         $dtoValidation = m::mock(DtoValidation::class);
         $this->expectValidation($dtoValidation, AspectAliasDto::class, $value);
 
+        $dto = new AspectAliasDto();
+        $normalizer = m::mock(NormalizerInterface::class);
+        $normalizer->shouldReceive('denormalize')->once()->with($value, AspectAliasDto::class)->andReturn($dto);
+        $coreMiddleware = m::mock(CoreMiddleware::class);
+        $coreMiddleware->shouldReceive('getNormalizer')->andReturn($normalizer);
+
         $container = m::mock(ContainerInterface::class);
         $container->shouldReceive('get')->with(DtoValidation::class)->andReturn($dtoValidation);
         $aspect = new CoreMiddlewareAspect($container, $manager);
 
         $injections = $aspect->process($this->makePjp(
-            null,
+            $coreMiddleware,
             [$this->makeDefinition(AspectAliasDto::class, 'req')],
             AspectRpcAliasController::class . '::handle',
             [0 => $value]
         ));
 
-        $this->assertInstanceOf(AspectAliasDto::class, $injections[0]);
-        $this->assertSame('rpc', $injections[0]->userName);
+        $this->assertSame($dto, $injections[0]);
     }
 
     public function testRpcPlainValueObjectKeepsOriginalDenormalizeFlow(): void
@@ -529,24 +543,30 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         $this->assertSame($dto, $injections[0]);
     }
 
-    public function testRpcNonValidAliasDtoStillResolvesExternalNames(): void
+    public function testRpcAliasDtoUsesDenormalize(): void
     {
         $manager = $this->makeManager();
         $manager->setMethodParameters(AspectRpcNonValidAliasController::class, 'handle');
 
+        $value = ['user_name' => 'rpc'];
+        $dto = new AspectAliasDto();
+        $normalizer = m::mock(NormalizerInterface::class);
+        $normalizer->shouldReceive('denormalize')->once()->with($value, AspectAliasDto::class)->andReturn($dto);
+        $coreMiddleware = m::mock(CoreMiddleware::class);
+        $coreMiddleware->shouldReceive('getNormalizer')->andReturn($normalizer);
+
         $aspect = new CoreMiddlewareAspect(m::mock(ContainerInterface::class), $manager);
         $injections = $aspect->process($this->makePjp(
-            null,
+            $coreMiddleware,
             [$this->makeDefinition(AspectAliasDto::class, 'req')],
             AspectRpcNonValidAliasController::class . '::handle',
-            [0 => ['user_name' => 'rpc']]
+            [0 => $value]
         ));
 
-        $this->assertInstanceOf(AspectAliasDto::class, $injections[0]);
-        $this->assertSame('rpc', $injections[0]->userName);
+        $this->assertSame($dto, $injections[0]);
     }
 
-    public function testRpcNestedDtoAndEnumUseDtoMapping(): void
+    public function testRpcNestedDtoValidatesThenDenormalizes(): void
     {
         $manager = $this->makeManager();
         $manager->setMethodParameters(AspectRpcNestedController::class, 'handle');
@@ -555,7 +575,12 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         $dtoValidation = m::mock(DtoValidation::class);
         $this->expectValidation($dtoValidation, AspectRpcOrderDto::class, $value);
 
-        $normalizer = (new SerializerFactory(Serializer::class))();
+        $dto = new AspectRpcOrderDto();
+        $dto->address = new AspectRpcAddressDto();
+        $dto->address->city = 'Shanghai';
+        $dto->status = AspectRpcStatus::ACTIVE;
+        $normalizer = m::mock(NormalizerInterface::class);
+        $normalizer->shouldReceive('denormalize')->once()->with($value, AspectRpcOrderDto::class)->andReturn($dto);
         $coreMiddleware = m::mock(CoreMiddleware::class);
         $coreMiddleware->shouldReceive('getNormalizer')->andReturn($normalizer);
         $container = m::mock(ContainerInterface::class);
@@ -569,10 +594,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
             [0 => $value]
         ));
 
-        $this->assertInstanceOf(AspectRpcOrderDto::class, $injections[0]);
-        $this->assertInstanceOf(AspectRpcAddressDto::class, $injections[0]->address);
-        $this->assertSame('Shanghai', $injections[0]->address->city);
-        $this->assertSame(AspectRpcStatus::ACTIVE, $injections[0]->status);
+        $this->assertSame($dto, $injections[0]);
     }
 
     public function testValidScalarArrayParamReturnsRawItems(): void
