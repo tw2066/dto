@@ -24,8 +24,6 @@ use function Hyperf\Support\make;
 
 class DtoProxyClass
 {
-    private const PROXY_MARKER = 'dto-proxy-version: 4.0';
-
     protected ?array $classJSONFieldArr = null;
 
     protected ScanHandlerInterface $handler;
@@ -70,9 +68,6 @@ class DtoProxyClass
             $classLoader = Composer::getLoader();
             $classMap = [];
             foreach ($finder->getIterator() as $value) {
-                if (! $this->isCurrentProxyFile($value->getPathname())) {
-                    continue;
-                }
                 $classname = str_replace('_', '\\', $value->getBasename('.dto.proxy.php'));
                 $classMap[$classname] = $value->getPathname();
             }
@@ -80,8 +75,8 @@ class DtoProxyClass
             $classLoader->register(true);
             return;
         }
-        // 代理文件齐全且开启扫描缓存时跳过(视为构建期产物); 否则走生成逻辑(内部按版本与源文件 mtime 增量跳过)
-        if (! $this->dtoConfig->isScanCacheable() || $this->hasInvalidProxyFile()) {
+        // 代理文件齐全且开启扫描缓存时跳过(视为构建期产物); 否则走生成逻辑(内部按源文件 mtime 增量跳过)
+        if (! $this->dtoConfig->isScanCacheable() || $this->hasMissingProxyFile()) {
             // $this->removeProxies($proxyDir);
             $this->genProxyFile();
         }
@@ -90,15 +85,15 @@ class DtoProxyClass
     }
 
     /**
-     * 是否存在缺失或旧版代理文件: 旧版本不能被扫描缓存直接复用.
+     * 是否存在尚未生成的代理文件。
      */
-    protected function hasInvalidProxyFile(): bool
+    protected function hasMissingProxyFile(): bool
     {
         foreach ($this->getScanClass() as $class) {
             $rc = ReflectionManager::reflectClass($class);
             $files = new SplFileInfo($rc->getFileName());
             $proxyFile = $this->getProxyClassFilePath($class, $files->getRealPath());
-            if (! $this->isCurrentProxyFile($proxyFile)) {
+            if (! is_file($proxyFile)) {
                 return true;
             }
         }
@@ -115,10 +110,7 @@ class DtoProxyClass
             $rc = ReflectionManager::reflectClass($class);
             $files = new SplFileInfo($rc->getFileName());
             $proxyClassFilePath = $this->getProxyClassFilePath($class, $files->getRealPath());
-            if (file_exists($proxyClassFilePath)
-                && filemtime($proxyClassFilePath) >= $files->getMTime()
-                && $this->isCurrentProxyFile($proxyClassFilePath)
-            ) {
+            if (file_exists($proxyClassFilePath) && filemtime($proxyClassFilePath) >= $files->getMTime()) {
                 continue;
             }
             $arr = [];
@@ -162,7 +154,6 @@ class DtoProxyClass
                 $isCreateJsonSerialize = false;
             }
             $content = $this->phpParser($class, $files->getRealPath(), $arr, $isCreateJsonSerialize);
-            $content = substr_replace($content, "<?php\n// " . self::PROXY_MARKER, 0, 5);
             file_put_contents($proxyClassFilePath, $content);
         }
     }
@@ -200,15 +191,6 @@ class DtoProxyClass
         $ast = $traverser->traverse($ast);
         $prettyPrinter = new PrettyPrinter\Standard(['shortArraySyntax' => true]);
         return $prettyPrinter->prettyPrintFile($ast);
-    }
-
-    private function isCurrentProxyFile(string $filename): bool
-    {
-        if (! is_file($filename)) {
-            return false;
-        }
-        $content = file_get_contents($filename, false, null, 0, 256);
-        return is_string($content) && str_contains($content, '// ' . self::PROXY_MARKER);
     }
 
     private function removeProxies($dir): void

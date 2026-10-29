@@ -34,7 +34,7 @@ CI（`.github/workflows/test.yml`）在 Hyperf 3.1 的 PHP 8.1/8.2/8.3/8.4 与 H
 
 ### 启动阶段
 
-1. **代理类生成**：`BootApplicationListener`（BootApplication 事件）→ `Ast/DtoProxyClass::generic()`：用 nikic/php-parser 为带 `#[Dto]` 或 `#[JSONField]` 注解的类生成 `runtime/container/proxy/*.dto.proxy.php` —— 注入 `jsonSerialize()`（响应字段名转换）和类型默认值处理，不再生成输入别名 setter。代理产物带有 4.0 版本标识，旧版本不进入 scanned classmap；已扫描则仅注册当前版本 classmap 后返回，生成完毕后 `exit()` 是正常流程（Hyperf 扫描进程模式）。
+1. **代理类生成**：`BootApplicationListener`（BootApplication 事件）→ `Ast/DtoProxyClass::generic()`：用 nikic/php-parser 为带 `#[Dto]` 或 `#[JSONField]` 注解的类生成 `runtime/container/proxy/*.dto.proxy.php` —— 注入 `jsonSerialize()`（响应字段名转换）和类型默认值处理，不再生成输入别名 setter。已扫描则注册现有代理 classmap 后返回；未扫描时按代理是否存在及源文件 mtime 增量生成，生成完毕后 `exit()` 是正常流程（Hyperf 扫描进程模式）。
 2. **路由扫描**：`BeforeServerListener`（BeforeServerStart / MainCoroutineServerStart 事件）遍历三种路由（HTTP `DispatcherFactory`、JSON-RPC TCP、JSON-RPC HTTP），对每个控制器方法调用 `Scan\Scan::scan()`，填充：
    - `MethodParametersManager` — 方法参数的 `#[RequestBody]/#[RequestQuery]/#[RequestFormData]/#[RequestHeader]/#[Valid]` 元数据；互斥约束在此校验（同一参数只能标一个来源注解、同一方法 RequestBody 与 RequestFormData 不共存、RequestHeader 唯一），违反即在启动期抛 `DtoException`
    - `PropertyManager` — 递归解析 DTO 属性类型（简单类型 / 嵌套类 / `@var` 或 `#[ArrayType]` 数组元素类型 / 枚举 / JSONField 别名），最大嵌套深度 100（`MAX_SCAN_DEPTH`）

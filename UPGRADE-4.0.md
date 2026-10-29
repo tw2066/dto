@@ -47,7 +47,7 @@ public string $userName;
 
 ### 5. 必须重建代理
 
-升级到 4.0 后，清理并重新生成 `runtime/container/proxy/` 中的 DTO 代理。当前代理带有 4.0 生成器版本标识；旧版本不会被 scanned classmap 接受，也不能仅依赖 `scan_cacheable=true` 继续复用。
+升级到 4.0 后，建议清理并重新生成 `runtime/container/proxy/` 中的 DTO 代理。代理缓存只检查文件是否存在及源文件 mtime，不再检查生成器版本标记，因此旧代理不会仅因版本不同而自动失效。
 
 ## 保留的行为
 

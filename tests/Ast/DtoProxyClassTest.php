@@ -37,7 +37,6 @@ class DtoProxyClassTest extends AbstractTestCase
         $proxyFile = $this->proxyFilePath($proxyDir, ProxyAliasDto::class);
         $this->assertFileExists($proxyFile);
         $content = file_get_contents($proxyFile);
-        $this->assertStringContainsString('// dto-proxy-version: 4.0', $content);
         $this->assertStringNotContainsString('_set_dto_alias_', $content);
         // jsonSerialize 生成: key 为别名，有 getter 走 getter
         $this->assertStringContainsString('function jsonSerialize()', $content);
@@ -68,7 +67,7 @@ class DtoProxyClassTest extends AbstractTestCase
         $proxyFile = $this->proxyFilePath($proxyDir, ProxyAliasDto::class);
         $this->assertFileExists($proxyFile);
 
-        // 当前版本且 proxy mtime >= 源文件 mtime 时跳过再生成
+        // proxy mtime >= 源文件 mtime 时跳过再生成
         $content = file_get_contents($proxyFile) . "\n// MANUAL MARKER";
         file_put_contents($proxyFile, $content);
         $proxyClass->exposeGenProxyFile();
@@ -91,7 +90,7 @@ class DtoProxyClassTest extends AbstractTestCase
         $this->assertStringNotContainsString('_set_dto_alias_', $content);
     }
 
-    public function testFreshLegacyProxyIsRegenerated(): void
+    public function testFreshProxyIsReusedWithoutVersionCheck(): void
     {
         (new JSONField('user_name'))->collectProperty(ProxyAliasDto::class, 'name');
         $proxyDir = $this->createTempDir();
@@ -99,13 +98,12 @@ class DtoProxyClassTest extends AbstractTestCase
         $proxyClass->exposeGenProxyFile();
         $proxyFile = $this->proxyFilePath($proxyDir, ProxyAliasDto::class);
 
-        file_put_contents($proxyFile, '<?php // legacy 3.x proxy with _set_dto_alias_');
+        $content = '<?php // existing proxy content';
+        file_put_contents($proxyFile, $content);
         touch($proxyFile, time() + 10);
         $proxyClass->exposeGenProxyFile();
 
-        $content = file_get_contents($proxyFile);
-        $this->assertStringContainsString('// dto-proxy-version: 4.0', $content);
-        $this->assertStringNotContainsString('_set_dto_alias_', $content);
+        $this->assertSame($content, file_get_contents($proxyFile));
     }
 
     public function testDtoAnnotatedAndJsonFieldClassesBothGenerated(): void

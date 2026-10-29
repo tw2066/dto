@@ -673,8 +673,8 @@ class ValidationExceptionHandler extends ExceptionHandler
 ### 4. 生产环境部署
 
 - 设置 `scan_cacheable = true`，在构建/发布阶段执行一次扫描生成代理文件（`runtime/container/proxy/*.dto.proxy.php`），运行时直接加载，减少启动开销
-- 代理文件按源文件修改时间和生成器版本自动过期重建（`scan_cacheable = false` 时）
-- 4.0 的代理只负责响应序列化，不再生成输入别名 setter；升级后必须清理并重建旧代理目录，避免 scanned classmap 混用不同版本产物
+- 代理文件按源文件修改时间自动过期重建（`scan_cacheable = false` 时）
+- 4.0 的代理只负责响应序列化，不再生成输入别名 setter；代理缓存不检查生成器版本，升级后建议手动清理并重建旧代理目录
 
 ## 📚 常见问题
 
