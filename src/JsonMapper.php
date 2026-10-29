@@ -8,6 +8,7 @@ use Hyperf\Di\ReflectionManager;
 use Hyperf\DTO\Annotation\ArrayType;
 use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\Mapping\MappingContext;
+use Hyperf\DTO\Scan\Property;
 use Hyperf\DTO\Scan\PropertyEnum;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Type\PhpType;
@@ -101,6 +102,29 @@ class JsonMapper extends \JsonMapper
             new MappingContext(),
             0
         );
+    }
+
+    /**
+     * @internal 验证阶段按 classMap 解析具体类；不调用 classFactories（工厂有副作用，且映射时会再次调用）。
+     *
+     * @return ?string 应校验规则的类名；无 classMap 命中时类返回自身，接口返回 null（无具体规则可校验）
+     */
+    public function resolveMappedClass(?string $type, mixed $value): ?string
+    {
+        if ($type === null || $type === '') {
+            return null;
+        }
+        $type = ltrim($type, '\\');
+        if ($this->classMap !== []) {
+            // getMappedType('\Foo') 同时匹配 classMap['\Foo'] 与 classMap['Foo']。
+            $mapped = $this->getMappedType('\\' . $type, $value);
+            if (is_string($mapped) && $mapped !== '' && $mapped !== '\\' . $type) {
+                $mapped = ltrim($mapped, '\\');
+                return class_exists($mapped) ? $mapped : null;
+            }
+        }
+        // class_exists 对接口返回 false，接口自然落到 null。
+        return class_exists($type) ? $type : null;
     }
 
     /**
@@ -393,6 +417,7 @@ class JsonMapper extends \JsonMapper
             // user_name + setUserName：同一属性的两种命名形式，不能登记为 setter-only 字段。
             $normalizedDeclaredFields[strtolower(str_replace('_', '', $fieldName))] = true;
         }
+        $setterOnlyFields = [];
         foreach ($methodsBySuffix as $methodsForField) {
             // JsonMapper 也支持没有同名属性的 setter-only 字段，但不能与声明属性重复登记。
             foreach ($methodsForField as $method) {
@@ -405,6 +430,7 @@ class JsonMapper extends \JsonMapper
                 [$hasProperty, $accessor, $type] = $this->inspectProperty($rc, $fieldName);
                 if ($hasProperty && $accessor instanceof ReflectionMethod) {
                     $properties[$fieldName] = $propertyManager->createPropertyFromType($type, $rc->getNamespaceName());
+                    $setterOnlyFields[$fieldName] = true;
                     break;
                 }
             }
@@ -416,10 +442,14 @@ class JsonMapper extends \JsonMapper
             // 属性数组元数据优先；宽泛 setter 的嵌套类型回退到属性类声明。
             if ($property->arrClassName !== null) {
                 $type = '\\' . $property->arrClassName . str_repeat('[]', max(1, $property->arrayDepth));
+            } elseif ($property->arrInterfaceName !== null) {
+                // 接口数组元素同样交给 createInstance 按 classMap/classFactories 解析。
+                $type = '\\' . $property->arrInterfaceName . str_repeat('[]', max(1, $property->arrayDepth));
             } elseif ($property->arrSimpleType !== null) {
                 $type = $property->arrSimpleType . str_repeat('[]', max(1, $property->arrayDepth));
-            } elseif (in_array($type, ['mixed', 'object', 'iterable'], true) && $property->className !== null) {
-                $type = '\\' . $property->className;
+            } elseif (in_array($type, ['mixed', 'object', 'iterable'], true)
+                && ($property->className !== null || $property->interfaceName !== null)) {
+                $type = '\\' . ($property->className ?? $property->interfaceName);
             }
             $fields[$index] = [
                 'name' => $fieldName,
@@ -439,13 +469,7 @@ class JsonMapper extends \JsonMapper
                 if ($alias === '') {
                     throw new DtoException("JSONField alias cannot be empty for {$className}::{$fieldName}");
                 }
-                $safeAlias = $this->getSafeName($alias);
-                if ($safeAlias !== $alias) {
-                    throw new DtoException(
-                        "JSONField alias [{$alias}] for class {$className}::{$fieldName} is ambiguous with safe key "
-                        . "[{$safeAlias}]; use an alias without hyphens"
-                    );
-                }
+                // 只按 primaryKey 精确读取，连字符等任意别名不再有 safe key 歧义。
                 $fields[$index]['primaryKey'] = $alias;
                 $this->registerDirectKey($keyMap, $fields, $alias, $index, $className);
             }
@@ -455,7 +479,32 @@ class JsonMapper extends \JsonMapper
             'fields' => $fields,
             'namespace' => $rc->getNamespaceName(),
             'className' => $className,
+            'setterOnlyFields' => $setterOnlyFields,
         ];
+    }
+
+    /**
+     * @internal 返回仅有 setter、无同名声明属性的嵌套字段（dataKey => Property），供验证补充递归。
+     *
+     * @return array<string, Property>
+     */
+    public function getSetterOnlyNestedProperties(string $className): array
+    {
+        $plan = $this->getMappingPlan($className);
+        if ($plan['setterOnlyFields'] === []) {
+            return [];
+        }
+        $result = [];
+        foreach ($plan['fields'] as $field) {
+            if (! isset($plan['setterOnlyFields'][$field['name']])) {
+                continue;
+            }
+            $property = $field['property'];
+            if ($property->isClassArray() || $property->className !== null || $property->interfaceName !== null) {
+                $result[$field['primaryKey']] = $property;
+            }
+        }
+        return $result;
     }
 
     /**

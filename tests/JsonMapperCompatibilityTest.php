@@ -30,6 +30,8 @@ class JsonMapperCompatibilityTest extends TestCase
 
     public function testOnlyPrimaryHeaderKeyIsAccepted(): void
     {
+        // 无别名时属性名即 primaryKey：连字符/大小写变体被忽略是 4.0 精确匹配的预期行为。
+        // 需要映射真实 Header 键（x-request-id）时，用 #[JSONField('x-request-id')] 显式声明别名。
         $mapper = $this->mapper();
         $dto = $mapper->simpleMap(['xRequestId' => 'accepted'], new CompatibilityHeaderDto());
         $this->assertSame('accepted', $dto->xRequestId);

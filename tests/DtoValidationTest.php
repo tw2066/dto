@@ -178,6 +178,25 @@ class DtoValidationTest extends AbstractTestCase
         ]);
     }
 
+    public function testHyphenatedAliasValidationUsesWireKey(): void
+    {
+        // 连字符别名合法化后，验证规则键使用线上键名（x-token），大小写变体不参与
+        (new JSONField('x-token'))->collectProperty(ValidationHyphenAliasDto::class, 'xToken');
+        (new Max(5))->collectProperty(ValidationHyphenAliasDto::class, 'xToken');
+        (new ValidationManager())->generateValidation(ValidationHyphenAliasDto::class, 'xToken');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationHyphenAliasDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        $dtoValidation->validate(ValidationHyphenAliasDto::class, ['x-token' => 'abc']);
+        // 别名即 primaryKey：xToken 变体即使超长也不参与验证
+        $dtoValidation->validate(ValidationHyphenAliasDto::class, ['xToken' => 'TOO-LONG-VALUE']);
+        $this->assertTrue(true);
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationHyphenAliasDto::class, ['x-token' => 'TOO-LONG-VALUE']);
+    }
+
     public function testNestedObjectValidatedRecursively(): void
     {
         $this->prepareRules(ValidationChildDto::class, 'x');
@@ -429,6 +448,40 @@ class DtoValidationTest extends AbstractTestCase
         ]);
     }
 
+    public function testSetterOnlyNestedDtoIsValidatedAndMapped(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationSetterOnlyParentDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        // child 只有 setter、无同名声明属性，映射计划补充发现后同样递归验证
+        $input = ['child' => ['x' => 'ok']];
+        $dtoValidation->validate(ValidationSetterOnlyParentDto::class, $input);
+        $dto = Mapper::map($input, new ValidationSetterOnlyParentDto());
+        $this->assertInstanceOf(ValidationChildDto::class, $dto->getChild());
+        $this->assertSame('ok', $dto->getChild()->x);
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationSetterOnlyParentDto::class, ['child' => ['x' => '']]);
+    }
+
+    public function testSetterOnlyVariadicArrayIsValidatedAndMapped(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationSetterOnlyItemsDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        $input = ['items' => [['x' => 'ok'], ['x' => 'ok2']]];
+        $dtoValidation->validate(ValidationSetterOnlyItemsDto::class, $input);
+        $dto = Mapper::map($input, new ValidationSetterOnlyItemsDto());
+        $this->assertInstanceOf(ValidationChildDto::class, $dto->getItems()[0]);
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationSetterOnlyItemsDto::class, ['items' => [['x' => '']]]);
+    }
+
     public function testNonArrayValueForClassArrayIsLeftToParentRules(): void
     {
         $this->prepareRules(ValidationChildDto::class, 'x');
@@ -638,6 +691,36 @@ class ValidationChildDto
     public string $x = '';
 }
 
+class ValidationSetterOnlyParentDto
+{
+    private array $bag = [];
+
+    public function setChild(ValidationChildDto $child): void
+    {
+        $this->bag['child'] = $child;
+    }
+
+    public function getChild(): ?ValidationChildDto
+    {
+        return $this->bag['child'] ?? null;
+    }
+}
+
+class ValidationSetterOnlyItemsDto
+{
+    private array $bag = [];
+
+    public function setItems(ValidationChildDto ...$items): void
+    {
+        $this->bag['items'] = $items;
+    }
+
+    public function getItems(): array
+    {
+        return $this->bag['items'] ?? [];
+    }
+}
+
 class ValidationParentDto
 {
     public string $name = '';
@@ -759,6 +842,12 @@ class ValidationPascalPropertyDto
 class ValidationHeaderPropertyDto
 {
     public string $xRequestId = '';
+}
+
+class ValidationHyphenAliasDto
+{
+    #[JSONField('x-token')]
+    public string $xToken = '';
 }
 
 class ValidationArrayParentDto

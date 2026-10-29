@@ -131,6 +131,9 @@ class PropertyManager
             } elseif (! PropertyEnum::isBuiltinType($arrType) && class_exists($arrType)) {
                 $property->arrClassName = trim($arrType, '\\');
                 $this->scanClassProperties($arrType, $depth + 1);
+            } elseif (! PropertyEnum::isBuiltinType($arrType) && interface_exists($arrType)) {
+                // 接口不可实例化，只记录名称，验证阶段按 classMap 解析具体类，不递归扫描。
+                $property->arrInterfaceName = trim($arrType, '\\');
             }
             return $property;
         }
@@ -142,6 +145,9 @@ class PropertyManager
             $property->isSimpleType = false;
             $property->className = trim($type, '\\');
             $this->scanClassProperties($type, $depth + 1);
+        } elseif (! PropertyEnum::isBuiltinType($type) && interface_exists($type)) {
+            $property->isSimpleType = false;
+            $property->interfaceName = trim($type, '\\');
         }
         return $property;
     }

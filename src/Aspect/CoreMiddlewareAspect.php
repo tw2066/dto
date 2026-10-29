@@ -139,9 +139,10 @@ class CoreMiddlewareAspect
         } elseif ($methodParameter->isRequestFormData()) {
             $param = $request->getParsedBody();
         } elseif ($methodParameter->isRequestHeader()) {
-            $param = array_map(function ($value) {
+            // Header 名大小写不敏感（RFC 7230），统一小写后与 DTO 别名精确匹配。
+            $param = array_change_key_case(array_map(function ($value) {
                 return $value[0];
-            }, $request->getHeaders());
+            }, $request->getHeaders()), CASE_LOWER);
         }
         if ($methodParameter->isValid()) {
             $this->container->get(DtoValidation::class)->validate($className, $param);

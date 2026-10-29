@@ -154,6 +154,35 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         $this->assertSame('john', $injections[0]->name);
     }
 
+    public function testRequestHeaderMapsStandardHyphenatedHeaders(): void
+    {
+        $manager = $this->makeManager();
+        $manager->setMethodParameters(AspectStandardHeaderController::class, 'handle');
+
+        // Swoole 会把 Header 名规范化为小写；其他 PSR-7 来源的大小写由 Aspect 统一小写。
+        // 多值头仍截断为首值。
+        $request = m::mock(ServerRequestInterface::class);
+        $request->shouldReceive('getHeaders')->andReturn([
+            'X-Token' => ['tok-1'],
+            'X-Request-Id' => ['req-1', 'req-2'],
+            'Authorization' => ['Bearer abc'],
+        ]);
+        Context::set(ServerRequestInterface::class, $request);
+
+        $dtoValidation = m::mock(DtoValidation::class);
+        $aspect = new CoreMiddlewareAspect($this->makeContainer($dtoValidation, AspectStandardHeaderDto::class), $manager);
+        $injections = $aspect->process($this->makePjp(
+            null,
+            [$this->makeDefinition(AspectStandardHeaderDto::class, 'req')],
+            AspectStandardHeaderController::class . '::handle',
+            []
+        ));
+
+        $this->assertSame('tok-1', $injections[0]->xToken);
+        $this->assertSame('req-1', $injections[0]->xRequestId);
+        $this->assertSame('Bearer abc', $injections[0]->authorization);
+    }
+
     public function testOnlyValidAnnotationValidatesEmptyArray(): void
     {
         // 仅 #[Valid] 无来源注解: $param = []，仍执行验证
@@ -620,6 +649,28 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         $this->assertSame([1, 2], $injections[0]);
     }
 
+    public function testInterfaceArrayParamWithoutValidReturnsRawBody(): void
+    {
+        $manager = $this->makeManager();
+        $manager->setMethodParameters(AspectInterfaceArrayController::class, 'handle');
+        $manager->scanClassMethodParam(AspectInterfaceArrayController::class, 'handle');
+
+        $request = m::mock(ServerRequestInterface::class);
+        $request->shouldReceive('getParsedBody')->andReturn([['name' => 'a']]);
+        Context::set(ServerRequestInterface::class, $request);
+        $dtoValidation = m::mock(DtoValidation::class);
+        $aspect = new CoreMiddlewareAspect($this->makeContainer($dtoValidation), $manager);
+
+        $injections = $aspect->process($this->makePjp(
+            null,
+            [$this->makeDefinition('array', 'items')],
+            AspectInterfaceArrayController::class . '::handle',
+            []
+        ));
+
+        $this->assertSame([['name' => 'a']], $injections[0]);
+    }
+
     public function testValidMultiDimensionalArrayParamMapsLeafDtos(): void
     {
         $manager = $this->makeManager();
@@ -748,6 +799,23 @@ class AspectHeaderController
     public function handle(#[RequestHeader] #[Valid] AspectInjectDto $req) {}
 }
 
+class AspectStandardHeaderDto
+{
+    #[JSONField('x-token')]
+    public string $xToken = '';
+
+    #[JSONField('x-request-id')]
+    public string $xRequestId = '';
+
+    #[JSONField('authorization')]
+    public string $authorization = '';
+}
+
+class AspectStandardHeaderController
+{
+    public function handle(#[RequestHeader] AspectStandardHeaderDto $req) {}
+}
+
 class AspectOnlyValidController
 {
     public function handle(#[Valid] AspectInjectDto $req) {}
@@ -859,6 +927,16 @@ class AspectValidScalarArrayController
      * @param int[] $items
      */
     public function handle(#[RequestBody] #[Valid] array $items) {}
+}
+
+interface AspectArrayInterface {}
+
+class AspectInterfaceArrayController
+{
+    /**
+     * @param AspectArrayInterface[] $items
+     */
+    public function handle(#[RequestBody] array $items) {}
 }
 
 class AspectValidNestedArrayController

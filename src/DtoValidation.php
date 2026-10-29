@@ -8,6 +8,7 @@ use Hyperf\Context\ApplicationContext;
 use Hyperf\Contract\TranslatorInterface;
 use Hyperf\Contract\ValidatorInterface;
 use Hyperf\DTO\Exception\DtoException;
+use Hyperf\DTO\Scan\Property;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Scan\ValidationManager;
 use Hyperf\Validation\Contract\ValidatorFactoryInterface;
@@ -29,6 +30,11 @@ class DtoValidation
     private ?TranslatorInterface $translator = null;
 
     private array $validatorAttributes = [];
+
+    /** @var array<string, true> 已生成过规则的类，避免重复扫描注解 */
+    private array $ensuredRules = [];
+
+    private ?JsonMapper $mapper = null;
 
     public function __construct(protected PropertyManager $propertyManager, protected ValidationManager $validationManager)
     {
@@ -79,6 +85,8 @@ class DtoValidation
             throw new DtoException("Class: {$className} - data must be array");
         }
 
+        $this->ensureRules($className);
+
         $validArr = $this->validationManager->getData($className);
         if (! empty($validArr)) {
             $validator = $this->validationFactory->make(
@@ -95,16 +103,57 @@ class DtoValidation
         // 类自身无规则时也要递归，嵌套类的规则独立生效。
         $notSimplePropertyArr = $this->propertyManager->getPropertyAndNotSimpleType($className);
         foreach ($notSimplePropertyArr as $fieldName => $property) {
-            $dataKey = $property->alias ?? $fieldName;
-            $value = $data[$dataKey] ?? null;
-            if (array_key_exists($dataKey, $data) && (is_array($value) || ! empty($value))) {
-                if ($property->isClassArray()) {
-                    $this->validateClassArray($property->arrClassName, $value, max(1, $property->arrayDepth));
-                } elseif ($property->className != null) {
-                    $this->validateResolved($property->className, $value);
-                }
+            $this->validateNestedProperty($property, $property->alias ?? $fieldName, $data);
+        }
+        // setter-only 字段没有声明属性、不在 notSimpleClass 中，由映射计划补充发现。
+        foreach ($this->mapper()->getSetterOnlyNestedProperties($className) as $dataKey => $property) {
+            $this->validateNestedProperty($property, $dataKey, $data);
+        }
+    }
+
+    private function validateNestedProperty(Property $property, string $dataKey, array $data): void
+    {
+        if (! array_key_exists($dataKey, $data)) {
+            return;
+        }
+        $value = $data[$dataKey];
+        if ($property->isClassArray()) {
+            $this->validateClassArray(
+                $property->arrClassName ?? $property->arrInterfaceName,
+                $value,
+                max(1, $property->arrayDepth)
+            );
+            return;
+        }
+        $nestedType = $property->className ?? $property->interfaceName;
+        if ($nestedType !== null && is_array($value)) {
+            $resolved = $this->mapper()->resolveMappedClass($nestedType, $value);
+            if ($resolved !== null) {
+                $this->validateResolved($resolved, $value);
             }
         }
+    }
+
+    /**
+     * 与运行时映射共用同一 JsonMapper 单例，保证验证按映射实际的 classMap 解析。
+     */
+    private function mapper(): JsonMapper
+    {
+        return $this->mapper ??= Mapper::getJsonMapper();
+    }
+
+    /**
+     * 为验证阶段才发现的 classMap 具体类补生成规则。
+     */
+    private function ensureRules(string $className): void
+    {
+        if (isset($this->ensuredRules[$className])) {
+            return;
+        }
+        foreach (array_keys($this->propertyManager->getPropertyByClass($className)) as $fieldName) {
+            $this->validationManager->generateValidation($className, $fieldName);
+        }
+        $this->ensuredRules[$className] = true;
     }
 
     private function validateClassArray(string $className, mixed $value, int $remainingDepth): void
@@ -120,8 +169,11 @@ class DtoValidation
             }
             if ($remainingDepth > 1) {
                 $this->validateClassArray($className, $item, $remainingDepth - 1);
-            } else {
-                $this->validateResolved($className, $item);
+                continue;
+            }
+            $resolved = $this->mapper()->resolveMappedClass($className, $item);
+            if ($resolved !== null) {
+                $this->validateResolved($resolved, $item);
             }
         }
     }

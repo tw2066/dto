@@ -62,15 +62,20 @@ class MappingPlanTest extends TestCase
         $this->assertSame('declared-value', $dto->getUserName());
     }
 
-    public function testAliasAndSafeAliasAmbiguityFails(): void
+    public function testHyphenatedAliasIsAcceptedAsExactPrimaryKey(): void
     {
-        $this->expectException(\Hyperf\DTO\Exception\DtoException::class);
-        $this->expectExceptionMessage(
-            'JSONField alias [user-Name] for class ' . PlanVariantCollisionDto::class
-            . '::other is ambiguous with safe key [UserName]; use an alias without hyphens'
-        );
+        // 4.0 只按 primaryKey 精确读取，连字符别名不再有 safe key 歧义
+        $dto = $this->mapper()->simpleMap([
+            'user-Name' => 'alias-value',
+            'user_name' => 'declared-value',
+        ], new PlanVariantCollisionDto());
+        $this->assertSame('alias-value', $dto->other);
+        $this->assertSame('declared-value', $dto->getUserName());
 
-        $this->mapper()->simpleMap([], new PlanVariantCollisionDto());
+        // 非 primaryKey 变体（字段名、大小写变体）仍被忽略
+        $dto = $this->mapper()->simpleMap(['other' => 'x', 'userName' => 'y'], new PlanVariantCollisionDto());
+        $this->assertSame('', $dto->other);
+        $this->assertSame('', $dto->getUserName());
     }
 
     public function testAliasCollisionWithAnotherPropertyFails(): void
