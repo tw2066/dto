@@ -586,7 +586,7 @@ ConvertCustom::setClosure(fn (string $name) => 'prefix_' . $name);
 
 ### RPC 支持
 
-在 JSON-RPC 服务中返回 PHP 对象，需要配置序列化支持。
+在 JSON-RPC 服务中，RPC 输入参数统一走 Symfony `NormalizerInterface` 的 `denormalize` 流程（含嵌套 DTO 和 BackedEnum），验证由 `DtoValidation` 按外部 primaryKey 直接读取原始数组完成。返回 PHP 对象时，需配置 `ObjectNormalizerAspect` 拦截 `AbstractObjectNormalizer::denormalize`，用 `Mapper::map()` 替代默认序列化行为，避免响应走 Symfony 的完整对象图遍历。
 
 #### 1. 安装依赖
 
@@ -618,7 +618,7 @@ return [
 ];
 ```
 
-RPC 输入中的 DTO 数组参数直接使用普通字段计划完成对象映射，嵌套 DTO 和 BackedEnum 不依赖 Symfony normalizer；非 DTO 参数仍按 `NormalizerInterface` 的 denormalize 流程注入。
+RPC 输入统一走 `NormalizerInterface::denormalize()`；`ObjectNormalizerAspect` 用于拦截 Symfony 的 `denormalize`，确保响应序列化使用 `Mapper::map()` 的 DTO 字段计划。
 
 ## 💡 最佳实践
 

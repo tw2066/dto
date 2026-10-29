@@ -7,7 +7,7 @@
 - DTO 专用入口为 `JsonMapper::simpleMap()`；`Mapper::map()` / `mapArray()` 作为组件门面，按 DTO 字段直接读取输入并映射，不创建整棵 canonical 输入副本。
 - 原 `JsonMapper::map()` 不再回退到上游通用映射，调用会抛出 `BadMethodCallException` 并提示使用 `simpleMap()`。
 - HTTP `#[Valid]` 请求直接按外部 primaryKey 验证原始输入，验证后由字段映射计划完成 DTO 映射。
-- RPC DTO 数组参数直接使用普通字段计划完成对象映射，嵌套 DTO 与 BackedEnum 不依赖 Symfony normalizer；验证直接读取原始数组，非 DTO 参数保持原 denormalize 流程。
+- RPC 输入统一走 Symfony `NormalizerInterface::denormalize`，含嵌套 DTO 与 BackedEnum；`ObjectNormalizerAspect` 拦截 Symfony 的 `denormalize` 用于响应序列化。验证直接读取原始数组，非 DTO 参数保持原 denormalize 流程。
 - `JSONField` 只保存外部别名与 PHP 属性的映射，继续支持输入别名和响应输出别名。
 - 代理只负责响应序列化，不再生成 `_set_dto_alias_*` 输入 setter。
 
@@ -17,7 +17,7 @@
 
 ### 1. 验证规则使用外部 primaryKey
 
-验证规则、messages、attributes 的默认键使用与请求一致的外部 primaryKey。`Same`、`RequiredIf` 等跨字段参数以及 `customKey` 也应引用外部 primaryKey 路径。验证输入仅接受数组，不再自动转换 object 或 `Traversable`；RPC DTO 数组输入也直接使用普通字段计划映射。
+验证规则、messages、attributes 的默认键使用与请求一致的外部 primaryKey。`Same`、`RequiredIf` 等跨字段参数以及 `customKey` 也应引用外部 primaryKey 路径。验证输入仅接受数组，不再自动转换 object 或 `Traversable`；RPC 输入统一走 Symfony denormalize。
 
 ```php
 #[JSONField('user_name')]

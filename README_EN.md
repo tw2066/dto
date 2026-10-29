@@ -461,7 +461,7 @@ class RegisterRequest
 
 ### RPC Support
 
-To return PHP objects in JSON-RPC services, you need to configure serialization support.
+In JSON-RPC services, RPC input parameters uniformly use Symfony's `NormalizerInterface::denormalize` (including nested DTOs and BackedEnums); validation is performed by `DtoValidation` reading the original array via external primaryKey. When returning PHP objects, configure `ObjectNormalizerAspect` to intercept `AbstractObjectNormalizer::denormalize` and replace default serialization with `Mapper::map()`, avoiding Symfony's full object graph traversal for responses.
 
 #### 1. Install Dependencies
 
@@ -493,7 +493,7 @@ return [
 ];
 ```
 
-For RPC input, DTO array parameters are mapped directly through the regular field mapping plan; nested DTOs and backed enums do not depend on Symfony normalizers. Non-DTO parameters still follow the original `NormalizerInterface` denormalization flow.
+RPC input uniformly uses `NormalizerInterface::denormalize()`; `ObjectNormalizerAspect` intercepts Symfony's `denormalize` to ensure response serialization uses the DTO field mapping plan from `Mapper::map()`.
 
 ### Custom Type Conversion
 
