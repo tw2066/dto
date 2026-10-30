@@ -62,6 +62,7 @@ class PropertyManager
             foreach ($this->getClassProperties($rc) as $reflectionProperty) {
                 $fieldName = $reflectionProperty->getName();
                 [, , $type] = $this->dtoCommon->inspectPropertyMetadata($rc, $fieldName);
+                $accessorTypeMissing = $type === null;
                 if (in_array($type, ['mixed', 'object', 'iterable'], true)) {
                     // 宽泛 setter 不能遮蔽属性上的 ArrayType/@var/原生类声明。
                     $type = $this->dtoCommon->getTypeName($reflectionProperty);
@@ -69,7 +70,7 @@ class PropertyManager
                 $type ??= $this->dtoCommon->getTypeName($reflectionProperty);
                 $type = $this->dtoCommon->removeNullable($type);
 
-                if ($type === 'array') {
+                if ($type === 'array' || ($accessorTypeMissing && ! $reflectionProperty->hasType())) {
                     // setter 只声明 array 或没有 @param 时，属性级 #[ArrayType]/@var
                     // 仍是元素类型的唯一来源，不能因访问器是方法而跳过。
                     $annotations = $this->dtoCommon->parseAnnotationsNew(

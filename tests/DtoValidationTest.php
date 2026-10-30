@@ -57,6 +57,19 @@ class DtoValidationTest extends AbstractTestCase
         $dtoValidation->validate(ValidationChildDto::class, new \ArrayObject(['x' => 'filled']));
     }
 
+    public function testNullDataIsValidatedAsEmptyArray(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $dtoValidation = $this->makeDtoValidation();
+
+        try {
+            $dtoValidation->validate(ValidationChildDto::class, null);
+            $this->fail('Expected required rules to validate an empty body.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('x', $e->errors());
+        }
+    }
+
     public function testClassWithoutRulesStillValidatesNestedObjects(): void
     {
         // B1 已修复: 类自身无 rule 时不再早退，嵌套对象的验证独立生效
@@ -427,6 +440,44 @@ class DtoValidationTest extends AbstractTestCase
         ]);
     }
 
+    public function testUntypedPropertyArrayTypeWithSetterValidatesAndMapsChildren(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationUntypedArrayTypeDto::class);
+        $property = $propertyManager->getProperty(ValidationUntypedArrayTypeDto::class, 'items');
+        $this->assertSame(ValidationChildDto::class, $property->arrClassName);
+        $this->assertSame(1, $property->arrayDepth);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        $input = ['items' => [['x' => 'ok']]];
+        $dtoValidation->validate(ValidationUntypedArrayTypeDto::class, $input);
+        $dto = Mapper::map($input, new ValidationUntypedArrayTypeDto());
+        $this->assertInstanceOf(ValidationChildDto::class, $dto->getItems()[0]);
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationUntypedArrayTypeDto::class, ['items' => [['x' => '']]]);
+    }
+
+    public function testNullableSetterClassArrayDocblockValidatesAndMapsChildren(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationNullableSetterArrayDto::class);
+        $property = $propertyManager->getProperty(ValidationNullableSetterArrayDto::class, 'items');
+        $this->assertSame(ValidationChildDto::class, $property->arrClassName);
+        $this->assertSame(1, $property->arrayDepth);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        $input = ['items' => [['x' => 'ok']]];
+        $dtoValidation->validate(ValidationNullableSetterArrayDto::class, $input);
+        $dto = Mapper::map($input, new ValidationNullableSetterArrayDto());
+        $this->assertInstanceOf(ValidationChildDto::class, $dto->getItems()[0]);
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationNullableSetterArrayDto::class, ['items' => [['x' => '']]]);
+    }
+
     public function testVariadicClassSetterUsesClassArrayValidationAndMapping(): void
     {
         (new JSONField('display_name'))->collectProperty(ValidationVariadicChildDto::class, 'name');
@@ -772,6 +823,38 @@ class ValidationSetterArrayTypeDto
     #[ArrayType(ValidationChildDto::class)]
     private array $items = [];
 
+    public function setItems(array $items): void
+    {
+        $this->items = $items;
+    }
+
+    public function getItems(): array
+    {
+        return $this->items;
+    }
+}
+
+class ValidationUntypedArrayTypeDto
+{
+    #[ArrayType(ValidationChildDto::class)]
+    private $items = [];
+
+    public function setItems(array $items): void
+    {
+        $this->items = $items;
+    }
+
+    public function getItems(): array
+    {
+        return $this->items;
+    }
+}
+
+class ValidationNullableSetterArrayDto
+{
+    private array $items = [];
+
+    /** @param ValidationChildDto[]|null $items */
     public function setItems(array $items): void
     {
         $this->items = $items;

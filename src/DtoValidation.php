@@ -56,7 +56,7 @@ class DtoValidation
         if ($this->validationFactory === null) {
             return;
         }
-        $this->validateResolved($className, $data);
+        $this->validateResolved($className, $data ?? []);
     }
 
     /**

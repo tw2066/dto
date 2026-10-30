@@ -88,6 +88,68 @@ class JsonMapperCompatibilityTest extends TestCase
         $this->assertSame('', $dto->xRequestId);
     }
 
+    public function testInvalidBackedEnumValuesUseLibraryException(): void
+    {
+        foreach ([['status' => 'bad'], ['statuses' => ['bad']]] as $input) {
+            try {
+                $this->mapper()->simpleMap($input, new CompatibilityEnumDto());
+                $this->fail('Expected JsonMapper_Exception was not thrown.');
+            } catch (\JsonMapper_Exception $e) {
+                $this->assertInstanceOf(\ValueError::class, $e->getPrevious());
+            }
+        }
+    }
+
+    public function testMapArrayClassMapAcceptsBothLeadingSlashKeyForms(): void
+    {
+        $cases = [
+            ['\\' . CompatibilityShape::class, CompatibilityShape::class],
+            [CompatibilityShape::class, '\\' . CompatibilityShape::class],
+        ];
+        foreach ($cases as [$registeredKey, $inputType]) {
+            $mapper = $this->mapper();
+            $mapper->classMap[$registeredKey] = CompatibilityCircle::class;
+
+            $result = $mapper->mapArray([['name' => 'ok']], [], $inputType);
+
+            $this->assertInstanceOf(CompatibilityCircle::class, $result[0]);
+            $this->assertSame('ok', $result[0]->name);
+        }
+    }
+
+    public function testMapArrayClassFactoriesAcceptBothLeadingSlashKeyForms(): void
+    {
+        $cases = [
+            ['\\' . CompatibilityShape::class, CompatibilityShape::class],
+            [CompatibilityShape::class, '\\' . CompatibilityShape::class],
+        ];
+        foreach ($cases as [$registeredKey, $inputType]) {
+            $mapper = $this->mapper();
+            $mapper->classFactories[$registeredKey] = static fn () => new CompatibilityCircle();
+
+            $result = $mapper->mapArray([['name' => 'ok']], [], $inputType);
+
+            $this->assertInstanceOf(CompatibilityCircle::class, $result[0]);
+            $this->assertSame('ok', $result[0]->name);
+        }
+    }
+
+    public function testIterablePropertiesAndSettersAcceptArrayInput(): void
+    {
+        $propertyDto = $this->mapper()->simpleMap(['items' => [1, 2]], new CompatibilityIterablePropertyDto());
+        $setterDto = $this->mapper()->simpleMap(['items' => [1, 2]], new CompatibilityIterableSetterDto());
+
+        $this->assertSame([1, 2], $propertyDto->items);
+        $this->assertSame([1, 2], $setterDto->getItems());
+    }
+
+    public function testUnsupportedBuiltinTypeThrowsLibraryException(): void
+    {
+        $this->expectException(\JsonMapper_Exception::class);
+        $this->expectExceptionMessage('built-in type');
+        $this->mapper()->simpleMap(['callback' => ['strlen']], new CompatibilityCallableSetterDto());
+    }
+
     private function mapper(): JsonMapper
     {
         $mapper = new JsonMapper();
@@ -154,5 +216,62 @@ class CompatibilityIntegerVariadicDto
     public function setIds(int ...$ids): void
     {
         $this->ids = $ids;
+    }
+}
+
+enum CompatibilityStatusEnum: string
+{
+    case ACTIVE = 'active';
+}
+
+class CompatibilityEnumDto
+{
+    public CompatibilityStatusEnum $status;
+
+    /** @var CompatibilityStatusEnum[] */
+    public array $statuses = [];
+}
+
+interface CompatibilityShape
+{
+}
+
+class CompatibilityCircle implements CompatibilityShape
+{
+    public string $name = '';
+}
+
+class CompatibilityIterablePropertyDto
+{
+    public iterable $items = [];
+}
+
+class CompatibilityIterableSetterDto
+{
+    private iterable $items = [];
+
+    public function setItems(iterable $items): void
+    {
+        $this->items = $items;
+    }
+
+    public function getItems(): iterable
+    {
+        return $this->items;
+    }
+}
+
+class CompatibilityCallableSetterDto
+{
+    private $callback;
+
+    public function setCallback(callable $callback): void
+    {
+        $this->callback = $callback;
+    }
+
+    public function getCallback(): callable
+    {
+        return $this->callback;
     }
 }

@@ -128,6 +128,44 @@ class JsonMapper extends \JsonMapper
     }
 
     /**
+     * 上游支持“类型带 \、注册键不带 \”，这里补齐反方向的直接 mapArray 查找。
+     */
+    protected function getMappedType(?string $type, mixed $jvalue = null): ?string
+    {
+        if ($type !== null && $type !== '' && ! str_starts_with($type, '\\')
+            && ! isset($this->classMap[$type]) && isset($this->classMap['\\' . $type])
+        ) {
+            $type = '\\' . $type;
+        }
+        return parent::getMappedType($type, $jvalue);
+    }
+
+    protected function getClassFactory(string $class): ?callable
+    {
+        if ($class !== '' && ! str_starts_with($class, '\\')
+            && ! isset($this->classFactories[$class]) && isset($this->classFactories['\\' . $class])
+        ) {
+            $class = '\\' . $class;
+        }
+        return parent::getClassFactory($class);
+    }
+
+    /**
+     * 内置类型及伪类型不属于当前命名空间，包括 callable[] 等数组形式。
+     */
+    protected function getFullNamespace(?string $type, string $strNs): ?string
+    {
+        $baseType = $type;
+        while ($baseType !== null && $this->isArrayOfType($baseType)) {
+            $baseType = substr($baseType, 0, -2);
+        }
+        if ($baseType !== null && PropertyEnum::isBuiltinType($baseType)) {
+            return $type;
+        }
+        return parent::getFullNamespace($type, $strNs);
+    }
+
+    /**
      * 映射单个 DTO 节点，只按字段主键读取输入。
      */
     private function mapNode(
@@ -282,6 +320,24 @@ class JsonMapper extends \JsonMapper
         try {
             parent::setProperty($object, $accessor, $value);
         } catch (\TypeError $exception) {
+            throw new \JsonMapper_Exception($exception->getMessage(), 0, $exception);
+        }
+    }
+
+    /**
+     * 内置类型不可实例化；非法 BackedEnum 输入统一使用库异常，其他 ValueError 保持原样。
+     */
+    protected function createInstance(string $class, bool $useParameter = false, mixed $jvalue = null): object
+    {
+        if (PropertyEnum::isBuiltinType($class)) {
+            throw new \JsonMapper_Exception("Cannot instantiate PHP built-in type [{$class}]");
+        }
+        try {
+            return parent::createInstance($class, $useParameter, $jvalue);
+        } catch (\ValueError $exception) {
+            if (! $useParameter || ! is_subclass_of($class, \BackedEnum::class)) {
+                throw $exception;
+            }
             throw new \JsonMapper_Exception($exception->getMessage(), 0, $exception);
         }
     }
@@ -638,6 +694,9 @@ class JsonMapper extends \JsonMapper
                     $ptype      = $rparams[0]->getType();
                     if ($ptype !== null) {
                         $typeName = $this->stringifyReflectionType($ptype);
+                        if ($typeName === 'iterable') {
+                            $typeName = 'array';
+                        }
                         //allow overriding an "array" type hint
                         // with a more specific class in the docblock
                         if ($typeName !== 'array' && ! str_contains($typeName, '|')) {
@@ -658,7 +717,7 @@ class JsonMapper extends \JsonMapper
                 }
                 list($type) = explode(' ', trim($annotations['param'][0]));
                 if (str_contains($type, '|')) {
-                    return array(true, $rmeth, null, $isNullable);
+                    $type = $this->normalizeSetterDocblockType($rmeth);
                 }
                 return array(true, $rmeth, $this->variadicElementType($rmeth, $type), $this->isNullable($type));
             }
@@ -695,6 +754,9 @@ class JsonMapper extends \JsonMapper
                     if ($rprop->hasType()) {
                         $rPropType = $rprop->getType();
                         $propTypeName = $this->stringifyReflectionType($rPropType);
+                        if ($propTypeName === 'iterable') {
+                            $propTypeName = 'array';
+                        }
                         if ($this->isSimpleType($propTypeName)) {
                             return array(
                                 true,
@@ -768,18 +830,8 @@ class JsonMapper extends \JsonMapper
             return [];
         }
         $this->docBlockFactory ??= DocBlockFactory::createInstance();
-        $this->contextFactory ??= new ContextFactory();
         $declaringClass = $reflectionProperty->getDeclaringClass();
-        $declaringClassName = $declaringClass->getName();
-        if (! isset($this->docBlockContexts[$declaringClassName])) {
-            $fileName = $declaringClass->getFileName();
-            $source = $fileName === false ? '' : (string) @file_get_contents($fileName);
-            $this->docBlockContexts[$declaringClassName] = $this->contextFactory->createForNamespace(
-                $declaringClass->getNamespaceName(),
-                $source
-            );
-        }
-        $context = $this->docBlockContexts[$declaringClassName];
+        $context = $this->getDocBlockContext($declaringClass);
         try {
             $block = $this->docBlockFactory->create($docblock, $context);
         } catch (\Throwable $exception) {
@@ -803,6 +855,47 @@ class JsonMapper extends \JsonMapper
             }
         }
         return $annotations;
+    }
+
+    /**
+     * setter 的可空联合类型与属性变量注解共用同一套 DocBlock 类型归一化规则。
+     */
+    private function normalizeSetterDocblockType(ReflectionMethod $method): ?string
+    {
+        $docblock = $method->getDocComment();
+        if (! is_string($docblock)) {
+            return null;
+        }
+        $this->docBlockFactory ??= DocBlockFactory::createInstance();
+        try {
+            $block = $this->docBlockFactory->create(
+                $docblock,
+                $this->getDocBlockContext($method->getDeclaringClass())
+            );
+        } catch (\Throwable) {
+            return null;
+        }
+        foreach ($block->getTags() as $tag) {
+            if ($tag instanceof Param) {
+                return $this->normalizeDocblockType($tag->getType());
+            }
+        }
+        return null;
+    }
+
+    private function getDocBlockContext(ReflectionClass $class): Context
+    {
+        $className = $class->getName();
+        if (! isset($this->docBlockContexts[$className])) {
+            $this->contextFactory ??= new ContextFactory();
+            $fileName = $class->getFileName();
+            $source = $fileName === false ? '' : (string) @file_get_contents($fileName);
+            $this->docBlockContexts[$className] = $this->contextFactory->createForNamespace(
+                $class->getNamespaceName(),
+                $source
+            );
+        }
+        return $this->docBlockContexts[$className];
     }
 
     /**
