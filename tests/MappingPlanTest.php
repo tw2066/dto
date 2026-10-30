@@ -78,6 +78,18 @@ class MappingPlanTest extends TestCase
         $this->assertSame('', $dto->getUserName());
     }
 
+    public function testNestedPathAliasesAreRejected(): void
+    {
+        foreach ([PlanDotAliasDto::class, PlanWildcardAliasDto::class] as $className) {
+            try {
+                $this->mapper()->simpleMap([], new $className());
+                $this->fail("Expected nested path alias to fail: {$className}");
+            } catch (\Hyperf\DTO\Exception\DtoException $exception) {
+                $this->assertStringContainsString('nested paths', $exception->getMessage());
+            }
+        }
+    }
+
     public function testAliasCollisionWithAnotherPropertyFails(): void
     {
         $cases = [
@@ -486,6 +498,18 @@ class PlanSetterDto
 class PlanAliasDto
 {
     #[JSONField('user_name')]
+    public string $userName = '';
+}
+
+class PlanDotAliasDto
+{
+    #[JSONField('user.name')]
+    public string $userName = '';
+}
+
+class PlanWildcardAliasDto
+{
+    #[JSONField('users.*')]
     public string $userName = '';
 }
 

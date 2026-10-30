@@ -100,6 +100,28 @@ class JsonMapperCompatibilityTest extends TestCase
         }
     }
 
+    public function testInvalidIntBackedEnumTypeUsesLibraryException(): void
+    {
+        try {
+            $this->mapper()->simpleMap(['status' => 'abc'], new CompatibilityIntEnumDto());
+            $this->fail('Expected JsonMapper_Exception was not thrown.');
+        } catch (\JsonMapper_Exception $e) {
+            $this->assertInstanceOf(\TypeError::class, $e->getPrevious());
+        }
+    }
+
+    public function testInterfaceAndAbstractTargetsUseLibraryException(): void
+    {
+        foreach ([new CompatibilityInterfaceDto(), new CompatibilityAbstractDto()] as $dto) {
+            try {
+                $this->mapper()->simpleMap(['value' => []], $dto);
+                $this->fail('Expected JsonMapper_Exception was not thrown.');
+            } catch (\JsonMapper_Exception $e) {
+                $this->assertStringContainsString('concrete class', $e->getMessage());
+            }
+        }
+    }
+
     public function testMapArrayClassMapAcceptsBothLeadingSlashKeyForms(): void
     {
         $cases = [
@@ -150,6 +172,16 @@ class JsonMapperCompatibilityTest extends TestCase
         $this->mapper()->simpleMap(['callback' => ['strlen']], new CompatibilityCallableSetterDto());
     }
 
+    public function testUnsupportedUnionSetterKeepsReflectionNullability(): void
+    {
+        $mapper = new JsonMapper();
+        $mapper->bEnforceMapType = false;
+
+        $dto = $mapper->simpleMap(['value' => null], new CompatibilityNullableUnionSetterDto());
+
+        $this->assertNull($dto->getValue());
+    }
+
     private function mapper(): JsonMapper
     {
         $mapper = new JsonMapper();
@@ -194,6 +226,22 @@ class CompatibilityUnionSetterDto
     }
 }
 
+class CompatibilityNullableUnionSetterDto
+{
+    private int|string|null $value = null;
+
+    /** @param int|string|null $value */
+    public function setValue($value): void
+    {
+        $this->value = $value;
+    }
+
+    public function getValue(): int|string|null
+    {
+        return $this->value;
+    }
+}
+
 class CompatibilityVariadicChildDto
 {
     public string $name = '';
@@ -232,8 +280,32 @@ class CompatibilityEnumDto
     public array $statuses = [];
 }
 
+enum CompatibilityIntStatusEnum: int
+{
+    case ON = 1;
+}
+
+class CompatibilityIntEnumDto
+{
+    public CompatibilityIntStatusEnum $status;
+}
+
 interface CompatibilityShape
 {
+}
+
+class CompatibilityInterfaceDto
+{
+    public CompatibilityShape $value;
+}
+
+abstract class CompatibilityAbstractValue
+{
+}
+
+class CompatibilityAbstractDto
+{
+    public CompatibilityAbstractValue $value;
 }
 
 class CompatibilityCircle implements CompatibilityShape

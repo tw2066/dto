@@ -64,7 +64,7 @@ public string $userName;
 - 接口/抽象类属性的递归验证按 `classMap` 解析具体类后校验其规则（含 setter-only 嵌套字段）；未配置 `classMap` 的接口属性不参与递归验证，映射在缺少具体类时抛出异常。`classFactories` 只在映射阶段调用（工厂有副作用），其产出的具体类规则不参与验证，需要验证的多态输入请使用 `classMap`。`classMap` 的 callable 判别器必须是纯函数：验证与映射各调用一次，依赖外部状态的 callable 可能出现"验证 A 类、映射 B 类"。不建议在 DTO 属性上使用接口类型，推荐具体 DTO + `type` 判别字段。
 - variadic setter 继续接受单个标量作为唯一实参。
 - 字段主键必须唯一；别名与另一属性名冲突、多个字段共用别名都会在计划构建时抛出 `DtoException`。
-- `#[JSONField]` 别名支持连字符等任意线上键名（旧 safe-key 拒绝逻辑已删除）：`#[JSONField('x-token')]` 合法，输入读取、验证规则键与响应输出键统一使用该别名。`#[RequestHeader]` 的 Header 键统一转小写后按 primaryKey 精确匹配（Header 名大小写不敏感是 RFC 7230 协议语义），标准连字符 Header 用别名显式声明，如 `#[JSONField('x-request-id')]`。
+- `#[JSONField]` 别名支持连字符等线上键名（旧 safe-key 拒绝逻辑已删除），但不得包含 `.` 或 `*`（Laravel 会将其解释为嵌套路径），否则在计划构建时抛出 `DtoException`：`#[JSONField('x-token')]` 合法，输入读取、验证规则键与响应输出键统一使用该别名。`#[RequestHeader]` 的 Header 键统一转小写后按 primaryKey 精确匹配（Header 名大小写不敏感是 RFC 7230 协议语义），标准连字符 Header 用别名显式声明，如 `#[JSONField('x-request-id')]`。
 - `customKey` 与跨字段规则使用外部 primaryKey 路径，不再进行 canonical 字段路径转换。
 
 ## 验证建议

@@ -120,7 +120,10 @@ class JsonMapper extends \JsonMapper
             $mapped = $this->getMappedType('\\' . $type, $value);
             if (is_string($mapped) && $mapped !== '' && $mapped !== '\\' . $type) {
                 $mapped = ltrim($mapped, '\\');
-                return class_exists($mapped) ? $mapped : null;
+                if (! class_exists($mapped)) {
+                    throw new DtoException("classMap target [{$mapped}] for [{$type}] is not a loadable class");
+                }
+                return $mapped;
             }
         }
         // class_exists 对接口返回 false，接口自然落到 null。
@@ -160,7 +163,13 @@ class JsonMapper extends \JsonMapper
             $baseType = substr($baseType, 0, -2);
         }
         if ($baseType !== null && PropertyEnum::isBuiltinType($baseType)) {
-            return $type;
+            // 仅这四个 phpdoc 别名可作为 userland 类短名；其他内置类型不触发自动加载。
+            $hasNamespacedClass = $strNs !== ''
+                && in_array(strtolower($baseType), ['resource', 'integer', 'boolean', 'double'], true)
+                && class_exists($strNs . '\\' . $baseType);
+            if (! $hasNamespacedClass) {
+                return $type;
+            }
         }
         return parent::getFullNamespace($type, $strNs);
     }
@@ -325,7 +334,7 @@ class JsonMapper extends \JsonMapper
     }
 
     /**
-     * 内置类型不可实例化；非法 BackedEnum 输入统一使用库异常，其他 ValueError 保持原样。
+     * 内置类型不可实例化；非法 BackedEnum、接口和抽象类输入统一使用库异常。
      */
     protected function createInstance(string $class, bool $useParameter = false, mixed $jvalue = null): object
     {
@@ -334,11 +343,21 @@ class JsonMapper extends \JsonMapper
         }
         try {
             return parent::createInstance($class, $useParameter, $jvalue);
-        } catch (\ValueError $exception) {
+        } catch (\ValueError|\TypeError $exception) {
             if (! $useParameter || ! is_subclass_of($class, \BackedEnum::class)) {
                 throw $exception;
             }
             throw new \JsonMapper_Exception($exception->getMessage(), 0, $exception);
+        } catch (\Error $exception) {
+            $isAbstract = class_exists($class) && (new ReflectionClass($class))->isAbstract();
+            if (! interface_exists($class) && ! $isAbstract) {
+                throw $exception;
+            }
+            throw new \JsonMapper_Exception(
+                "Cannot instantiate [{$class}] without a concrete class; configure classMap or classFactories",
+                0,
+                $exception
+            );
         }
     }
 
@@ -450,7 +469,7 @@ class JsonMapper extends \JsonMapper
     {
         $className = ltrim($className, '\\');
         $rc = ReflectionManager::reflectClass($className);
-        [$methods] = $this->getClassMetadata($rc);
+        [$methods, $reflectionProperties] = $this->getClassMetadata($rc);
         $methodsBySuffix = [];
         foreach ($methods as $method) {
             $methodName = $method->getName();
@@ -475,17 +494,27 @@ class JsonMapper extends \JsonMapper
         }
         $setterOnlyFields = [];
         foreach ($methodsBySuffix as $methodsForField) {
-            // JsonMapper 也支持没有同名属性的 setter-only 字段，但不能与声明属性重复登记。
+            // 声明属性不重复登记；父类 private 的可写继承 setter 需要补充验证元数据。
             foreach ($methodsForField as $method) {
                 $fieldName = lcfirst(substr($method->getName(), 3));
-                if (isset($declaredFields[strtolower($fieldName)])
-                    || isset($normalizedDeclaredFields[strtolower(str_replace('_', '', $fieldName))])
-                ) {
-                    continue;
+                $hasDeclaredProperty = isset($declaredFields[strtolower($fieldName)])
+                    || isset($normalizedDeclaredFields[strtolower(str_replace('_', '', $fieldName))]);
+                if ($hasDeclaredProperty) {
+                    $reflectionProperty = $reflectionProperties[$fieldName] ?? null;
+                    $inheritedPrivate = $reflectionProperty !== null && $reflectionProperty->isPrivate()
+                        && $reflectionProperty->getDeclaringClass()->getName() !== $className;
+                    if (! $inheritedPrivate) {
+                        continue;
+                    }
                 }
                 [$hasProperty, $accessor, $type] = $this->inspectProperty($rc, $fieldName);
                 if ($hasProperty && $accessor instanceof ReflectionMethod) {
-                    $properties[$fieldName] = $propertyManager->createPropertyFromType($type, $rc->getNamespaceName());
+                    $alias = $properties[$fieldName]->alias ?? null;
+                    $properties[$fieldName] = $propertyManager->createPropertyFromType(
+                        $type,
+                        $rc->getNamespaceName(),
+                        $alias
+                    );
                     $setterOnlyFields[$fieldName] = true;
                     break;
                 }
@@ -503,7 +532,7 @@ class JsonMapper extends \JsonMapper
                 $type = '\\' . $property->arrInterfaceName . str_repeat('[]', max(1, $property->arrayDepth));
             } elseif ($property->arrSimpleType !== null) {
                 $type = $property->arrSimpleType . str_repeat('[]', max(1, $property->arrayDepth));
-            } elseif (in_array($type, ['mixed', 'object', 'iterable'], true)
+            } elseif (($type === null || in_array($type, ['mixed', 'object', 'iterable'], true))
                 && ($property->className !== null || $property->interfaceName !== null)) {
                 $type = '\\' . ($property->className ?? $property->interfaceName);
             }
@@ -525,7 +554,13 @@ class JsonMapper extends \JsonMapper
                 if ($alias === '') {
                     throw new DtoException("JSONField alias cannot be empty for {$className}::{$fieldName}");
                 }
-                // 只按 primaryKey 精确读取，连字符等任意别名不再有 safe key 歧义。
+                if (str_contains($alias, '.') || str_contains($alias, '*')) {
+                    throw new DtoException(
+                        "JSONField alias [{$alias}] for class {$className}::{$fieldName} must not contain '.' or '*'; "
+                        . 'Laravel validation interprets them as nested paths'
+                    );
+                }
+                // 只按 primaryKey 精确读取，连字符别名不再有 safe key 歧义。
                 $fields[$index]['primaryKey'] = $alias;
                 $this->registerDirectKey($keyMap, $fields, $alias, $index, $className);
             }
@@ -719,7 +754,12 @@ class JsonMapper extends \JsonMapper
                 if (str_contains($type, '|')) {
                     $type = $this->normalizeSetterDocblockType($rmeth);
                 }
-                return array(true, $rmeth, $this->variadicElementType($rmeth, $type), $this->isNullable($type));
+                return array(
+                    true,
+                    $rmeth,
+                    $this->variadicElementType($rmeth, $type),
+                    $type === null ? $isNullable : $this->isNullable($type)
+                );
             }
         }
 

@@ -56,6 +56,10 @@ class DtoValidation
         if ($this->validationFactory === null) {
             return;
         }
+        if (! class_exists($className) && ! interface_exists($className)) {
+            // RPC 的 array/mixed 等参数没有 DTO 类规则，元素验证由调用方负责。
+            return;
+        }
         $this->validateResolved($className, $data ?? []);
     }
 

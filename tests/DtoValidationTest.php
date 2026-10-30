@@ -70,6 +70,17 @@ class DtoValidationTest extends AbstractTestCase
         }
     }
 
+    public function testNonClassTypeNamesAreIgnored(): void
+    {
+        $dtoValidation = $this->makeDtoValidation();
+
+        foreach (['array', 'mixed', 'object', 'iterable'] as $typeName) {
+            $dtoValidation->validate($typeName, []);
+        }
+
+        $this->assertTrue(true);
+    }
+
     public function testClassWithoutRulesStillValidatesNestedObjects(): void
     {
         // B1 已修复: 类自身无 rule 时不再早退，嵌套对象的验证独立生效
@@ -478,6 +489,52 @@ class DtoValidationTest extends AbstractTestCase
         $dtoValidation->validate(ValidationNullableSetterArrayDto::class, ['items' => [['x' => '']]]);
     }
 
+    public function testUnreadableUntypedNestedPropertyIsIgnoredByValidationAndMapping(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationUnreadableUntypedDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+        $input = ['items' => [['x' => '']]];
+
+        $dtoValidation->validate(ValidationUnreadableUntypedDto::class, $input);
+        $dto = Mapper::map($input, new ValidationUnreadableUntypedDto());
+
+        $this->assertSame([], $dto->getItems());
+    }
+
+    public function testUntypedNestedDocblockWithUntypedSetterValidatesAndMaps(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationUntypedNestedSetterDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        $input = ['kid' => ['x' => 'ok']];
+        $dtoValidation->validate(ValidationUntypedNestedSetterDto::class, $input);
+        $dto = Mapper::map($input, new ValidationUntypedNestedSetterDto());
+        $this->assertInstanceOf(ValidationChildDto::class, $dto->getKid());
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationUntypedNestedSetterDto::class, ['kid' => ['x' => '']]);
+    }
+
+    public function testMixedSetterKeepsUntypedArrayTypeValidationAndMapping(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationUntypedMixedArrayDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        $input = ['items' => [['x' => 'ok']]];
+        $dtoValidation->validate(ValidationUntypedMixedArrayDto::class, $input);
+        $dto = Mapper::map($input, new ValidationUntypedMixedArrayDto());
+        $this->assertInstanceOf(ValidationChildDto::class, $dto->getItems()[0]);
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationUntypedMixedArrayDto::class, ['items' => [['x' => '']]]);
+    }
+
     public function testVariadicClassSetterUsesClassArrayValidationAndMapping(): void
     {
         (new JSONField('display_name'))->collectProperty(ValidationVariadicChildDto::class, 'name');
@@ -614,6 +671,22 @@ class DtoValidationTest extends AbstractTestCase
         $dtoValidation->validate(ValidationInheritedPrivateChildDto::class, ['secret' => ['x' => '']]);
 
         $this->assertTrue(true);
+    }
+
+    public function testInheritedPrivatePropertyWithPublicSetterIsValidatedAndMapped(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationInheritedSetterChildDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        $input = ['child' => ['x' => 'ok']];
+        $dtoValidation->validate(ValidationInheritedSetterChildDto::class, $input);
+        $dto = Mapper::map($input, new ValidationInheritedSetterChildDto());
+        $this->assertInstanceOf(ValidationChildDto::class, $dto->getChild());
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationInheritedSetterChildDto::class, ['child' => ['x' => '']]);
     }
 
     public function testValidationAttributeTranslationsUsePrimaryKey(): void
@@ -866,6 +939,49 @@ class ValidationNullableSetterArrayDto
     }
 }
 
+class ValidationUnreadableUntypedDto
+{
+    /** @var ValidationChildDto[] */
+    private $items = [];
+
+    public function getItems(): array
+    {
+        return $this->items;
+    }
+}
+
+class ValidationUntypedNestedSetterDto
+{
+    /** @var ValidationChildDto */
+    private $kid;
+
+    public function setKid($kid): void
+    {
+        $this->kid = $kid;
+    }
+
+    public function getKid()
+    {
+        return $this->kid;
+    }
+}
+
+class ValidationUntypedMixedArrayDto
+{
+    #[ArrayType(ValidationChildDto::class)]
+    private $items = [];
+
+    public function setItems(mixed $items): void
+    {
+        $this->items = $items;
+    }
+
+    public function getItems(): array
+    {
+        return $this->items;
+    }
+}
+
 class ValidationVariadicChildDto
 {
     #[JSONField('display_name')]
@@ -972,6 +1088,25 @@ class ValidationInheritedPrivateParentDto
 }
 
 class ValidationInheritedPrivateChildDto extends ValidationInheritedPrivateParentDto
+{
+}
+
+class ValidationInheritedSetterParentDto
+{
+    private ?ValidationChildDto $child = null;
+
+    public function setChild(ValidationChildDto $child): void
+    {
+        $this->child = $child;
+    }
+
+    public function getChild(): ?ValidationChildDto
+    {
+        return $this->child;
+    }
+}
+
+class ValidationInheritedSetterChildDto extends ValidationInheritedSetterParentDto
 {
 }
 

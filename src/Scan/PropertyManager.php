@@ -61,8 +61,9 @@ class PropertyManager
             $rc = ReflectionManager::reflectClass($className);
             foreach ($this->getClassProperties($rc) as $reflectionProperty) {
                 $fieldName = $reflectionProperty->getName();
-                [, , $type] = $this->dtoCommon->inspectPropertyMetadata($rc, $fieldName);
-                $accessorTypeMissing = $type === null;
+                [, $accessor, $type] = $this->dtoCommon->inspectPropertyMetadata($rc, $fieldName);
+                $readUntypedPropertyAnnotations = $accessor !== null && ! $reflectionProperty->hasType()
+                    && ($type === null || in_array($type, ['mixed', 'object', 'iterable'], true));
                 if (in_array($type, ['mixed', 'object', 'iterable'], true)) {
                     // 宽泛 setter 不能遮蔽属性上的 ArrayType/@var/原生类声明。
                     $type = $this->dtoCommon->getTypeName($reflectionProperty);
@@ -70,9 +71,9 @@ class PropertyManager
                 $type ??= $this->dtoCommon->getTypeName($reflectionProperty);
                 $type = $this->dtoCommon->removeNullable($type);
 
-                if ($type === 'array' || ($accessorTypeMissing && ! $reflectionProperty->hasType())) {
-                    // setter 只声明 array 或没有 @param 时，属性级 #[ArrayType]/@var
-                    // 仍是元素类型的唯一来源，不能因访问器是方法而跳过。
+                if ($type === 'array' || $readUntypedPropertyAnnotations) {
+                    // 可写访问器未提供嵌套类型时，属性级 #[ArrayType]/@var
+                    // 仍是元素类型的唯一来源；不可写属性不能只参与验证。
                     $annotations = $this->dtoCommon->parseAnnotationsNew(
                         $rc,
                         $reflectionProperty,

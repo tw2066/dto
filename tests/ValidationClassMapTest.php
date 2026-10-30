@@ -7,6 +7,7 @@ namespace HyperfTest\DTO;
 use Hyperf\DTO\Annotation\Validation\Required;
 use Hyperf\DTO\DtoCommon;
 use Hyperf\DTO\DtoValidation;
+use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\Mapper;
 use Hyperf\DTO\Scan\PropertyEnum;
 use Hyperf\DTO\Scan\PropertyManager;
@@ -196,6 +197,23 @@ class ValidationClassMapTest extends AbstractTestCase
         // 没有 classMap 时 interface 本身没有规则，不应新增误报或 DtoException。
         $validation->validate(ValidationMappedRequest::class, ['method' => ['number' => '']]);
         $this->assertTrue(true);
+    }
+
+    public function testInvalidClassMapTargetFailsValidation(): void
+    {
+        $targets = ['HyperfTest\\DTO\\Missing\\Card', ValidationMappedInterface::class];
+        foreach ($targets as $target) {
+            Mapper::getJsonMapper()->classMap = [ValidationMappedInterface::class => $target];
+            $this->setContainerWithValidatorFactory();
+            $validation = $this->makeValidation(ValidationMappedRequest::class);
+
+            try {
+                $validation->validate(ValidationMappedRequest::class, ['method' => ['number' => '']]);
+                $this->fail("Expected invalid classMap target to fail: {$target}");
+            } catch (DtoException $exception) {
+                $this->assertStringContainsString('not a loadable class', $exception->getMessage());
+            }
+        }
     }
 
     public function testScalarElementsInInterfaceClassArrayAreSkipped(): void
