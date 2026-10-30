@@ -86,7 +86,6 @@ class BeforeServerListener implements ListenerInterface
             }
         });
         $eventDispatcher->dispatch(new AfterDtoStart($serverConfig, $router));
-        $scanAnnotation->clearScanClassArray();
     }
 
     /**

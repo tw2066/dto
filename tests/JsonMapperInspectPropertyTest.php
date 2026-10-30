@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace HyperfTest\DTO;
 
 use Hyperf\DTO\Annotation\ArrayType;
-use Hyperf\DTO\DtoConfig;
+use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\JsonMapper;
 use HyperfTest\DTO\Request\Address;
 use ReflectionMethod;
@@ -13,7 +13,7 @@ use ReflectionMethod;
 /**
  * JsonMapper::inspectProperty 类型推断分支测试.
  *
- * 优先级: 别名 setter > setter 类型声明 > setter @param > 属性(继承链/大小写兜底)
+ * 优先级: setter 类型声明 > setter @param > 属性(继承链/大小写兜底)
  * > ArrayType 注解 > @var(联合截断) > 构造器 @param > PHP 原生类型.
  *
  * @internal
@@ -21,24 +21,23 @@ use ReflectionMethod;
  */
 class JsonMapperInspectPropertyTest extends AbstractTestCase
 {
-    public function testAliasSetterNameContractIsStable(): void
+    public function testJsonFieldAliasMapsToPublicPropertyWithoutGeneratedSetter(): void
     {
-        // 防漂移: DtoVisitor 生成侧与本消费侧共用此命名规则，两侧必须同步
-        $this->assertSame(
-            '_set_dto_alias_c56f5648d4c0e137f9de3dfc7a54d55b',
-            DtoConfig::getDtoAliasMethodName('user_name')
-        );
+        $mapper = $this->makeMapper();
+
+        $result = $mapper->simpleMap(['user_name' => 'alias-value'], new InspectPublicAliasDto());
+
+        $this->assertSame('alias-value', $result->name);
     }
 
-    public function testPrivateAliasSetterMapsJsonKey(): void
+    public function testLegacyPrivateAliasSetterIsNotUsed(): void
     {
-        // 别名 setter 是私有方法，isSetDtoMethod 分支放行（无需 bIgnoreVisibility）
         $mapper = $this->makeMapper();
         $dto = new InspectAliasDto();
 
-        $result = $mapper->map(['user_name' => 'alias-value'], $dto);
+        $result = $mapper->simpleMap(['user_name' => 'alias-value'], $dto);
 
-        $this->assertSame('alias-value', $result->getName());
+        $this->assertSame('', $result->getName());
     }
 
     public function testSetterTypeDeclarationWinsOverDocblock(): void
@@ -86,15 +85,37 @@ class JsonMapperInspectPropertyTest extends AbstractTestCase
         $this->assertFalse($hasProperty);
     }
 
-    public function testConstructorDocblockDoesNotProvideParamType(): void
+    public function testConstructorDocblockIgnoredWhenPropertyHasNoType(): void
     {
-        // src 现状: parseAnnotationsNew 只读 @var，构造器 @param 匹配分支不可达，
-        // 无类型属性最终返回 null 类型（此用例锁定该行为）
+        // 与上游一致: 属性无原生类型声明时不采用构造器 @param
         [$hasProperty, $accessor, $type] = $this->inspect(InspectCtorDocblockDto::class, 'code');
 
         $this->assertTrue($hasProperty);
         $this->assertSame('code', $accessor->getName());
         $this->assertNull($type);
+    }
+
+    public function testConstructorDocblockProvidesParamTypeForTypedProperty(): void
+    {
+        [$hasProperty, $accessor, $type] = $this->inspect(InspectCtorTypedDocblockDto::class, 'code');
+
+        $this->assertTrue($hasProperty);
+        $this->assertSame('code', $accessor->getName());
+        $this->assertSame('int', $type);
+    }
+
+    public function testPromotedPropertyUsesConstructorParamArrayType(): void
+    {
+        $mapper = $this->makeMapper();
+        $mapper->bIgnoreVisibility = true;
+
+        $dto = $mapper->simpleMap(
+            json_decode('{"files":[{"value":"test.txt"}]}'),
+            InspectPromotedArrayDto::class
+        );
+
+        $this->assertInstanceOf(InspectPromotedFileDto::class, $dto->getFiles()[0]);
+        $this->assertSame('test.txt', $dto->getFiles()[0]->value);
     }
 
     public function testNativeSimpleTypeProperty(): void
@@ -128,7 +149,7 @@ class JsonMapperInspectPropertyTest extends AbstractTestCase
         $mapper = $this->makeMapper();
         $dto = new InspectPrivateNoSetterDto();
 
-        $result = $mapper->map(['secret' => 'new-value'], $dto);
+        $result = $mapper->simpleMap(['secret' => 'new-value'], $dto);
 
         $this->assertSame('default', $result->getSecret());
     }
@@ -173,6 +194,12 @@ class JsonMapperInspectPropertyTest extends AbstractTestCase
     }
 }
 
+class InspectPublicAliasDto
+{
+    #[JSONField('user_name')]
+    public string $name = '';
+}
+
 class InspectAliasDto
 {
     private string $name = '';
@@ -182,7 +209,7 @@ class InspectAliasDto
         return $this->name;
     }
 
-    // 与 DtoConfig::getDtoAliasMethodName('user_name') 生成规则一致（代理类同款私有别名 setter）
+    // 3.x 遗留方法：4.0 不再识别或调用该私有别名 setter。
     private function _set_dto_alias_c56f5648d4c0e137f9de3dfc7a54d55b(string $param): void
     {
         $this->name = $param;
@@ -248,6 +275,37 @@ class InspectCtorDocblockDto
     {
         $this->code = $code;
     }
+}
+
+class InspectCtorTypedDocblockDto
+{
+    /**
+     * @param int $code 状态码
+     */
+    public function __construct(public int $code = 0) {}
+
+    public function getCode(): int
+    {
+        return $this->code;
+    }
+}
+
+class InspectPromotedArrayDto
+{
+    /**
+     * @param InspectPromotedFileDto[] $files
+     */
+    public function __construct(private array $files) {}
+
+    public function getFiles(): array
+    {
+        return $this->files;
+    }
+}
+
+class InspectPromotedFileDto
+{
+    public string $value = '';
 }
 
 class InspectNativeTypeDto

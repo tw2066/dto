@@ -15,14 +15,14 @@ use Hyperf\Validation\Rules\Exists as ExistsRule;
 use HyperfTest\DTO\AbstractTestCase;
 
 /**
- * ValidationManager::generateValidation 规则生成测试（别名键 / customKey / messages 对齐 / attributes / 对象 rule）.
+ * ValidationManager::generateValidation 规则生成测试（PHP 属性键 / customKey / messages 对齐 / attributes / 对象 rule）.
  *
  * @internal
  * @coversNothing
  */
 class ValidationManagerAliasTest extends AbstractTestCase
 {
-    public function testAliasUsedAsRuleAndMessageKey(): void
+    public function testJsonFieldUsedAsRuleAndMessageKey(): void
     {
         (new JSONField('userName'))->collectProperty(VmAliasDto::class, 'name');
         (new Required('名字必填'))->collectProperty(VmAliasDto::class, 'name');
@@ -31,7 +31,7 @@ class ValidationManagerAliasTest extends AbstractTestCase
         $manager->generateValidation(VmAliasDto::class, 'name');
 
         $data = $manager->getData(VmAliasDto::class);
-        // rule 键与 messages 键都用 JSONField 别名而非 PHP 属性名
+        // 验证规则和消息使用外部 primaryKey，与原始输入保持一致。
         $this->assertSame(['required'], $data['rule']['userName']);
         $this->assertSame('名字必填', $data['messages']['userName.required']);
         $this->assertArrayNotHasKey('name', $data['rule']);

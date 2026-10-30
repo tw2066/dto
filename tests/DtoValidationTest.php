@@ -5,13 +5,18 @@ declare(strict_types=1);
 namespace HyperfTest\DTO;
 
 use Hyperf\Context\ApplicationContext;
+use Hyperf\DTO\Annotation\ArrayType;
 use Hyperf\DTO\Annotation\JSONField;
+use Hyperf\DTO\Annotation\Validation\Confirmed;
 use Hyperf\DTO\Annotation\Validation\Integer;
 use Hyperf\DTO\Annotation\Validation\Max;
 use Hyperf\DTO\Annotation\Validation\Required;
+use Hyperf\DTO\Annotation\Validation\RequiredIf;
+use Hyperf\DTO\Annotation\Validation\Validation as CustomValidation;
 use Hyperf\DTO\DtoCommon;
 use Hyperf\DTO\DtoValidation;
 use Hyperf\DTO\Exception\DtoException;
+use Hyperf\DTO\Mapper;
 use Hyperf\DTO\Scan\PropertyEnum;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Scan\ValidationManager;
@@ -39,8 +44,41 @@ class DtoValidationTest extends AbstractTestCase
         $dtoValidation = $this->makeDtoValidation();
 
         $this->expectException(DtoException::class);
-        $this->expectExceptionMessage('data must be object or array');
+        $this->expectExceptionMessage('data must be array');
         $dtoValidation->validate(ValidationChildDto::class, 'scalar-string');
+    }
+
+    public function testObjectDataThrowsDtoException(): void
+    {
+        $dtoValidation = $this->makeDtoValidation();
+
+        $this->expectException(DtoException::class);
+        $this->expectExceptionMessage('data must be array');
+        $dtoValidation->validate(ValidationChildDto::class, new \ArrayObject(['x' => 'filled']));
+    }
+
+    public function testNullDataIsValidatedAsEmptyArray(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $dtoValidation = $this->makeDtoValidation();
+
+        try {
+            $dtoValidation->validate(ValidationChildDto::class, null);
+            $this->fail('Expected required rules to validate an empty body.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('x', $e->errors());
+        }
+    }
+
+    public function testNonClassTypeNamesAreIgnored(): void
+    {
+        $dtoValidation = $this->makeDtoValidation();
+
+        foreach (['array', 'mixed', 'object', 'iterable'] as $typeName) {
+            $dtoValidation->validate($typeName, []);
+        }
+
+        $this->assertTrue(true);
     }
 
     public function testClassWithoutRulesStillValidatesNestedObjects(): void
@@ -76,57 +114,45 @@ class DtoValidationTest extends AbstractTestCase
         $this->assertTrue(true);
     }
 
-    public function testAliasRulesApplyToPropertyNameInput(): void
+    public function testAliasRulesIgnorePropertyNameInput(): void
     {
         $this->prepareAliasScalarRules();
         $dtoValidation = $this->makeDtoValidation();
 
         $dtoValidation->validate(ValidationAliasScalarDto::class, ['userName' => 'ok']);
-        $this->expectException(ValidationException::class);
         $dtoValidation->validate(ValidationAliasScalarDto::class, ['userName' => 'TOO-LONG-VALUE']);
+        $this->assertTrue(true);
     }
 
-    public function testAliasAndPropertyNameCannotBeSubmittedTogether(): void
-    {
-        $this->prepareAliasScalarRules();
-        $dtoValidation = $this->makeDtoValidation();
-
-        $this->expectException(ValidationException::class);
-        $dtoValidation->validate(ValidationAliasScalarDto::class, [
-            'user_name' => 'ok',
-            'userName' => 'TOO-LONG-VALUE',
-        ]);
-    }
-
-    public function testSetterVariantKeysUseDeclaredValidationRules(): void
+    public function testNonPrimarySetterKeysAreIgnored(): void
     {
         $this->prepareSetterVariantRules();
         $dtoValidation = $this->makeDtoValidation();
 
         foreach (['user_name', 'user-name', ' userName', 'UserName'] as $key) {
             $dtoValidation->validate(ValidationSetterVariantDto::class, [$key => 'ok']);
-            try {
-                $dtoValidation->validate(ValidationSetterVariantDto::class, [$key => 'TOO-LONG-VALUE']);
-                $this->fail('Expected ValidationException was not thrown for key: ' . $key);
-            } catch (ValidationException $e) {
-                $this->assertStringContainsString('The given data was invalid', $e->getMessage());
-            }
+            $dtoValidation->validate(ValidationSetterVariantDto::class, [$key => 'TOO-LONG-VALUE']);
         }
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationSetterVariantDto::class, ['userName' => 'TOO-LONG-VALUE']);
     }
 
-    public function testEquivalentSetterKeysCannotBeSubmittedTogether(): void
+    public function testPropertyNameKeyWinsOverEquivalentSetterKey(): void
     {
         $this->prepareSetterVariantRules();
         $dtoValidation = $this->makeDtoValidation();
 
-        $this->expectException(ValidationException::class);
+        // userName 是主键，user_name 是非主键输入，不参与验证。
         $dtoValidation->validate(ValidationSetterVariantDto::class, [
             'userName' => 'ok',
             'user_name' => 'TOO-LONG-VALUE',
         ]);
+
+        $this->assertTrue(true);
     }
 
-    public function testAcronymSetterVariantUsesDeclaredValidationRules(): void
+    public function testAcronymSetterOnlyValidatesPrimaryKey(): void
     {
         (new Integer())->collectProperty(ValidationAcronymSetterDto::class, 'id');
         (new Max(5))->collectProperty(ValidationAcronymSetterDto::class, 'id');
@@ -134,20 +160,65 @@ class DtoValidationTest extends AbstractTestCase
         $dtoValidation = $this->makeDtoValidation();
 
         $dtoValidation->validate(ValidationAcronymSetterDto::class, ['ID' => 3]);
-        $this->expectException(ValidationException::class);
         $dtoValidation->validate(ValidationAcronymSetterDto::class, ['ID' => 7]);
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationAcronymSetterDto::class, ['id' => 7]);
     }
 
-    public function testPascalPropertyVariantUsesDeclaredValidationRules(): void
+    public function testPascalPropertyOnlyValidatesPrimaryKey(): void
     {
         (new Max(5))->collectProperty(ValidationPascalPropertyDto::class, 'UserName');
         (new ValidationManager())->generateValidation(ValidationPascalPropertyDto::class, 'UserName');
         $dtoValidation = $this->makeDtoValidation();
 
         $dtoValidation->validate(ValidationPascalPropertyDto::class, ['user_name' => 'TOO-LONG-VALUE']);
-        $dtoValidation->validate(ValidationPascalPropertyDto::class, ['user-name' => 'ok']);
-        $this->expectException(ValidationException::class);
         $dtoValidation->validate(ValidationPascalPropertyDto::class, ['user-name' => 'TOO-LONG-VALUE']);
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationPascalPropertyDto::class, ['UserName' => 'TOO-LONG-VALUE']);
+    }
+
+    public function testHeaderPropertyOnlyValidatesPrimaryKey(): void
+    {
+        (new Max(5))->collectProperty(ValidationHeaderPropertyDto::class, 'xRequestId');
+        (new ValidationManager())->generateValidation(ValidationHeaderPropertyDto::class, 'xRequestId');
+        $dtoValidation = $this->makeDtoValidation();
+
+        $dtoValidation->validate(ValidationHeaderPropertyDto::class, ['XRequestId' => 'TOO-LONG-VALUE']);
+        $dtoValidation->validate(ValidationHeaderPropertyDto::class, ['x-request-id' => 'TOO-LONG-VALUE']);
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationHeaderPropertyDto::class, ['xRequestId' => 'TOO-LONG-VALUE']);
+    }
+
+    public function testPrimaryHeaderKeyIsValidatedWhenVariantAlsoPresent(): void
+    {
+        (new Max(5))->collectProperty(ValidationHeaderPropertyDto::class, 'xRequestId');
+        (new ValidationManager())->generateValidation(ValidationHeaderPropertyDto::class, 'xRequestId');
+        $dtoValidation = $this->makeDtoValidation();
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationHeaderPropertyDto::class, [
+            'x-request-id' => 'ok',
+            'xRequestId' => 'TOO-LONG-VALUE',
+        ]);
+    }
+
+    public function testHyphenatedAliasValidationUsesWireKey(): void
+    {
+        // 连字符别名合法化后，验证规则键使用线上键名（x-token），大小写变体不参与
+        (new JSONField('x-token'))->collectProperty(ValidationHyphenAliasDto::class, 'xToken');
+        (new Max(5))->collectProperty(ValidationHyphenAliasDto::class, 'xToken');
+        (new ValidationManager())->generateValidation(ValidationHyphenAliasDto::class, 'xToken');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationHyphenAliasDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        $dtoValidation->validate(ValidationHyphenAliasDto::class, ['x-token' => 'abc']);
+        // 别名即 primaryKey：xToken 变体即使超长也不参与验证
+        $dtoValidation->validate(ValidationHyphenAliasDto::class, ['xToken' => 'TOO-LONG-VALUE']);
+        $this->assertTrue(true);
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationHyphenAliasDto::class, ['x-token' => 'TOO-LONG-VALUE']);
     }
 
     public function testNestedObjectValidatedRecursively(): void
@@ -181,9 +252,8 @@ class DtoValidationTest extends AbstractTestCase
         $dtoValidation->validate(ValidationAliasParentDto::class, ['name' => 'ok', 'childData' => ['x' => '']]);
     }
 
-    public function testNestedObjectWithAliasFallsBackToPropertyNameKey(): void
+    public function testNestedObjectWithAliasIgnoresPropertyNameKey(): void
     {
-        // B2 修复的兼容路径: 有别名但数据按 PHP 属性名键入时，回退属性名键仍可验证
         $this->prepareRules(ValidationChildDto::class, 'x');
         $this->prepareRules(ValidationAliasParentDto::class, 'name');
         (new JSONField('childData'))->collectProperty(ValidationAliasParentDto::class, 'child');
@@ -192,12 +262,12 @@ class DtoValidationTest extends AbstractTestCase
         $propertyManager->scanClassProperties(ValidationAliasParentDto::class);
 
         $dtoValidation = $this->makeDtoValidation($propertyManager);
-
-        $this->expectException(ValidationException::class);
         $dtoValidation->validate(ValidationAliasParentDto::class, ['name' => 'ok', 'child' => ['x' => '']]);
+
+        $this->assertTrue(true);
     }
 
-    public function testNestedAliasAndPropertyNameCannotBeSubmittedTogether(): void
+    public function testNestedAliasValueWinsOverPropertyName(): void
     {
         $this->prepareRules(ValidationChildDto::class, 'x');
         $this->prepareRules(ValidationAliasParentDto::class, 'name');
@@ -207,12 +277,14 @@ class DtoValidationTest extends AbstractTestCase
         $propertyManager->scanClassProperties(ValidationAliasParentDto::class);
         $dtoValidation = $this->makeDtoValidation($propertyManager);
 
-        $this->expectException(ValidationException::class);
+        // 只读取主键 childData；属性名 child 作为非主键忽略。
         $dtoValidation->validate(ValidationAliasParentDto::class, [
             'name' => 'ok',
             'childData' => ['x' => 'ok'],
             'child' => ['x' => ''],
         ]);
+
+        $this->assertTrue(true);
     }
 
     public function testNestedClassArrayValidatedPerItem(): void
@@ -232,7 +304,7 @@ class DtoValidationTest extends AbstractTestCase
         ]);
     }
 
-    public function testEmptyNestedDataSkipsRecursion(): void
+    public function testEmptyNestedDataStillValidatesRecursively(): void
     {
         $this->prepareRules(ValidationChildDto::class, 'x');
         $this->prepareRules(ValidationParentDto::class, 'name');
@@ -240,9 +312,9 @@ class DtoValidationTest extends AbstractTestCase
         $propertyManager->scanClassProperties(ValidationParentDto::class);
 
         $dtoValidation = $this->makeDtoValidation($propertyManager);
-        // child 为空数组 → empty() 分支跳过递归，不抛异常
+        // child 为空对象时也应执行子类的 required 规则
+        $this->expectException(ValidationException::class);
         $dtoValidation->validate(ValidationParentDto::class, ['name' => 'ok', 'child' => []]);
-        $this->assertTrue(true);
     }
 
     public function testValidateReturnsImmediatelyWithoutValidatorFactory(): void
@@ -256,6 +328,8 @@ class DtoValidationTest extends AbstractTestCase
         $dtoValidation = new DtoValidation($this->makePropertyManager(), new ValidationManager());
 
         $dtoValidation->validate(ValidationChildDto::class, ['x' => '']);
+        $dtoValidation->validate(ValidationChildDto::class, 'scalar-string');
+        $dtoValidation->validate(ValidationChildDto::class, array_fill(0, 1025, 'x'));
         $this->assertTrue(true);
     }
 
@@ -303,12 +377,409 @@ class DtoValidationTest extends AbstractTestCase
         }
     }
 
+    public function testValidationErrorsUseExternalAliasForPrimaryKey(): void
+    {
+        $this->prepareAliasScalarRules();
+        $dtoValidation = $this->makeDtoValidation();
+        $dtoValidation->validate(ValidationAliasScalarDto::class, ['userName' => 'TOO-LONG-VALUE']);
+
+        try {
+            $dtoValidation->validate(ValidationAliasScalarDto::class, ['user_name' => 'TOO-LONG-VALUE']);
+            $this->fail('Expected ValidationException was not thrown.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('user_name', $e->errors());
+            $this->assertArrayNotHasKey('userName', $e->errors());
+        }
+    }
+
+    public function testAliasValueWinsOverPropertyNameInput(): void
+    {
+        $this->prepareAliasScalarRules();
+        $dtoValidation = $this->makeDtoValidation();
+
+        // 只读取主键 user_name；属性名 userName 作为非主键忽略。
+        $dtoValidation->validate(ValidationAliasScalarDto::class, [
+            'user_name' => 'ok',
+            'userName' => 'TOO-LONG-VALUE',
+        ]);
+
+        $this->assertTrue(true);
+    }
+
+    public function testNullItemsInNestedClassArrayAreSkipped(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $this->prepareRules(ValidationArrayParentDto::class, 'name');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationArrayParentDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        $dtoValidation->validate(ValidationArrayParentDto::class, [
+            'name' => 'ok',
+            'children' => [null, ['x' => 'ok']],
+        ]);
+        $this->assertTrue(true);
+    }
+
+    public function testScalarElementsInSetterDeclaredClassArrayAreSkipped(): void
+    {
+        $dtoValidation = $this->makeDtoValidation();
+
+        // Status[] 的叶子是标量/枚举值，不应按 DTO 递归验证
+        $dtoValidation->validate(ValidationEnumArrayDto::class, [
+            'statuses' => ['on', 'off'],
+        ]);
+
+        $dto = Mapper::map(['statuses' => ['on', 'off']], new ValidationEnumArrayDto());
+        $this->assertSame([ValidationStatusEnum::ON, ValidationStatusEnum::OFF], $dto->getStatuses());
+    }
+
+    public function testSetterBackedArrayTypeAttributeValidatesChildren(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationSetterArrayTypeDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        $dtoValidation->validate(ValidationSetterArrayTypeDto::class, [
+            'items' => [['x' => 'ok']],
+        ]);
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationSetterArrayTypeDto::class, [
+            'items' => [['x' => '']],
+        ]);
+    }
+
+    public function testUntypedPropertyArrayTypeWithSetterValidatesAndMapsChildren(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationUntypedArrayTypeDto::class);
+        $property = $propertyManager->getProperty(ValidationUntypedArrayTypeDto::class, 'items');
+        $this->assertSame(ValidationChildDto::class, $property->arrClassName);
+        $this->assertSame(1, $property->arrayDepth);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        $input = ['items' => [['x' => 'ok']]];
+        $dtoValidation->validate(ValidationUntypedArrayTypeDto::class, $input);
+        $dto = Mapper::map($input, new ValidationUntypedArrayTypeDto());
+        $this->assertInstanceOf(ValidationChildDto::class, $dto->getItems()[0]);
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationUntypedArrayTypeDto::class, ['items' => [['x' => '']]]);
+    }
+
+    public function testNullableSetterClassArrayDocblockValidatesAndMapsChildren(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationNullableSetterArrayDto::class);
+        $property = $propertyManager->getProperty(ValidationNullableSetterArrayDto::class, 'items');
+        $this->assertSame(ValidationChildDto::class, $property->arrClassName);
+        $this->assertSame(1, $property->arrayDepth);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        $input = ['items' => [['x' => 'ok']]];
+        $dtoValidation->validate(ValidationNullableSetterArrayDto::class, $input);
+        $dto = Mapper::map($input, new ValidationNullableSetterArrayDto());
+        $this->assertInstanceOf(ValidationChildDto::class, $dto->getItems()[0]);
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationNullableSetterArrayDto::class, ['items' => [['x' => '']]]);
+    }
+
+    public function testUnreadableUntypedNestedPropertyIsIgnoredByValidationAndMapping(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationUnreadableUntypedDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+        $input = ['items' => [['x' => '']]];
+
+        $dtoValidation->validate(ValidationUnreadableUntypedDto::class, $input);
+        $dto = Mapper::map($input, new ValidationUnreadableUntypedDto());
+
+        $this->assertSame([], $dto->getItems());
+    }
+
+    public function testUntypedNestedDocblockWithUntypedSetterValidatesAndMaps(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationUntypedNestedSetterDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        $input = ['kid' => ['x' => 'ok']];
+        $dtoValidation->validate(ValidationUntypedNestedSetterDto::class, $input);
+        $dto = Mapper::map($input, new ValidationUntypedNestedSetterDto());
+        $this->assertInstanceOf(ValidationChildDto::class, $dto->getKid());
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationUntypedNestedSetterDto::class, ['kid' => ['x' => '']]);
+    }
+
+    public function testMixedSetterKeepsUntypedArrayTypeValidationAndMapping(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationUntypedMixedArrayDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        $input = ['items' => [['x' => 'ok']]];
+        $dtoValidation->validate(ValidationUntypedMixedArrayDto::class, $input);
+        $dto = Mapper::map($input, new ValidationUntypedMixedArrayDto());
+        $this->assertInstanceOf(ValidationChildDto::class, $dto->getItems()[0]);
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationUntypedMixedArrayDto::class, ['items' => [['x' => '']]]);
+    }
+
+    public function testVariadicClassSetterUsesClassArrayValidationAndMapping(): void
+    {
+        (new JSONField('display_name'))->collectProperty(ValidationVariadicChildDto::class, 'name');
+        $this->prepareRules(ValidationVariadicChildDto::class, 'name');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationVariadicParentDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        $input = ['children' => [['display_name' => 'ok'], ['display_name' => 'ok2']]];
+        $dtoValidation->validate(ValidationVariadicParentDto::class, $input);
+
+        $dto = Mapper::map($input, new ValidationVariadicParentDto());
+        $this->assertInstanceOf(ValidationVariadicChildDto::class, $dto->getChildren()[0]);
+        $this->assertSame('ok', $dto->getChildren()[0]->name);
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationVariadicParentDto::class, [
+            'children' => [['display_name' => '']],
+        ]);
+    }
+
+    public function testSetterOnlyNestedDtoIsValidatedAndMapped(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationSetterOnlyParentDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        // child 只有 setter、无同名声明属性，映射计划补充发现后同样递归验证
+        $input = ['child' => ['x' => 'ok']];
+        $dtoValidation->validate(ValidationSetterOnlyParentDto::class, $input);
+        $dto = Mapper::map($input, new ValidationSetterOnlyParentDto());
+        $this->assertInstanceOf(ValidationChildDto::class, $dto->getChild());
+        $this->assertSame('ok', $dto->getChild()->x);
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationSetterOnlyParentDto::class, ['child' => ['x' => '']]);
+    }
+
+    public function testSetterOnlyVariadicArrayIsValidatedAndMapped(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationSetterOnlyItemsDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        $input = ['items' => [['x' => 'ok'], ['x' => 'ok2']]];
+        $dtoValidation->validate(ValidationSetterOnlyItemsDto::class, $input);
+        $dto = Mapper::map($input, new ValidationSetterOnlyItemsDto());
+        $this->assertInstanceOf(ValidationChildDto::class, $dto->getItems()[0]);
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationSetterOnlyItemsDto::class, ['items' => [['x' => '']]]);
+    }
+
+    public function testNonArrayValueForClassArrayIsLeftToParentRules(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $this->prepareRules(ValidationArrayParentDto::class, 'name');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationArrayParentDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        // children 声明为 Child[]，标量输入交给父级规则，不抛未捕获 DtoException
+        $dtoValidation->validate(ValidationArrayParentDto::class, [
+            'name' => 'ok',
+            'children' => 'not-an-array',
+        ]);
+
+        $this->assertTrue(true);
+    }
+
+    public function testMultiDimensionalClassArrayValidatesLeafItems(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationMultiArrayParentDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        $dtoValidation->validate(ValidationMultiArrayParentDto::class, [
+            'groups' => [[['x' => 'ok'], null]],
+        ]);
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationMultiArrayParentDto::class, [
+            'groups' => [[['x' => '']]],
+        ]);
+    }
+
+    public function testCustomKeyErrorsUseExternalAliasAndKeepArrayIndex(): void
+    {
+        (new JSONField('user_ids'))->collectProperty(ValidationCustomKeyAliasDto::class, 'ids');
+        (new CustomValidation('integer', 'The :attribute must be an integer', 'user_ids.*'))->collectProperty(ValidationCustomKeyAliasDto::class, 'ids');
+        (new ValidationManager())->generateValidation(ValidationCustomKeyAliasDto::class, 'ids');
+        $dtoValidation = $this->makeDtoValidation();
+
+        try {
+            $dtoValidation->validate(ValidationCustomKeyAliasDto::class, ['user_ids' => [1, 'invalid']]);
+            $this->fail('Expected ValidationException was not thrown.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('user_ids.1', $e->errors());
+            $this->assertStringContainsString('user_ids', $e->getMessage());
+        }
+    }
+
+    public function testCrossFieldRuleUsesPrimaryKeyReference(): void
+    {
+        (new JSONField('contact_type'))->collectProperty(ValidationCrossFieldDto::class, 'type');
+        (new JSONField('contact_value'))->collectProperty(ValidationCrossFieldDto::class, 'value');
+        (new RequiredIf('contact_type', 'email', 'The :attribute is required when :other is :value'))->collectProperty(ValidationCrossFieldDto::class, 'value');
+        (new ValidationManager())->generateValidation(ValidationCrossFieldDto::class, 'value');
+        $dtoValidation = $this->makeDtoValidation();
+
+        $dtoValidation->validate(ValidationCrossFieldDto::class, ['contact_type' => 'phone']);
+        try {
+            $dtoValidation->validate(ValidationCrossFieldDto::class, [
+                'contact_type' => 'email',
+                'contact_value' => '',
+            ]);
+            $this->fail('Expected ValidationException was not thrown.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('contact_value', $e->errors());
+            $this->assertStringContainsString('contact type', $e->getMessage());
+        }
+    }
+
+    public function testInheritedPrivateNestedPropertyIsNotValidated(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationInheritedPrivateChildDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        $dtoValidation->validate(ValidationInheritedPrivateChildDto::class, ['secret' => 'not-an-object']);
+        $dtoValidation->validate(ValidationInheritedPrivateChildDto::class, ['secret' => ['x' => '']]);
+
+        $this->assertTrue(true);
+    }
+
+    public function testInheritedPrivatePropertyWithPublicSetterIsValidatedAndMapped(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationInheritedSetterChildDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        $input = ['child' => ['x' => 'ok']];
+        $dtoValidation->validate(ValidationInheritedSetterChildDto::class, $input);
+        $dto = Mapper::map($input, new ValidationInheritedSetterChildDto());
+        $this->assertInstanceOf(ValidationChildDto::class, $dto->getChild());
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate(ValidationInheritedSetterChildDto::class, ['child' => ['x' => '']]);
+    }
+
+    public function testValidationAttributeTranslationsUsePrimaryKey(): void
+    {
+        $this->prepareAliasScalarRules();
+        $dtoValidation = $this->makeDtoValidation(null, [
+            'validation' => ['attributes' => ['user_name' => 'Wire Name']],
+        ]);
+
+        try {
+            $dtoValidation->validate(ValidationAliasScalarDto::class, ['user_name' => 'TOO-LONG-VALUE']);
+            $this->fail('Expected ValidationException was not thrown.');
+        } catch (ValidationException $e) {
+            $this->assertSame('The Wire Name is too long', $e->errors()['user_name'][0]);
+        }
+    }
+
+    public function testValidationErrorsPreserveValidatorFailedRules(): void
+    {
+        $this->prepareAliasScalarRules();
+        $dtoValidation = $this->makeDtoValidation();
+
+        try {
+            $dtoValidation->validate(ValidationAliasScalarDto::class, ['user_name' => 'TOO-LONG-VALUE']);
+            $this->fail('Expected ValidationException was not thrown.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('user_name', $e->errors());
+            $this->assertArrayHasKey('user_name', $e->validator->failed());
+        }
+    }
+
+    public function testBroadSetterTypesKeepDeclaredNestedMetadata(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationBroadSetterDto::class);
+        $dtoValidation = $this->makeDtoValidation($propertyManager);
+
+        foreach (['items', 'groups', 'child'] as $field) {
+            $value = $field === 'child' ? ['x' => ''] : [['x' => '']];
+            try {
+                $dtoValidation->validate(ValidationBroadSetterDto::class, [$field => $value]);
+                $this->fail("Expected nested validation for {$field} was not triggered.");
+            } catch (ValidationException $e) {
+                $this->assertNotEmpty($e->errors());
+            }
+        }
+
+        $input = [
+            'items' => [['x' => 'ok']],
+            'groups' => [['x' => 'ok']],
+            'child' => ['x' => 'ok'],
+        ];
+        $dtoValidation->validate(ValidationBroadSetterDto::class, $input);
+        $dto = Mapper::map($input, new ValidationBroadSetterDto());
+        $this->assertInstanceOf(ValidationChildDto::class, $dto->getItems()[0]);
+        $this->assertInstanceOf(ValidationChildDto::class, $dto->getGroups()[0]);
+        $this->assertInstanceOf(ValidationChildDto::class, $dto->child);
+    }
+
+    public function testConfirmedUsesPrimaryAndExplicitConfirmationFields(): void
+    {
+        (new JSONField('password'))->collectProperty(ValidationConfirmedDto::class, 'pwd');
+        (new Confirmed())->collectProperty(ValidationConfirmedDto::class, 'pwd');
+        (new ValidationManager())->generateValidation(ValidationConfirmedDto::class, 'pwd');
+        $dtoValidation = $this->makeDtoValidation();
+
+        $dtoValidation->validate(ValidationConfirmedDto::class, [
+            'password' => 'secret',
+            'password_confirmation' => 'secret',
+        ]);
+        $input = ['pwd' => 'secret', 'pwd_confirmation' => 'secret'];
+        $dtoValidation->validate(ValidationConfirmedDto::class, $input);
+        $this->assertSame('', Mapper::map($input, new ValidationConfirmedDto())->pwd);
+        $this->assertTrue(true);
+
+        try {
+            $dtoValidation->validate(ValidationConfirmedDto::class, [
+                'password' => 'secret',
+                'password_confirmation' => 'different',
+            ]);
+            $this->fail('Expected ValidationException was not thrown.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('password', $e->errors());
+        }
+    }
+
     // ---------------- 工具方法 ----------------
 
     private function prepareAliasScalarRules(): void
     {
         (new JSONField('user_name'))->collectProperty(ValidationAliasScalarDto::class, 'userName');
-        (new Max(5))->collectProperty(ValidationAliasScalarDto::class, 'userName');
+        (new Max(5, 'The :attribute is too long'))->collectProperty(ValidationAliasScalarDto::class, 'userName');
         (new ValidationManager())->generateValidation(ValidationAliasScalarDto::class, 'userName');
     }
 
@@ -332,9 +803,9 @@ class DtoValidationTest extends AbstractTestCase
         return new PropertyManager(new DtoCommon(), new PropertyEnum());
     }
 
-    private function makeDtoValidation(?PropertyManager $propertyManager = null): DtoValidation
+    private function makeDtoValidation(?PropertyManager $propertyManager = null, array $translationGroups = []): DtoValidation
     {
-        $this->setContainerWithValidatorFactory();
+        $this->setContainerWithValidatorFactory($translationGroups);
         return new DtoValidation($propertyManager ?? $this->makePropertyManager(), new ValidationManager());
     }
 }
@@ -342,6 +813,36 @@ class DtoValidationTest extends AbstractTestCase
 class ValidationChildDto
 {
     public string $x = '';
+}
+
+class ValidationSetterOnlyParentDto
+{
+    private array $bag = [];
+
+    public function setChild(ValidationChildDto $child): void
+    {
+        $this->bag['child'] = $child;
+    }
+
+    public function getChild(): ?ValidationChildDto
+    {
+        return $this->bag['child'] ?? null;
+    }
+}
+
+class ValidationSetterOnlyItemsDto
+{
+    private array $bag = [];
+
+    public function setItems(ValidationChildDto ...$items): void
+    {
+        $this->bag['items'] = $items;
+    }
+
+    public function getItems(): array
+    {
+        return $this->bag['items'] ?? [];
+    }
 }
 
 class ValidationParentDto
@@ -366,6 +867,140 @@ class ValidationAliasParentDto
 class ValidationAliasScalarDto
 {
     public string $userName = '';
+}
+
+enum ValidationStatusEnum: string
+{
+    case ON = 'on';
+    case OFF = 'off';
+}
+
+class ValidationEnumArrayDto
+{
+    private array $statuses = [];
+
+    /** @param ValidationStatusEnum[] $statuses */
+    public function setStatuses(array $statuses): void
+    {
+        $this->statuses = $statuses;
+    }
+
+    public function getStatuses(): array
+    {
+        return $this->statuses;
+    }
+}
+
+class ValidationSetterArrayTypeDto
+{
+    #[ArrayType(ValidationChildDto::class)]
+    private array $items = [];
+
+    public function setItems(array $items): void
+    {
+        $this->items = $items;
+    }
+
+    public function getItems(): array
+    {
+        return $this->items;
+    }
+}
+
+class ValidationUntypedArrayTypeDto
+{
+    #[ArrayType(ValidationChildDto::class)]
+    private $items = [];
+
+    public function setItems(array $items): void
+    {
+        $this->items = $items;
+    }
+
+    public function getItems(): array
+    {
+        return $this->items;
+    }
+}
+
+class ValidationNullableSetterArrayDto
+{
+    private array $items = [];
+
+    /** @param ValidationChildDto[]|null $items */
+    public function setItems(array $items): void
+    {
+        $this->items = $items;
+    }
+
+    public function getItems(): array
+    {
+        return $this->items;
+    }
+}
+
+class ValidationUnreadableUntypedDto
+{
+    /** @var ValidationChildDto[] */
+    private $items = [];
+
+    public function getItems(): array
+    {
+        return $this->items;
+    }
+}
+
+class ValidationUntypedNestedSetterDto
+{
+    /** @var ValidationChildDto */
+    private $kid;
+
+    public function setKid($kid): void
+    {
+        $this->kid = $kid;
+    }
+
+    public function getKid()
+    {
+        return $this->kid;
+    }
+}
+
+class ValidationUntypedMixedArrayDto
+{
+    #[ArrayType(ValidationChildDto::class)]
+    private $items = [];
+
+    public function setItems(mixed $items): void
+    {
+        $this->items = $items;
+    }
+
+    public function getItems(): array
+    {
+        return $this->items;
+    }
+}
+
+class ValidationVariadicChildDto
+{
+    #[JSONField('display_name')]
+    public string $name = '';
+}
+
+class ValidationVariadicParentDto
+{
+    private array $children = [];
+
+    public function setChildren(ValidationVariadicChildDto ...$children): void
+    {
+        $this->children = $children;
+    }
+
+    public function getChildren(): array
+    {
+        return $this->children;
+    }
 }
 
 class ValidationSetterVariantDto
@@ -403,6 +1038,17 @@ class ValidationPascalPropertyDto
     public string $UserName = '';
 }
 
+class ValidationHeaderPropertyDto
+{
+    public string $xRequestId = '';
+}
+
+class ValidationHyphenAliasDto
+{
+    #[JSONField('x-token')]
+    public string $xToken = '';
+}
+
 class ValidationArrayParentDto
 {
     public string $name = '';
@@ -416,4 +1062,91 @@ class ValidationArrayParentDto
 class ValidationAttrDto
 {
     public string $name = '';
+}
+
+class ValidationCustomKeyAliasDto
+{
+    public array $ids = [];
+}
+
+class ValidationMultiArrayParentDto
+{
+    /** @var ValidationChildDto[][] */
+    public array $groups = [];
+}
+
+class ValidationCrossFieldDto
+{
+    public string $type = '';
+
+    public string $value = '';
+}
+
+class ValidationInheritedPrivateParentDto
+{
+    private ?ValidationChildDto $secret = null;
+}
+
+class ValidationInheritedPrivateChildDto extends ValidationInheritedPrivateParentDto
+{
+}
+
+class ValidationInheritedSetterParentDto
+{
+    private ?ValidationChildDto $child = null;
+
+    public function setChild(ValidationChildDto $child): void
+    {
+        $this->child = $child;
+    }
+
+    public function getChild(): ?ValidationChildDto
+    {
+        return $this->child;
+    }
+}
+
+class ValidationInheritedSetterChildDto extends ValidationInheritedSetterParentDto
+{
+}
+
+class ValidationBroadSetterDto
+{
+    #[ArrayType(ValidationChildDto::class)]
+    private array $items = [];
+
+    /** @var ValidationChildDto[] */
+    private array $groups = [];
+
+    public ?ValidationChildDto $child = null;
+
+    public function setItems(mixed $items): void
+    {
+        $this->items = $items;
+    }
+
+    public function getItems(): array
+    {
+        return $this->items;
+    }
+
+    public function setGroups(iterable $groups): void
+    {
+        $this->groups = $groups;
+    }
+
+    public function getGroups(): array
+    {
+        return $this->groups;
+    }
+
+    public function setChild(object $child): void
+    {
+        $this->child = $child;
+    }
+}
+
+class ValidationConfirmedDto
+{
+    public string $pwd = '';
 }

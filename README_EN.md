@@ -22,7 +22,7 @@ A Data Transfer Object (DTO) mapping and validation library for the [Hyperf](htt
 ## 📋 Requirements
 
 - PHP >= 8.1
-- Hyperf >= 3.0
+- Hyperf ~3.1 或 ~3.2
 - Swoole >= 5.0
 
 ## 📦 Installation
@@ -259,6 +259,8 @@ class CreateRequest
 
 #### Nested Object DTO
 
+Nested objects are mapped recursively and validated using the annotations on the nested class. A missing or null nested value is skipped; an empty array representing a nested object still runs the nested rules. Object arrays validate every non-null element.
+
 ```php
 namespace App\Request;
 
@@ -316,7 +318,7 @@ use Hyperf\DTO\Annotation\JSONField;
 
 class ApiRequest
 {
-    // Map user_name from the request to userName
+    // Map user_name from the request to userName and serialize it back as user_name
     #[JSONField('user_name')]
     public string $userName;
     
@@ -324,6 +326,8 @@ class ApiRequest
     public int $userAge;
 }
 ```
+
+In 4.0, `JSONField` only describes the mapping between an external alias and a PHP property; it no longer generates an input setter. Normal mapping, validation, and RPC input accept only the field's `primaryKey`: the explicit `JSONField` alias when present, otherwise the PHP property name. Property-name/alias interchange and implicit setter, case, hyphen, or underscore variants are not accepted. When a primary key and other keys are submitted together, only the primary key is read; non-primary keys are ignored without logging by default. Validation errors returned to clients still use the external alias. See [UPGRADE-4.0.md](UPGRADE-4.0.md).
 
 ## ✅ Data Validation
 
@@ -401,7 +405,7 @@ class UserRequest
 
 #### Using Validation Annotation
 
-The `Validation` annotation supports Laravel-style validation rules:
+The `Validation` annotation supports Laravel-style validation rules. Validation rules, cross-field references, and `customKey` use the same external primaryKey as the request: the `JSONField` alias when present, otherwise the PHP property name. The validator reads the original input directly, and validation errors use that primaryKey without canonical data conversion:
 
 ```php
 use Hyperf\DTO\Annotation\Validation\Validation;
@@ -457,7 +461,7 @@ class RegisterRequest
 
 ### RPC Support
 
-To return PHP objects in JSON-RPC services, you need to configure serialization support.
+In JSON-RPC services, RPC input parameters uniformly use Symfony's `NormalizerInterface::denormalize` (including nested DTOs and BackedEnums); validation is performed by `DtoValidation` reading the original array via external primaryKey. When returning PHP objects, configure `ObjectNormalizerAspect` to intercept `AbstractObjectNormalizer::denormalize` and replace default serialization with `Mapper::map()`, avoiding Symfony's full object graph traversal for responses.
 
 #### 1. Install Dependencies
 
@@ -488,6 +492,8 @@ return [
     Hyperf\Contract\NormalizerInterface::class => new SerializerFactory(Serializer::class),
 ];
 ```
+
+RPC input uniformly uses `NormalizerInterface::denormalize()`; `ObjectNormalizerAspect` intercepts Symfony's `denormalize` to ensure response serialization uses the DTO field mapping plan from `Mapper::map()`.
 
 ### Custom Type Conversion
 

@@ -26,56 +26,52 @@ class CaseVariantMappingTest extends TestCase
 {
     public function testCaseVariantKeyDoesNotOverwriteValidatedValue(): void
     {
-        $dto = $this->mapper()->map(['name' => 'ok', 'nAME' => 'TOO-LONG'], new CaseVariantSetterDto());
+        $dto = $this->mapper()->simpleMap(['name' => 'ok', 'nAME' => 'TOO-LONG'], new CaseVariantSetterDto());
 
         $this->assertSame('ok', $dto->getName());
     }
 
     public function testSingleCaseVariantKeyIsIgnored(): void
     {
-        $dto = $this->mapper()->map(['nAME' => 'EVIL'], new CaseVariantSetterDto());
+        $dto = $this->mapper()->simpleMap(['nAME' => 'EVIL'], new CaseVariantSetterDto());
 
         $this->assertSame('', $dto->getName());
     }
 
     public function testAllUpperCaseVariantKeyIsIgnored(): void
     {
-        $dto = $this->mapper()->map(['NAME' => 'EVIL'], new CaseVariantSetterDto());
+        $dto = $this->mapper()->simpleMap(['NAME' => 'EVIL'], new CaseVariantSetterDto());
 
         $this->assertSame('', $dto->getName());
     }
 
-    public function testUcfirstKeyStillMapsViaSetter(): void
+    public function testUcfirstKeyIsIgnored(): void
     {
-        // 首字母大写变体经精确 setter 名命中（setName），行为保留。
-        // 注意：校验侧不登记 Name 键（F03 规则登记已撤回），带 setter 的
-        // DTO 经 Name 传入非法值仍可绕过校验——属已接受的残留风险，
-        $dto = $this->mapper()->map(['Name' => 'ok2'], new CaseVariantSetterDto());
+        $dto = $this->mapper()->simpleMap(['Name' => 'ignored'], new CaseVariantSetterDto());
 
-        $this->assertSame('ok2', $dto->getName());
+        $this->assertSame('', $dto->getName());
     }
 
     public function testPropertyCaseInsensitiveFallbackRemoved(): void
     {
         // 无 setter 的公开属性：TITLE 对 title 的 strcasecmp 回退已移除
-        $dto = $this->mapper()->map(['TITLE' => 'x'], new CaseVariantPropertyDto());
+        $dto = $this->mapper()->simpleMap(['TITLE' => 'x'], new CaseVariantPropertyDto());
 
         $this->assertSame('', $dto->title);
     }
 
     public function testExactPropertyNameStillMaps(): void
     {
-        $dto = $this->mapper()->map(['title' => 'x'], new CaseVariantPropertyDto());
+        $dto = $this->mapper()->simpleMap(['title' => 'x'], new CaseVariantPropertyDto());
 
         $this->assertSame('x', $dto->title);
     }
 
-    public function testUnderscoreKeyStillMapsToSetter(): void
+    public function testUnderscoreKeyIsIgnored(): void
     {
-        // 兼容性：下划线键走精确 camelCase 路径（user_name -> setUserName）
-        $dto = $this->mapper()->map(['user_name' => 'tw'], new CaseVariantUnderscoreDto());
+        $dto = $this->mapper()->simpleMap(['user_name' => 'ignored'], new CaseVariantUnderscoreDto());
 
-        $this->assertSame('tw', $dto->getUserName());
+        $this->assertSame('', $dto->getUserName());
     }
 
     public function testValidationRulesOnlyCoverDeclaredKeys(): void

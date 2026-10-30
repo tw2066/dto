@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace Hyperf\DTO;
 
 use Hyperf\Context\ApplicationContext;
+use Hyperf\Contract\TranslatorInterface;
 use Hyperf\Contract\ValidatorInterface;
-use Hyperf\Di\ReflectionManager;
 use Hyperf\DTO\Exception\DtoException;
+use Hyperf\DTO\Scan\Property;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Scan\ValidationManager;
 use Hyperf\Validation\Contract\ValidatorFactoryInterface;
 use Hyperf\Validation\ValidationException;
-use ReflectionMethod;
-use ReflectionProperty;
 
 /**
  * DTO 验证类
@@ -26,49 +25,46 @@ class DtoValidation
      */
     public static bool $isValidationCustomAttributes = false;
 
-    /**
-     * 验证工厂实例.
-     */
     private ?ValidatorFactoryInterface $validationFactory = null;
 
-    private static array $keyMapCache = [];
+    private ?TranslatorInterface $translator = null;
 
-    private DtoCommon $dtoCommon;
+    private array $validatorAttributes = [];
 
-    /**
-     * 构造函数.
-     *
-     * @param PropertyManager $propertyManager 属性管理器
-     * @param ValidationManager $validationManager 验证管理器
-     */
+    /** @var array<string, true> 已生成过规则的类，避免重复扫描注解 */
+    private array $ensuredRules = [];
+
+    private ?JsonMapper $mapper = null;
+
     public function __construct(protected PropertyManager $propertyManager, protected ValidationManager $validationManager)
     {
-        $this->dtoCommon = new DtoCommon();
         $container = ApplicationContext::getContainer();
         if ($container->has(ValidatorFactoryInterface::class)) {
             $this->validationFactory = $container->get(ValidatorFactoryInterface::class);
+            if (method_exists($this->validationFactory, 'getTranslator')) {
+                $translator = $this->validationFactory->getTranslator();
+                $this->translator = $translator instanceof TranslatorInterface ? $translator : null;
+            }
         }
     }
 
     /**
      * 验证 DTO 数据.
-     *
-     * @param string $className DTO 类名
-     * @param mixed $data 要验证的数据
      */
     public function validate(string $className, $data): void
     {
-        if ($this->validationFactory == null) {
+        if ($this->validationFactory === null) {
             return;
         }
-        $this->validateResolved($className, $data);
+        if (! class_exists($className) && ! interface_exists($className)) {
+            // RPC 的 array/mixed 等参数没有 DTO 类规则，元素验证由调用方负责。
+            return;
+        }
+        $this->validateResolved($className, $data ?? []);
     }
 
     /**
      * 构建验证异常.
-     *
-     * @param ValidatorInterface $validator 验证器实例
-     * @return ValidationException 验证异常
      */
     protected function buildValidationException(ValidatorInterface $validator): ValidationException
     {
@@ -82,97 +78,18 @@ class DtoValidation
     }
 
     /**
-     * 解析并验证数据.
+     * 按外部 primaryKey 验证原始输入，并递归处理嵌套 DTO。
      *
-     * @param string $className DTO 类名
-     * @param mixed $data 要验证的数据
-     * @throws DtoException 当数据不是数组或对象时抛出
+     * @throws DtoException 当数据不是数组时抛出
      * @throws ValidationException 当验证失败时抛出
      */
-    protected function validateResolved(string $className, $data): void
+    protected function validateResolved(string $className, mixed $data): void
     {
         if (! is_array($data)) {
-            throw new DtoException("Class: {$className} - data must be object or array");
+            throw new DtoException("Class: {$className} - data must be array");
         }
 
-        // 与映射器一致：safe key 后依次尝试别名、公共 setter 和公有属性。
-        if (! isset(static::$keyMapCache[$className])) {
-            $propertyArr = $this->propertyManager->getPropertyByClass($className);
-            $reflectionClass = ReflectionManager::reflectClass($className);
-            $methods = $reflectionClass->getMethods(ReflectionMethod::IS_PUBLIC);
-            $publicProperties = [];
-            foreach ($reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC) as $reflectionProperty) {
-                $publicProperties[$reflectionProperty->getName()] = true;
-            }
-
-            $exactKeyMap = [];
-            $setterKeyMap = [];
-            $propertyKeyMap = [];
-            foreach ($propertyArr as $fieldName => $property) {
-                $ruleKey = $property->alias ?? $fieldName;
-                $hasAlias = $property->alias !== null && $property->alias !== $fieldName;
-                if ($hasAlias) {
-                    $exactKeyMap[$fieldName] = $ruleKey;
-                    $exactKeyMap[$property->alias] = $ruleKey;
-                    $exactKeyMap[$this->dtoCommon->getSafeName($property->alias)] = $ruleKey;
-                }
-
-                foreach ($methods as $method) {
-                    $methodName = $method->getName();
-                    if (! str_starts_with($methodName, 'set')) {
-                        continue;
-                    }
-                    $suffix = substr($methodName, 3);
-                    if (strcasecmp($suffix, $fieldName) !== 0 || $this->dtoCommon->getSetterName($suffix) !== $methodName) {
-                        continue;
-                    }
-                    $exactKeyMap[$fieldName] = $ruleKey;
-                    $setterKeyMap[$methodName] = $ruleKey;
-                    break;
-                }
-
-                if (isset($publicProperties[$fieldName]) && $this->dtoCommon->getSafeName('-' . $fieldName) === $fieldName) {
-                    $propertyKeyMap[$fieldName] = $ruleKey;
-                }
-            }
-            static::$keyMapCache[$className] = [$exactKeyMap, $setterKeyMap, $propertyKeyMap];
-        }
-        [$exactKeyMap, $setterKeyMap, $propertyKeyMap] = static::$keyMapCache[$className];
-
-        // 无别名或键变体时，精确声明键无需归一化。
-        if ($exactKeyMap !== [] || $setterKeyMap !== [] || $propertyKeyMap !== []) {
-            $keyOwners = [];
-            $normalizedValues = [];
-            foreach ($data as $key => $value) {
-                if (! is_string($key)) {
-                    continue;
-                }
-                $ruleKey = $exactKeyMap[$key] ?? null;
-                if ($ruleKey === null) {
-                    $safeKey = $this->dtoCommon->getSafeName($key);
-                    $ruleKey = $exactKeyMap[$safeKey] ?? null;
-                    if ($ruleKey === null) {
-                        $setter = $this->dtoCommon->getSetterName($safeKey);
-                        $ruleKey = $setterKeyMap[$setter] ?? $propertyKeyMap[$safeKey] ?? null;
-                    }
-                }
-                if ($ruleKey === null) {
-                    continue;
-                }
-                if (isset($keyOwners[$ruleKey]) && $keyOwners[$ruleKey] !== $key) {
-                    $validator = $this->validationFactory->make($data, []);
-                    $validator->errors()->add($ruleKey, 'The ' . $keyOwners[$ruleKey] . ' and ' . $key . ' fields cannot both be present.');
-                    throw $this->buildValidationException($validator);
-                }
-                $keyOwners[$ruleKey] = $key;
-                if ($key !== $ruleKey) {
-                    $normalizedValues[$ruleKey] = $value;
-                }
-            }
-            foreach ($normalizedValues as $key => $value) {
-                $data[$key] = $value;
-            }
-        }
+        $this->ensureRules($className);
 
         $validArr = $this->validationManager->getData($className);
         if (! empty($validArr)) {
@@ -180,28 +97,111 @@ class DtoValidation
                 $data,
                 $validArr['rule'],
                 $validArr['messages'] ?? [],
-                static::$isValidationCustomAttributes ? ($validArr['attributes'] ?? []) : []
+                $this->getValidatorAttributes($className, $validArr)
             );
             if ($validator->fails()) {
                 throw $this->buildValidationException($validator);
             }
         }
 
-        // 递归验证嵌套对象和数组（类自身无规则时也要递归，嵌套类的规则独立生效）
+        // 类自身无规则时也要递归，嵌套类的规则独立生效。
         $notSimplePropertyArr = $this->propertyManager->getPropertyAndNotSimpleType($className);
         foreach ($notSimplePropertyArr as $fieldName => $property) {
-            // 使用归一化后的 JSONField 别名或 PHP 属性名键
-            $dataKey = $property->alias ?? $fieldName;
-            $value = $data[$dataKey] ?? null;
-            if (! empty($value)) {
-                if ($property->isClassArray()) {
-                    foreach ($value as $item) {
-                        $this->validateResolved($property->arrClassName, $item);
-                    }
-                } elseif ($property->className != null) {
-                    $this->validateResolved($property->className, $value);
-                }
+            $this->validateNestedProperty($property, $property->alias ?? $fieldName, $data);
+        }
+        // setter-only 字段没有声明属性、不在 notSimpleClass 中，由映射计划补充发现。
+        foreach ($this->mapper()->getSetterOnlyNestedProperties($className) as $dataKey => $property) {
+            $this->validateNestedProperty($property, $dataKey, $data);
+        }
+    }
+
+    private function validateNestedProperty(Property $property, string $dataKey, array $data): void
+    {
+        if (! array_key_exists($dataKey, $data)) {
+            return;
+        }
+        $value = $data[$dataKey];
+        if ($property->isClassArray()) {
+            $this->validateClassArray(
+                $property->arrClassName ?? $property->arrInterfaceName,
+                $value,
+                max(1, $property->arrayDepth)
+            );
+            return;
+        }
+        $nestedType = $property->className ?? $property->interfaceName;
+        if ($nestedType !== null && is_array($value)) {
+            $resolved = $this->mapper()->resolveMappedClass($nestedType, $value);
+            if ($resolved !== null) {
+                $this->validateResolved($resolved, $value);
             }
         }
+    }
+
+    /**
+     * 与运行时映射共用同一 JsonMapper 单例，保证验证按映射实际的 classMap 解析。
+     */
+    private function mapper(): JsonMapper
+    {
+        return $this->mapper ??= Mapper::getJsonMapper();
+    }
+
+    /**
+     * 为验证阶段才发现的 classMap 具体类补生成规则。
+     */
+    private function ensureRules(string $className): void
+    {
+        if (isset($this->ensuredRules[$className])) {
+            return;
+        }
+        foreach (array_keys($this->propertyManager->getPropertyByClass($className)) as $fieldName) {
+            $this->validationManager->generateValidation($className, $fieldName);
+        }
+        $this->ensuredRules[$className] = true;
+    }
+
+    private function validateClassArray(string $className, mixed $value, int $remainingDepth): void
+    {
+        if (! is_array($value)) {
+            // 非数组值（标量、枚举、对象）没有可递归的 DTO 规则，交给父级规则处理。
+            return;
+        }
+        foreach ($value as $item) {
+            if (! is_array($item)) {
+                // 标量、枚举和对象叶子不参与 DTO 递归验证。
+                continue;
+            }
+            if ($remainingDepth > 1) {
+                $this->validateClassArray($className, $item, $remainingDepth - 1);
+                continue;
+            }
+            $resolved = $this->mapper()->resolveMappedClass($className, $item);
+            if ($resolved !== null) {
+                $this->validateResolved($resolved, $item);
+            }
+        }
+    }
+
+    private function getValidatorAttributes(string $className, array $validArr): array
+    {
+        $attributes = [];
+        if ($this->translator !== null) {
+            $cacheKey = $className . ':' . $this->translator->getLocale();
+            if (! isset($this->validatorAttributes[$cacheKey])) {
+                foreach (array_keys($validArr['rule'] ?? []) as $field) {
+                    $translationKey = 'validation.attributes.' . $field;
+                    $translation = $this->translator->trans($translationKey);
+                    if (is_string($translation) && $translation !== $translationKey) {
+                        $attributes[$field] = $translation;
+                    }
+                }
+                $this->validatorAttributes[$cacheKey] = $attributes;
+            }
+            $attributes = $this->validatorAttributes[$cacheKey];
+        }
+        if (static::$isValidationCustomAttributes) {
+            return array_replace($attributes, $validArr['attributes'] ?? []);
+        }
+        return $attributes;
     }
 }

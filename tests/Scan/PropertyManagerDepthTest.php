@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace HyperfTest\DTO\Scan;
 
+use Hyperf\DTO\Annotation\ArrayType;
 use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\DtoCommon;
 use Hyperf\DTO\Exception\DtoException;
@@ -57,24 +58,42 @@ class PropertyManagerDepthTest extends AbstractTestCase
         $this->assertSame('user_name', $property->alias);
     }
 
-    public function testUnionDocblockVarIsTruncatedToFirstType(): void
+    public function testUnsupportedUnionDocblockFallsBackToReflectedType(): void
     {
         $propertyManager = $this->makeManager();
         $property = $propertyManager->getProperty(DepthUnionFirstWinsDto::class, 'list');
 
-        // @var Address[]|int[] 截断为 Address[]
-        $this->assertSame(Address::class, $property->arrClassName);
-        $this->assertFalse($property->isSimpleType);
+        // 不支持的联合类型不再阻断扫描，回退到反射类型 array
+        $this->assertTrue($property->isSimpleType);
+        $this->assertSame('array', $property->phpSimpleType);
+        $this->assertNull($property->arrClassName);
     }
 
-    public function testUnionDocblockVarWithNullFirstLosesClassArrayType(): void
+    public function testFailedScanIsRolledBack(): void
     {
-        // src 现状（坑）: 联合类型简单按 | 截断取第一个，null|Address[] 截出 'null'，
-        // 类数组类型信息丢失（此用例锁定该行为，修复后应翻转）
+        $propertyManager = $this->makeManager();
+        $missingClass = 'HyperfTest\\DTO\\Scan\\MissingClassForRollbackTest';
+
+        try {
+            $propertyManager->scanClassProperties($missingClass);
+            $this->fail('Expected InvalidArgumentException was not thrown.');
+        } catch (\InvalidArgumentException $exception) {
+            // expected
+        }
+
+        // 未回滚时会因「已扫描」直接返回；回滚后再次调用仍应抛出
+        $this->expectException(\InvalidArgumentException::class);
+        $propertyManager->scanClassProperties($missingClass);
+    }
+
+    public function testNullableUnionDocblockKeepsClassArrayType(): void
+    {
         $propertyManager = $this->makeManager();
         $property = $propertyManager->getProperty(DepthUnionArrayDto::class, 'list');
 
-        $this->assertNull($property->arrClassName);
+        $this->assertSame(Address::class, $property->arrClassName);
+        $this->assertFalse($property->isSimpleType);
+        $this->assertTrue($property->isClassArray());
     }
 
     public function testDocblockVarWithDescriptionIsTruncatedAtSpace(): void
@@ -85,6 +104,35 @@ class PropertyManagerDepthTest extends AbstractTestCase
         // @var int[] list of ids 按空格截断
         $this->assertSame('int', $property->arrSimpleType);
         $this->assertFalse($property->isSimpleType);
+    }
+
+    public function testSetterBackedArrayTypeAttributeIsScanned(): void
+    {
+        $propertyManager = $this->makeManager();
+        $property = $propertyManager->getProperty(DepthSetterArrayTypeDto::class, 'items');
+
+        $this->assertSame(Address::class, $property->arrClassName);
+        $this->assertFalse($property->isSimpleType);
+        $this->assertTrue($property->isClassArray());
+    }
+
+    public function testSetterBackedVarDocblockArrayIsScanned(): void
+    {
+        $propertyManager = $this->makeManager();
+        $property = $propertyManager->getProperty(DepthSetterVarArrayDto::class, 'items');
+
+        $this->assertSame(Address::class, $property->arrClassName);
+        $this->assertTrue($property->isClassArray());
+    }
+
+    public function testVariadicClassSetterIsScannedAsClassArray(): void
+    {
+        $propertyManager = $this->makeManager();
+        $property = $propertyManager->getProperty(DepthVariadicParentDto::class, 'children');
+
+        $this->assertSame(DepthVariadicChild::class, $property->arrClassName);
+        $this->assertTrue($property->isClassArray());
+        $this->assertSame(1, $property->arrayDepth);
     }
 
     public function testEnumPropertyCollected(): void
@@ -143,6 +191,58 @@ class DepthDescribedArrayDto
      * @var int[] list of ids
      */
     public array $ids = [];
+}
+
+class DepthSetterArrayTypeDto
+{
+    #[ArrayType(Address::class)]
+    private array $items = [];
+
+    public function setItems(array $items): void
+    {
+        $this->items = $items;
+    }
+
+    public function getItems(): array
+    {
+        return $this->items;
+    }
+}
+
+class DepthSetterVarArrayDto
+{
+    /** @var Address[] */
+    private array $items = [];
+
+    public function setItems(array $items): void
+    {
+        $this->items = $items;
+    }
+
+    public function getItems(): array
+    {
+        return $this->items;
+    }
+}
+
+class DepthVariadicChild
+{
+    public string $name = '';
+}
+
+class DepthVariadicParentDto
+{
+    private array $children = [];
+
+    public function setChildren(DepthVariadicChild ...$children): void
+    {
+        $this->children = $children;
+    }
+
+    public function getChildren(): array
+    {
+        return $this->children;
+    }
 }
 
 enum DepthStatusEnum: string

@@ -8,9 +8,13 @@ use Hyperf\Contract\TranslatorLoaderInterface;
 
 class FakeTranslatorLoader implements TranslatorLoaderInterface
 {
+    public function __construct(private array $groups = [])
+    {
+    }
+
     public function load(string $locale, string $group, ?string $namespace = null): array
     {
-        return [];
+        return $this->groups[$group] ?? [];
     }
 
     public function addNamespace(string $namespace, string $hint)

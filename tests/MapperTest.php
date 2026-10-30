@@ -68,6 +68,15 @@ class MapperTest extends TestCase
 
         $this->assertNotSame($mapper1, $mapper2);
     }
+
+    public function testNullElementsAreAllowedInClassArrays(): void
+    {
+        $dto = Mapper::map(['items' => [['name' => 'first', 'age' => 1], null]], new TestNullArrayDto());
+
+        $this->assertInstanceOf(TestSimpleDto::class, $dto->items[0]);
+        $this->assertSame('first', $dto->items[0]->name);
+        $this->assertNull($dto->items[1]);
+    }
 }
 
 class TestSimpleDto
@@ -75,4 +84,10 @@ class TestSimpleDto
     public string $name = '';
 
     public int $age = 0;
+}
+
+class TestNullArrayDto
+{
+    /** @var TestSimpleDto[] */
+    public array $items = [];
 }

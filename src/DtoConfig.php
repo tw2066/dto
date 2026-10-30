@@ -16,8 +16,6 @@ use Hyperf\DTO\Type\Convert;
  */
 class DtoConfig
 {
-    private static string $dto_alias_method_prefix = '_set_dto_alias_';
-
     private string $proxy_dir = '';
 
     private int $dto_default_value_level = 0;
@@ -35,7 +33,7 @@ class DtoConfig
         $jsonMapper = Mapper::getJsonMapper('bIgnoreVisibility');
         // Enable private property and method access
         $jsonMapper->bIgnoreVisibility = true;
-        $jsonMapper->map($data, $this);
+        $jsonMapper->simpleMap($data, $this);
     }
 
     public function getResponsesGlobalConvert(): ?Convert
@@ -56,14 +54,6 @@ class DtoConfig
     public function getDtoDefaultValueLevel(): int
     {
         return $this->dto_default_value_level;
-    }
-
-    public static function getDtoAliasMethodName(string $fieldName): string
-    {
-        $dtoCommon = new DtoCommon();
-        $fieldName = $dtoCommon->getSafeName($fieldName);
-        $fieldName = md5($fieldName);
-        return static::$dto_alias_method_prefix . $fieldName;
     }
 
     public function getScanHandler(): ScanHandlerInterface

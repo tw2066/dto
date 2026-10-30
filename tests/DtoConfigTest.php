@@ -124,12 +124,6 @@ class DtoConfigTest extends AbstractTestCase
         $this->assertSame($customHandler, $dtoConfig->getScanHandler());
     }
 
-    public function testDtoAliasMethodName(): void
-    {
-        // 生成侧(DtoVisitor)与消费侧(JsonMapper)共用的命名契约
-        $this->assertSame('_set_dto_alias_' . md5('user_name'), DtoConfig::getDtoAliasMethodName('user_name'));
-    }
-
     private function makeConfig(array $values = []): ConfigInterface
     {
         $config = m::mock(ConfigInterface::class);

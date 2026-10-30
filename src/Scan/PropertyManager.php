@@ -9,6 +9,8 @@ use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\ApiAnnotation;
 use Hyperf\DTO\DtoCommon;
 use Hyperf\DTO\Exception\DtoException;
+use ReflectionClass;
+use ReflectionProperty;
 
 class PropertyManager
 {
@@ -17,6 +19,7 @@ class PropertyManager
     protected static array $content = [];
 
     protected static array $notSimpleClass = [];
+
     private static array $scannedClasses = [];
 
     public function __construct(protected DtoCommon $dtoCommon, protected PropertyEnum $propertyEnum)
@@ -29,9 +32,6 @@ class PropertyManager
         return static::$content[$className] ?? [];
     }
 
-    /**
-     * 获取类中字段的属性.
-     */
     public function getProperty(string $className, string $fieldName): ?Property
     {
         return $this->getPropertyByClass($className)[$fieldName] ?? null;
@@ -42,10 +42,7 @@ class PropertyManager
      */
     public function getPropertyAndNotSimpleType(string $className): array
     {
-        if (! isset(static::$notSimpleClass[$className])) {
-            return [];
-        }
-        return static::$notSimpleClass[$className];
+        return static::$notSimpleClass[$className] ?? [];
     }
 
     public function scanClassProperties(string $className, int $depth = 0): void
@@ -55,81 +52,140 @@ class PropertyManager
         }
 
         $className = ltrim($className, '\\');
-        // 使用关联数组检查，时间复杂度 O(1) 替代 in_array 的 O(n)
         if (isset(self::$scannedClasses[$className])) {
             return;
         }
         self::$scannedClasses[$className] = true;
 
-        $rc = ReflectionManager::reflectClass($className);
-        $strNs = $rc->getNamespaceName();
-        foreach ($rc->getProperties() ?? [] as $reflectionProperty) {
-            $fieldName = $reflectionProperty->getName();
-            $isSimpleType = true;
-            $phpSimpleType = null;
-            $propertyClassName = null;
-            $arrSimpleType = null;
-            $arrClassName = null;
-            $type = $this->dtoCommon->getTypeName($reflectionProperty);
+        try {
+            $rc = ReflectionManager::reflectClass($className);
+            foreach ($this->getClassProperties($rc) as $reflectionProperty) {
+                $fieldName = $reflectionProperty->getName();
+                [, $accessor, $type] = $this->dtoCommon->inspectPropertyMetadata($rc, $fieldName);
+                $readUntypedPropertyAnnotations = $accessor !== null && ! $reflectionProperty->hasType()
+                    && ($type === null || in_array($type, ['mixed', 'object', 'iterable'], true));
+                if (in_array($type, ['mixed', 'object', 'iterable'], true)) {
+                    // 宽泛 setter 不能遮蔽属性上的 ArrayType/@var/原生类声明。
+                    $type = $this->dtoCommon->getTypeName($reflectionProperty);
+                }
+                $type ??= $this->dtoCommon->getTypeName($reflectionProperty);
+                $type = $this->dtoCommon->removeNullable($type);
 
-            // php简单类型
-            if ($this->dtoCommon->isSimpleType($type)) {
-                $phpSimpleType = $type;
-            }
-            // 数组类型
-            $propertyEnum = $this->propertyEnum->get($type);
-            if ($type == 'array') {
-                $docblock = $reflectionProperty->getDocComment();
-                $annotations = $this->dtoCommon->parseAnnotationsNew($rc, $reflectionProperty, $docblock);
-                if (! empty($annotations)) {
-                    // support "@var type description"
-                    [$varType] = explode(' ', $annotations['var'][0]);
-                    $varType = $this->dtoCommon->getFullNamespace($varType, $strNs);
-                    // 数组类型
-                    if ($this->dtoCommon->isArrayOfType($varType)) {
-                        $isSimpleType = false;
-                        $arrType = substr($varType, 0, -2);
-                        // 数组的简单类型 eg: int[]  string[]
-                        if ($this->dtoCommon->isSimpleType($arrType)) {
-                            $arrSimpleType = $arrType;
-                        } elseif (class_exists($arrType)) {
-                            $arrClassName = $arrType;
-                            $this->scanClassProperties($arrType, $depth + 1);
-                        }
+                if ($type === 'array' || $readUntypedPropertyAnnotations) {
+                    // 可写访问器未提供嵌套类型时，属性级 #[ArrayType]/@var
+                    // 仍是元素类型的唯一来源；不可写属性不能只参与验证。
+                    $annotations = $this->dtoCommon->parseAnnotationsNew(
+                        $rc,
+                        $reflectionProperty,
+                        $reflectionProperty->getDocComment()
+                    );
+                    if (! empty($annotations['var'])) {
+                        [$type] = explode(' ', $annotations['var'][0]);
                     }
                 }
-            } elseif ($propertyEnum) {
-                $isSimpleType = false;
-            } elseif (class_exists($type)) {
-                $this->scanClassProperties($type, $depth + 1);
-                $isSimpleType = false;
-                $propertyClassName = $type;
-            }
-            /** @var JSONField $JSONField */
-            $JSONField = ApiAnnotation::getProperty($className, $fieldName, JSONField::class);
-            $JSONFieldName = $JSONField?->name;
 
-            $property = new Property();
-            $property->phpSimpleType = $phpSimpleType;
-            $property->isSimpleType = $isSimpleType;
-            $property->arrSimpleType = $arrSimpleType;
-            $property->arrClassName = $arrClassName ? trim($arrClassName, '\\') : null;
-            $property->className = $propertyClassName ? trim($propertyClassName, '\\') : null;
-            $property->enum = $propertyEnum;
-            $property->alias = $JSONFieldName;
-            $this->setProperty($className, $fieldName, $property);
+                $property = $this->createPropertyFromType(
+                    $type,
+                    $rc->getNamespaceName(),
+                    $this->getJsonFieldName($className, $fieldName, $reflectionProperty),
+                    $depth
+                );
+                $inheritedPrivate = $reflectionProperty->isPrivate()
+                    && $reflectionProperty->getDeclaringClass()->getName() !== $className;
+                $this->setProperty($className, $fieldName, $property, $inheritedPrivate);
+            }
+        } catch (\Throwable $exception) {
+            // 失败时回滚，避免「已扫描」标记把截断元数据留给后续请求。
+            unset(self::$scannedClasses[$className], static::$content[$className], static::$notSimpleClass[$className]);
+            throw $exception;
         }
     }
 
     /**
-     * 设置类中字段的属性.
+     * @internal 由同一套类型信息生成属性描述，供声明属性和 setter-only 字段复用
      */
-    private function setProperty(string $className, string $fieldName, Property $property): void
+    public function createPropertyFromType(?string $type, string $namespace, ?string $alias = null, int $depth = 0): Property
     {
-        // 判断复杂类型 用于数据验证
-        if (! $property->isSimpleType) {
+        $property = new Property();
+        $property->alias = $alias;
+        if ($type === null) {
+            return $property;
+        }
+
+        $type = $this->dtoCommon->removeNullable($type);
+        $type = $this->dtoCommon->getFullNamespace($type, $namespace);
+        if ($this->dtoCommon->isSimpleType($type)) {
+            $property->phpSimpleType = $type;
+        }
+
+        $arrayDepth = 0;
+        $arrType = $type;
+        while ($this->dtoCommon->isArrayOfType($arrType)) {
+            ++$arrayDepth;
+            $arrType = substr($arrType, 0, -2);
+        }
+        if ($arrayDepth > 0) {
+            $property->isSimpleType = false;
+            $property->phpSimpleType = 'array';
+            $property->arrayDepth = $arrayDepth;
+            if ($this->dtoCommon->isSimpleType($arrType)) {
+                $property->arrSimpleType = $arrType;
+            } elseif (! PropertyEnum::isBuiltinType($arrType) && class_exists($arrType)) {
+                $property->arrClassName = trim($arrType, '\\');
+                $this->scanClassProperties($arrType, $depth + 1);
+            } elseif (! PropertyEnum::isBuiltinType($arrType) && interface_exists($arrType)) {
+                // 接口不可实例化，只记录名称，验证阶段按 classMap 解析具体类，不递归扫描。
+                $property->arrInterfaceName = trim($arrType, '\\');
+            }
+            return $property;
+        }
+
+        $property->enum = $this->propertyEnum->get($type);
+        if ($property->enum) {
+            $property->isSimpleType = false;
+        } elseif (! PropertyEnum::isBuiltinType($type) && class_exists($type)) {
+            $property->isSimpleType = false;
+            $property->className = trim($type, '\\');
+            $this->scanClassProperties($type, $depth + 1);
+        } elseif (! PropertyEnum::isBuiltinType($type) && interface_exists($type)) {
+            $property->isSimpleType = false;
+            $property->interfaceName = trim($type, '\\');
+        }
+        return $property;
+    }
+
+    private function setProperty(string $className, string $fieldName, Property $property, bool $inheritedPrivate): void
+    {
+        // 父类 private 仅为 bIgnoreVisibility 映射保留，不参与子类递归校验。
+        if (! $property->isSimpleType && ! $inheritedPrivate) {
             static::$notSimpleClass[$className][$fieldName] = $property;
         }
         static::$content[$className][$fieldName] = $property;
+    }
+
+    /**
+     * @return array<string, ReflectionProperty>
+     */
+    private function getClassProperties(ReflectionClass $rc): array
+    {
+        $properties = [];
+        $class = $rc;
+        do {
+            foreach ($class->getProperties() as $property) {
+                $properties[$property->getName()] ??= $property;
+            }
+        } while ($class = $class->getParentClass());
+        return $properties;
+    }
+
+    private function getJsonFieldName(string $className, string $fieldName, ReflectionProperty $property): ?string
+    {
+        /** @var null|JSONField $annotation */
+        $annotation = ApiAnnotation::getProperty($className, $fieldName, JSONField::class);
+        if ($annotation !== null) {
+            return $annotation->name;
+        }
+        $attribute = $property->getAttributes(JSONField::class)[0] ?? null;
+        return $attribute?->newInstance()->name;
     }
 }

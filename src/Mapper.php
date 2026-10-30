@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO;
 
-use Hyperf\Context\ApplicationContext;
 use Hyperf\Contract\Arrayable;
-use Hyperf\Contract\StdoutLoggerInterface;
+use Hyperf\DTO\Mapping\MappingContext;
 
 /**
  * Helper class for mapping data to DTO objects.
@@ -24,7 +23,15 @@ class Mapper
      */
     public static function map(mixed $json, object $object): object
     {
-        return static::getJsonMapper()->map($json, $object);
+        return static::getJsonMapper()->simpleMap($json, $object);
+    }
+
+    /**
+     * @internal DTO 数组共享同一个请求级映射预算。
+     */
+    public static function mapWithContext(mixed $json, object $object, MappingContext $context): object
+    {
+        return static::getJsonMapper()->simpleMap($json, $object, $context);
     }
 
     /**
@@ -40,9 +47,9 @@ class Mapper
             return null;
         }
         if ($source instanceof Arrayable) {
-            return static::getJsonMapper()->map($source->toArray(), $target);
+            return static::map($source->toArray(), $target);
         }
-        return static::getJsonMapper()->map($source, $target);
+        return static::map($source, $target);
     }
 
     /**
@@ -73,11 +80,10 @@ class Mapper
     {
         if (! isset(static::$jsonMapper[$key])) {
             $jsonMapper = new JsonMapper();
-            $logger = ApplicationContext::hasContainer() ? ApplicationContext::getContainer()->get(StdoutLoggerInterface::class) : null;
-            $jsonMapper->setLogger($logger);
             // Allow passing arrays to mapping
             $jsonMapper->bEnforceMapType = false;
             $jsonMapper->bStrictNullTypes = false;
+            $jsonMapper->bStrictNullTypesInArrays = false;
             static::$jsonMapper[$key] = $jsonMapper;
         }
         return static::$jsonMapper[$key];

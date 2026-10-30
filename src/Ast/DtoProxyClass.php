@@ -85,14 +85,15 @@ class DtoProxyClass
     }
 
     /**
-     * 是否存在尚未生成的代理文件: 遍历全部应生成的 DTO 类, 任一代理文件缺失即需要走生成逻辑.
+     * 是否存在尚未生成的代理文件。
      */
     protected function hasMissingProxyFile(): bool
     {
         foreach ($this->getScanClass() as $class) {
             $rc = ReflectionManager::reflectClass($class);
             $files = new SplFileInfo($rc->getFileName());
-            if (! file_exists($this->getProxyClassFilePath($class, $files->getRealPath()))) {
+            $proxyFile = $this->getProxyClassFilePath($class, $files->getRealPath());
+            if (! is_file($proxyFile)) {
                 return true;
             }
         }

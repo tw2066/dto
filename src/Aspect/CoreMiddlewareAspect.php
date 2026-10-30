@@ -11,7 +11,9 @@ use Hyperf\Contract\Jsonable;
 use Hyperf\Di\Aop\ProceedingJoinPoint;
 use Hyperf\Di\ReflectionType;
 use Hyperf\DTO\DtoValidation;
+use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\Mapper;
+use Hyperf\DTO\Mapping\MappingContext;
 use Hyperf\DTO\Scan\MethodParametersManager;
 use Hyperf\DTO\Scan\Scan;
 use Hyperf\HttpMessage\Server\ResponsePlusProxy;
@@ -115,7 +117,7 @@ class CoreMiddlewareAspect
      * @throws ContainerExceptionInterface
      * @throws NotFoundExceptionInterface
      */
-    protected function validateAndMap(string $callableName, string $paramName, string $className, $obj): mixed
+    protected function validateAndMap(string $callableName, string $paramName, string $className, $obj = null): mixed
     {
         [$controllerName, $methodName] = explode('::', $callableName);
         $methodParameter = $this->methodParametersManager->getMethodParameter($controllerName, $methodName, $paramName);
@@ -125,9 +127,8 @@ class CoreMiddlewareAspect
             $methodParameter = $this->methodParametersManager->getMethodParameter($controllerName, $methodName, $paramName);
         }
         if ($methodParameter == null) {
-            return $obj;
+            return $obj ?? $this->container->get($className);
         }
-        $validationDTO = $this->container->get(DtoValidation::class);
         /** @var ServerRequestInterface $request */
         $request = Context::get(ServerRequestInterface::class);
         $param = [];
@@ -138,15 +139,15 @@ class CoreMiddlewareAspect
         } elseif ($methodParameter->isRequestFormData()) {
             $param = $request->getParsedBody();
         } elseif ($methodParameter->isRequestHeader()) {
-            $param = array_map(function ($value) {
+            // Header 名大小写不敏感（RFC 7230），统一小写后与 DTO 别名精确匹配。
+            $param = array_change_key_case(array_map(function ($value) {
                 return $value[0];
-            }, $request->getHeaders());
+            }, $request->getHeaders()), CASE_LOWER);
         }
-        // validate
         if ($methodParameter->isValid()) {
-            $validationDTO->validate($className, $param);
+            $this->container->get(DtoValidation::class)->validate($className, $param);
         }
-        return Mapper::map($param, make($className));
+        return Mapper::mapWithContext($param, make($className), new MappingContext());
     }
 
     protected function arrayValidateAndMap(string $callableName, string $paramName): array
@@ -161,22 +162,53 @@ class CoreMiddlewareAspect
         /** @var ServerRequestInterface $request */
         $request = Context::get(ServerRequestInterface::class);
         $params = $request->getParsedBody();
-        if ($property?->arrClassName == null) {
-            return $params;
-        }
         if (empty($params)) {
             return [];
         }
-        $paramType = $property->arrClassName;
-        $data = [];
-        $validationDTO = $this->container->get(DtoValidation::class);
-        foreach ($params as $param) {
-            if ($methodParameter->isValid()) {
-                $validationDTO->validate($paramType, $param);
+        if ($property?->arrClassName == null) {
+            if ($property?->arrSimpleType !== null || ! $methodParameter->isValid()) {
+                return $params;
             }
-            $data[] = Mapper::map($param, make($paramType));
+            throw new DtoException("Parameter [{$callableName}:{$paramName}] uses #[Valid], but the array element type cannot be resolved.");
         }
-        return $data;
+
+        $context = new MappingContext();
+        $validation = $methodParameter->isValid() ? $this->container->get(DtoValidation::class) : null;
+        $data = $this->mapArrayParameterItems(
+            $property->arrClassName,
+            max(1, $property->arrayDepth),
+            $params,
+            $validation,
+            $context
+        );
+        return array_values($data);
+    }
+
+    private function mapArrayParameterItems(
+        string $className,
+        int $remainingDepth,
+        array|object $value,
+        ?DtoValidation $validation,
+        MappingContext $context,
+    ): array {
+        $result = [];
+        foreach ($value as $key => $item) {
+            if ($item === null) {
+                $result[$key] = null;
+                continue;
+            }
+            if ($remainingDepth > 1) {
+                $result[$key] = is_array($item) || is_object($item)
+                    ? $this->mapArrayParameterItems($className, $remainingDepth - 1, $item, $validation, $context)
+                    : $item;
+                continue;
+            }
+            if ($validation !== null) {
+                $validation->validate($className, $item);
+            }
+            $result[$key] = Mapper::mapWithContext($item, make($className), $context);
+        }
+        return $result;
     }
 
     /**
@@ -192,9 +224,8 @@ class CoreMiddlewareAspect
                 if ($definition->getMeta('defaultValueAvailable')) {
                     $injections[] = $definition->getMeta('defaultValue');
                 } elseif ($this->container->has($definition->getName())) {
-                    // 修改
-                    $obj = $this->container->get($definition->getName());
-                    $injections[] = $this->validateAndMap($callableName, $definition->getMeta('name'), $definition->getName(), $obj);
+                    // 参数注解存在时只创建映射目标，避免先 get 后 make 重复实例化。
+                    $injections[] = $this->validateAndMap($callableName, $definition->getMeta('name'), $definition->getName());
                 } elseif ($definition->getName() === 'array') {
                     // 修改 支持json数组
                     $injections[] = $this->arrayValidateAndMap($callableName, $definition->getMeta('name'));
@@ -205,15 +236,14 @@ class CoreMiddlewareAspect
                         . "of {$callableName} should not be null");
                 }
             } else {
-                // rpc validate
+                // RPC 参数统一走 Symfony denormalize；带 #[Valid] 的仍先验证。
                 [$controllerName, $methodName] = explode('::', $callableName);
+                $className = $definition->getName();
                 $methodParameter = $this->methodParametersManager->getMethodParameter($controllerName, $methodName, $definition->getMeta('name'));
                 if ($methodParameter?->isValid()) {
-                    $validationDTO = $this->container->get(DtoValidation::class);
-                    $validationDTO->validate($definition->getName(), $value);
+                    $this->container->get(DtoValidation::class)->validate($className, $value);
                 }
-                // 标记
-                $injections[] = $coreMiddleware->getNormalizer()->denormalize($value, $definition->getName());
+                $injections[] = $coreMiddleware->getNormalizer()->denormalize($value, $className);
             }
         }
         return $injections;

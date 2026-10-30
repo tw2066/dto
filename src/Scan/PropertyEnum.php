@@ -13,6 +13,15 @@ use function Hyperf\Collection\collect;
 class PropertyEnum
 {
     /**
+     * PHP 内置类型与伪类型，不可能是枚举类，也不应触发类自动加载.
+     */
+    private const BUILTIN_TYPES = [
+        'array', 'bool', 'boolean', 'callable', 'double', 'false', 'float',
+        'int', 'integer', 'iterable', 'mixed', 'never', 'null', 'object',
+        'parent', 'resource', 'self', 'static', 'string', 'true', 'void',
+    ];
+
+    /**
      * 返回的类型.
      */
     public ?string $backedType = null;
@@ -27,8 +36,16 @@ class PropertyEnum
      */
     public ?array $valueList = null;
 
+    public static function isBuiltinType(string $type): bool
+    {
+        return in_array(strtolower(ltrim($type, '\\')), self::BUILTIN_TYPES, true);
+    }
+
     public function get(string $className): ?PropertyEnum
     {
+        if (static::isBuiltinType($className)) {
+            return null;
+        }
         if (! is_subclass_of($className, BackedEnum::class)) {
             return null;
         }
