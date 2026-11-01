@@ -22,6 +22,11 @@ class DtoVisitor extends NodeVisitorAbstract
         'mixed' => null,
     ];
 
+    protected string $classShortName;
+
+    /** @var Node\Stmt\Class_[] */
+    private array $classStack = [];
+
     /**
      * @param PropertyInfo[] $propertyArr
      */
@@ -31,11 +36,27 @@ class DtoVisitor extends NodeVisitorAbstract
         protected bool $isCreateJsonSerialize,
         protected int $dtoDefaultValueLevel,
     ) {
+        $separator = strrpos($classname, '\\');
+        $this->classShortName = $separator === false ? $classname : substr($classname, $separator + 1);
+    }
+
+    public function enterNode(Node $node)
+    {
+        if ($node instanceof Node\Stmt\Class_) {
+            $this->classStack[] = $node;
+        }
+        return null;
     }
 
     public function leaveNode(Node $node)
     {
-        if ($node instanceof Node\Stmt\Property) {
+        if ($node instanceof Node\Stmt\Class_) {
+            array_pop($this->classStack);
+            return null;
+        }
+
+        $currentClass = end($this->classStack);
+        if ($node instanceof Node\Stmt\Property && $currentClass instanceof Node\Stmt\Class_ && $this->isTargetClass($currentClass)) {
             $prop = $node->props[0];
             $fieldName = $prop->name->name;
             $type = $node->type;
@@ -77,7 +98,7 @@ class DtoVisitor extends NodeVisitorAbstract
             }
 
             foreach ($namespace->stmts as $class) {
-                if (! $class instanceof Node\Stmt\Class_) {
+                if (! $class instanceof Node\Stmt\Class_ || ! $this->isTargetClass($class)) {
                     continue;
                 }
                 if ($this->isCreateJsonSerialize) {
@@ -91,6 +112,11 @@ class DtoVisitor extends NodeVisitorAbstract
         }
 
         return $nodes;
+    }
+
+    private function isTargetClass(Node\Stmt\Class_ $class): bool
+    {
+        return $class->name?->toString() === $this->classShortName;
     }
 
     public function normalizeValue($value): Expr

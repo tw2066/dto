@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace HyperfTest\DTO\Annotation\Validation;
 
 use Hyperf\DTO\Annotation\Validation\Regex;
+use Hyperf\DTO\Annotation\Validation\Validation;
+use Hyperf\DTO\Scan\ValidationManager;
 
 /**
  * @internal
@@ -73,4 +75,40 @@ class RegexTest extends ValidationAnnotationTestCase
             'regex message'
         );
     }
+
+    public function testPipeAlternationThroughValidationManager(): void
+    {
+        $annotation = new Regex('/^(foo|bar)+$/', 'regex message');
+        $annotation->collectProperty(RegexPipeDto::class, 'value');
+        $manager = new ValidationManager();
+        $manager->generateValidation(RegexPipeDto::class, 'value');
+        $data = $manager->getData(RegexPipeDto::class);
+
+        $this->assertSame(['value' => ['regex:/^(foo|bar)+$/']], $data['rule']);
+        $this->assertSame(['value.regex' => 'regex message'], $data['messages']);
+        $this->assertPasses(['value' => 'foofoobar'], $data['rule'], $data['messages']);
+        $this->assertFailsWithMessage(['value' => 'baz'], $data['rule'], $data['messages'], 'value', 'regex message');
+    }
+
+    public function testPipeAlternationInArrayRules(): void
+    {
+        $annotation = new Validation(['required', 'regex:/^(foo|bar)+$/']);
+        $annotation->collectProperty(RegexArrayPipeDto::class, 'value');
+        $manager = new ValidationManager();
+        $manager->generateValidation(RegexArrayPipeDto::class, 'value');
+        $data = $manager->getData(RegexArrayPipeDto::class);
+
+        $this->assertSame(['value' => ['required', 'regex:/^(foo|bar)+$/']], $data['rule']);
+        $this->assertPasses(['value' => 'foobar'], $data['rule']);
+    }
+}
+
+class RegexPipeDto
+{
+    public string $value = '';
+}
+
+class RegexArrayPipeDto
+{
+    public string $value = '';
 }

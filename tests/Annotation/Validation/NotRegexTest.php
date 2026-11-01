@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HyperfTest\DTO\Annotation\Validation;
 
 use Hyperf\DTO\Annotation\Validation\NotRegex;
+use Hyperf\DTO\Scan\ValidationManager;
 
 /**
  * @internal
@@ -73,4 +74,23 @@ class NotRegexTest extends ValidationAnnotationTestCase
             'not_regex message'
         );
     }
+
+    public function testPipeAlternationThroughValidationManager(): void
+    {
+        $annotation = new NotRegex('/^(foo|bar)+$/', 'not_regex message');
+        $annotation->collectProperty(NotRegexPipeDto::class, 'value');
+        $manager = new ValidationManager();
+        $manager->generateValidation(NotRegexPipeDto::class, 'value');
+        $data = $manager->getData(NotRegexPipeDto::class);
+
+        $this->assertSame(['value' => ['not_regex:/^(foo|bar)+$/']], $data['rule']);
+        $this->assertSame(['value.not_regex' => 'not_regex message'], $data['messages']);
+        $this->assertPasses(['value' => 'baz'], $data['rule'], $data['messages']);
+        $this->assertFailsWithMessage(['value' => 'foobar'], $data['rule'], $data['messages'], 'value', 'not_regex message');
+    }
+}
+
+class NotRegexPipeDto
+{
+    public string $value = '';
 }

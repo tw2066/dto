@@ -200,9 +200,49 @@ PHP;
         $this->assertStringNotContainsString('JsonSerializable', $output);
     }
 
+    public function testOnlyTargetClassIsModifiedWhenFileContainsMultipleClasses(): void
+    {
+        $code = <<<'PHP'
+<?php
+
+namespace AstDemo;
+
+class Demo
+{
+    public int $value;
+}
+
+class Helper
+{
+    public int $value;
+
+    public function jsonSerialize(): array
+    {
+        return [];
+    }
+}
+PHP;
+        $propertyInfo = new PropertyInfo();
+        $propertyInfo->propertyName = 'value';
+        $propertyInfo->alias = 'user_value';
+        $propertyInfo->jsonArrKey = 'user_value';
+
+        [$output] = $this->traverse($code, ['value' => $propertyInfo], true, 1, 'AstDemo\\Demo');
+        [$demoCode, $helperCode] = explode('class Helper', $output, 2);
+        $helperCode = 'class Helper' . $helperCode;
+
+        $this->assertStringContainsString('public int $value = 0;', $demoCode);
+        $this->assertStringContainsString('function jsonSerialize(): array', $demoCode);
+        $this->assertStringContainsString('public int $value;', $helperCode);
+        $this->assertStringNotContainsString('$value = 0', $helperCode);
+        $this->assertStringNotContainsString('implements \\JsonSerializable', $helperCode);
+        $this->assertSame(1, substr_count($helperCode, 'function jsonSerialize('));
+    }
+
     public function testClassWithoutNamespaceIsSkipped(): void
     {
         // src 现状: afterTraverse 只处理 Namespace_ 节点内的 Class_，
+
         // 无命名空间的类被静默跳过（此用例锁定该行为）
         $code = <<<'PHP'
 <?php
@@ -275,11 +315,11 @@ PHP;
     /**
      * @return array{0: string, 1: DtoVisitor}
      */
-    private function traverse(string $code, array $propertyArr, bool $isCreateJsonSerialize, int $level): array
+    private function traverse(string $code, array $propertyArr, bool $isCreateJsonSerialize, int $level, string $classname = 'Demo'): array
     {
         $parser = (new ParserFactory())->createForNewestSupportedVersion();
         $ast = $parser->parse($code);
-        $visitor = new DtoVisitor('Demo', $propertyArr, $isCreateJsonSerialize, $level);
+        $visitor = new DtoVisitor($classname, $propertyArr, $isCreateJsonSerialize, $level);
         $traverser = new NodeTraverser();
         $traverser->addVisitor($visitor);
         $ast = $traverser->traverse($ast);
