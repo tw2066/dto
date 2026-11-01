@@ -19,6 +19,13 @@ class ValidationManager
     protected static array $content = [];
 
     /**
+     * 已完成整类规则生成的类；静态共享，避免请求期对启动期已扫描类重复生成。
+     *
+     * @var array<string, true>
+     */
+    protected static array $generated = [];
+
+    /**
      * Get validation data for a class.
      *
      * @param string $className The class name
@@ -27,6 +34,22 @@ class ValidationManager
     public function getData(string $className): array
     {
         return static::$content[$className] ?? [];
+    }
+
+    /**
+     * 该类是否已完成整类规则生成。
+     */
+    public function isGenerated(string $className): bool
+    {
+        return isset(static::$generated[$className]);
+    }
+
+    /**
+     * 标记该类已完成整类规则生成；只能在所有字段生成成功后调用。
+     */
+    public function markGenerated(string $className): void
+    {
+        static::$generated[$className] = true;
     }
 
     /**

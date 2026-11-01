@@ -154,9 +154,16 @@ class DtoValidation
         if (isset($this->ensuredRules[$className])) {
             return;
         }
+        // 启动期 Scan 已生成整类规则时直接复用，避免请求期重复扫描注解。
+        if ($this->validationManager->isGenerated($className)) {
+            $this->ensuredRules[$className] = true;
+            return;
+        }
         foreach (array_keys($this->propertyManager->getPropertyByClass($className)) as $fieldName) {
             $this->validationManager->generateValidation($className, $fieldName);
         }
+        // 全部字段成功生成后才发布；异常时不置位，下一请求可重试。
+        $this->validationManager->markGenerated($className);
         $this->ensuredRules[$className] = true;
     }
 
