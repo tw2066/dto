@@ -67,5 +67,7 @@ class Scan
                 $this->scanClass($property->arrClassName);
             }
         }
+        // 整类字段全部生成成功后才发布，异常时下一轮仍可重试。
+        $this->validationManager->markGenerated($parameterClassName);
     }
 }

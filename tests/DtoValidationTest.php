@@ -774,6 +774,65 @@ class DtoValidationTest extends AbstractTestCase
         }
     }
 
+    public function testEnsureRulesSkipsRulesGeneratedAtStartup(): void
+    {
+        (new Required())->collectProperty(ValidationGeneratedMarkerSkippedDto::class, 'name');
+        $propertyManager = $this->makePropertyManager();
+        $propertyManager->scanClassProperties(ValidationGeneratedMarkerSkippedDto::class);
+        $validationManager = new CountingGeneratedValidationManager();
+        $validationManager->generateValidation(ValidationGeneratedMarkerSkippedDto::class, 'name');
+        $validationManager->markGenerated(ValidationGeneratedMarkerSkippedDto::class);
+
+        $dtoValidation = $this->makeDtoValidation($propertyManager, [], $validationManager);
+        $dtoValidation->validate(ValidationGeneratedMarkerSkippedDto::class, ['name' => 'ok']);
+
+        $this->assertSame(
+            1,
+            $validationManager->generateCounts[ValidationGeneratedMarkerSkippedDto::class]['name'] ?? 0
+        );
+    }
+
+    public function testEnsureRulesMarksGeneratedForLaterInstances(): void
+    {
+        (new Required())->collectProperty(ValidationGeneratedMarkerRetryDto::class, 'name');
+        $propertyManager = $this->makePropertyManager();
+        $validationManager = new CountingGeneratedValidationManager();
+
+        $first = $this->makeDtoValidation($propertyManager, [], $validationManager);
+        $first->validate(ValidationGeneratedMarkerRetryDto::class, ['name' => 'ok']);
+        $count = $validationManager->generateCounts[ValidationGeneratedMarkerRetryDto::class]['name'] ?? 0;
+
+        $this->assertGreaterThan(0, $count);
+        $this->assertTrue($validationManager->isGenerated(ValidationGeneratedMarkerRetryDto::class));
+
+        // 新 DtoValidation 实例共享同一个 ValidationManager：静态标记应让第二次验证跳过生成。
+        $second = $this->makeDtoValidation($this->makePropertyManager(), [], $validationManager);
+        $second->validate(ValidationGeneratedMarkerRetryDto::class, ['name' => 'ok']);
+
+        $this->assertSame(
+            $count,
+            $validationManager->generateCounts[ValidationGeneratedMarkerRetryDto::class]['name'] ?? 0
+        );
+    }
+
+    public function testEnsureRulesDoesNotMarkGeneratedWhenGenerationThrows(): void
+    {
+        (new Required())->collectProperty(ValidationGeneratedMarkerThrowDto::class, 'name');
+        $propertyManager = $this->makePropertyManager();
+        $validationManager = new ThrowingGeneratedValidationManager();
+        $dtoValidation = $this->makeDtoValidation($propertyManager, [], $validationManager);
+
+        try {
+            $dtoValidation->validate(ValidationGeneratedMarkerThrowDto::class, ['name' => 'ok']);
+            $this->fail('Expected RuntimeException was not thrown.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('boom', $exception->getMessage());
+        }
+
+        // 生成失败时不能发布“已生成”，否则后续请求会永久跳过规则生成。
+        $this->assertFalse($validationManager->isGenerated(ValidationGeneratedMarkerThrowDto::class));
+    }
+
     // ---------------- 工具方法 ----------------
 
     private function prepareAliasScalarRules(): void
@@ -803,10 +862,10 @@ class DtoValidationTest extends AbstractTestCase
         return new PropertyManager(new DtoCommon(), new PropertyEnum());
     }
 
-    private function makeDtoValidation(?PropertyManager $propertyManager = null, array $translationGroups = []): DtoValidation
+    private function makeDtoValidation(?PropertyManager $propertyManager = null, array $translationGroups = [], ?ValidationManager $validationManager = null): DtoValidation
     {
         $this->setContainerWithValidatorFactory($translationGroups);
-        return new DtoValidation($propertyManager ?? $this->makePropertyManager(), new ValidationManager());
+        return new DtoValidation($propertyManager ?? $this->makePropertyManager(), $validationManager ?? new ValidationManager());
     }
 }
 
@@ -1149,4 +1208,38 @@ class ValidationBroadSetterDto
 class ValidationConfirmedDto
 {
     public string $pwd = '';
+}
+
+class ValidationGeneratedMarkerSkippedDto
+{
+    public string $name = '';
+}
+
+class ValidationGeneratedMarkerRetryDto
+{
+    public string $name = '';
+}
+
+class ValidationGeneratedMarkerThrowDto
+{
+    public string $name = '';
+}
+
+class CountingGeneratedValidationManager extends ValidationManager
+{
+    public array $generateCounts = [];
+
+    public function generateValidation(string $className, string $fieldName): void
+    {
+        $this->generateCounts[$className][$fieldName] = ($this->generateCounts[$className][$fieldName] ?? 0) + 1;
+        parent::generateValidation($className, $fieldName);
+    }
+}
+
+class ThrowingGeneratedValidationManager extends ValidationManager
+{
+    public function generateValidation(string $className, string $fieldName): void
+    {
+        throw new \RuntimeException('boom');
+    }
 }

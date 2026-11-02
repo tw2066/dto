@@ -34,6 +34,8 @@ class ScanOrchestrationTest extends AbstractTestCase
         // DTO 参数类经容器 has=true → scanClass → 生成验证规则
         $data = $validationManager->getData(ScanOrchDto::class);
         $this->assertSame(['required'], $data['rule']['name']);
+        $this->assertTrue($validationManager->isGenerated(ScanOrchDto::class));
+        $this->assertTrue($validationManager->isGenerated(ScanOrchResponseDto::class));
 
         // 简单类型 int 参数：container has('int')=false → 不触发扫描
         $content = $this->readPropertyManagerContent();
@@ -55,6 +57,9 @@ class ScanOrchestrationTest extends AbstractTestCase
         $this->assertSame(['required'], $childData['rule']['name'] ?? null);
         $itemData = $validationManager->getData(ScanOrchNestedItemDto::class);
         $this->assertSame(['required'], $itemData['rule']['value'] ?? null);
+        $this->assertTrue($validationManager->isGenerated(ScanOrchNestedParentDto::class));
+        $this->assertTrue($validationManager->isGenerated(ScanOrchNestedChildDto::class));
+        $this->assertTrue($validationManager->isGenerated(ScanOrchNestedItemDto::class));
     }
 
     public function testScanIsIdempotent(): void
