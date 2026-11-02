@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace HyperfTest\DTO;
 
+use Hyperf\DTO\Annotation\ArrayType;
+use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\JsonMapper;
 use PHPUnit\Framework\TestCase;
 
@@ -182,6 +184,22 @@ class JsonMapperCompatibilityTest extends TestCase
         $this->assertNull($dto->getValue());
     }
 
+    public function testArrayTypeErrorMentionsJsonAliasAndDtoProperty(): void
+    {
+        try {
+            $this->mapper()->simpleMap(['city_new' => 123], new CompatibilityAliasArrayDto());
+            $this->fail('Expected JsonMapper_Exception was not thrown.');
+        } catch (\JsonMapper_Exception $e) {
+            $this->assertStringContainsString('JSON property "city_new"', $e->getMessage());
+            $this->assertStringContainsString('CompatibilityAliasArrayDto::$cityArr', $e->getMessage());
+            $this->assertStringContainsString(
+                'must be an array of HyperfTest\DTO\CompatibilityAliasArrayItemDto',
+                $e->getMessage()
+            );
+            $this->assertStringContainsString('integer given', $e->getMessage());
+        }
+    }
+
     private function mapper(): JsonMapper
     {
         $mapper = new JsonMapper();
@@ -346,4 +364,16 @@ class CompatibilityCallableSetterDto
     {
         return $this->callback;
     }
+}
+
+class CompatibilityAliasArrayDto
+{
+    #[ArrayType(CompatibilityAliasArrayItemDto::class)]
+    #[JSONField('city_new')]
+    public array $cityArr = [];
+}
+
+class CompatibilityAliasArrayItemDto
+{
+    public string $name = '';
 }

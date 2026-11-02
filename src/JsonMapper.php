@@ -219,8 +219,11 @@ class JsonMapper extends \JsonMapper
             return;
         }
         $type = $field['type'];
-        $key = $field['name'];
+        $propertyName = $field['name'];
+        // primaryKey 才是请求体里的键；JSONField 别名与属性名不同时要同时展示两者。
+        $key = $field['primaryKey'];
         $className = $plan['className'];
+        $fieldLabel = $this->describeField($className, $propertyName, $key);
 
         if ($field['nullable'] || ! $this->bStrictNullTypes) {
             if ($jvalue === null) {
@@ -228,9 +231,7 @@ class JsonMapper extends \JsonMapper
                 return;
             }
         } elseif ($jvalue === null) {
-            throw new \JsonMapper_Exception(
-                'JSON property "' . $key . '" in class "' . $className . '" must not be NULL'
-            );
+            throw new \JsonMapper_Exception($fieldLabel . ' must not be NULL');
         }
 
         if ($this->classMap !== []) {
@@ -250,8 +251,7 @@ class JsonMapper extends \JsonMapper
         if ($isSimple && ! (is_array($jvalue) && $field['variadic'])) {
             if ($isFlat && ! $this->isFlatType(gettype($jvalue))) {
                 throw new \JsonMapper_Exception(
-                    'JSON property "' . $key . '" in class "' . $className . '" is of type '
-                    . gettype($jvalue) . ' and cannot be converted to ' . $type
+                    $fieldLabel . ' is of type ' . gettype($jvalue) . ' and cannot be converted to ' . $type
                 );
             }
             settype($jvalue, $type);
@@ -259,7 +259,7 @@ class JsonMapper extends \JsonMapper
             return;
         }
         if ($type === '') {
-            throw new \JsonMapper_Exception('Empty type at property "' . $className . '::$' . $key . '"');
+            throw new \JsonMapper_Exception('Empty type at property "' . $className . '::$' . $propertyName . '"');
         }
         if (strpos(str_replace('|null', '', $type), '|')) {
             throw new \JsonMapper_Exception('Cannot decide which of the union types shall be used: ' . $type);
@@ -287,8 +287,10 @@ class JsonMapper extends \JsonMapper
 
         if ($array !== null) {
             if (! is_array($jvalue) && $this->isFlatType(gettype($jvalue))) {
+                $elementType = $subtype === null || $subtype === '' ? '' : ' of ' . ltrim($subtype, '\\');
                 throw new \JsonMapper_Exception(
-                    'JSON property "' . $key . '" must be an array, ' . gettype($jvalue) . ' given'
+                    $fieldLabel . ' must be an array' . $elementType
+                    . ', ' . gettype($jvalue) . ' given'
                 );
             }
             $subtypeNullable = $this->isNullable($subtype);
@@ -310,7 +312,8 @@ class JsonMapper extends \JsonMapper
                 && ! $this->getClassFactory($type)
             ) {
                 throw new \JsonMapper_Exception(
-                    'JSON property "' . $key . '" must be an object, ' . gettype($jvalue) . ' given'
+                    $fieldLabel . ' must be an object of type ' . ltrim($type, '\\')
+                    . ', ' . gettype($jvalue) . ' given'
                 );
             }
             $child = $this->createInstance($type, true, $jvalue);
@@ -319,6 +322,18 @@ class JsonMapper extends \JsonMapper
             $this->mapNode($jvalue, $child, $context, $depth + 1);
         }
         $this->setProperty($object, $accessor, $child);
+    }
+
+    /**
+     * 构造字段异常前缀：JSONField 别名场景下同时给出请求键与 DTO 属性，
+     * 避免只报 PHP 属性名导致在请求体中检索不到。
+     */
+    private function describeField(string $className, string $propertyName, string $primaryKey): string
+    {
+        if ($primaryKey === $propertyName) {
+            return 'JSON property "' . $primaryKey . '" in class "' . $className . '"';
+        }
+        return 'JSON property "' . $primaryKey . '" (property "' . $className . '::$' . $propertyName . '")';
     }
 
     /**
