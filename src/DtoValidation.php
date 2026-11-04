@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Hyperf\DTO;
 
 use Hyperf\Context\ApplicationContext;
-use Hyperf\Contract\TranslatorInterface;
 use Hyperf\Contract\ValidatorInterface;
 use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\Scan\Property;
@@ -27,12 +26,11 @@ class DtoValidation
 
     private ?ValidatorFactoryInterface $validationFactory = null;
 
-    private ?TranslatorInterface $translator = null;
-
-    private array $validatorAttributes = [];
-
     /** @var array<string, true> 已生成过规则的类，避免重复扫描注解 */
     private array $ensuredRules = [];
+
+    /** @var array<string, array{rules: array, messages: array, attributes: array, has_validation: bool, nested: array}> */
+    private array $classValidation = [];
 
     private ?JsonMapper $mapper = null;
 
@@ -41,10 +39,6 @@ class DtoValidation
         $container = ApplicationContext::getContainer();
         if ($container->has(ValidatorFactoryInterface::class)) {
             $this->validationFactory = $container->get(ValidatorFactoryInterface::class);
-            if (method_exists($this->validationFactory, 'getTranslator')) {
-                $translator = $this->validationFactory->getTranslator();
-                $this->translator = $translator instanceof TranslatorInterface ? $translator : null;
-            }
         }
     }
 
@@ -89,30 +83,51 @@ class DtoValidation
             throw new DtoException("Class: {$className} - data must be array");
         }
 
-        $this->ensureRules($className);
+        $validation = $this->classValidation[$className] ??= $this->buildClassValidation($className);
 
-        $validArr = $this->validationManager->getData($className);
-        if (! empty($validArr)) {
+        if ($validation['has_validation']) {
             $validator = $this->validationFactory->make(
                 $data,
-                $validArr['rule'],
-                $validArr['messages'] ?? [],
-                $this->getValidatorAttributes($className, $validArr)
+                $validation['rules'],
+                $validation['messages'],
+                // 属性名翻译由验证器在构建失败消息时按当前语言惰性读取 validation.attributes。
+                static::$isValidationCustomAttributes ? $validation['attributes'] : []
             );
             if ($validator->fails()) {
                 throw $this->buildValidationException($validator);
             }
         }
 
-        // 类自身无规则时也要递归，嵌套类的规则独立生效。
-        $notSimplePropertyArr = $this->propertyManager->getPropertyAndNotSimpleType($className);
-        foreach ($notSimplePropertyArr as $fieldName => $property) {
-            $this->validateNestedProperty($property, $property->alias ?? $fieldName, $data);
+        foreach ($validation['nested'] as [$dataKey, $property]) {
+            $this->validateNestedProperty($property, $dataKey, $data);
+        }
+    }
+
+    /**
+     * 构建类级验证元数据：规则、消息与嵌套属性清单每个类只计算一次，
+     * 后续请求只做数组读取，不再重复查询管理器与映射计划。
+     */
+    private function buildClassValidation(string $className): array
+    {
+        $this->ensureRules($className);
+        $validArr = $this->validationManager->getData($className);
+
+        $nested = [];
+        foreach ($this->propertyManager->getPropertyAndNotSimpleType($className) as $fieldName => $property) {
+            $nested[] = [$property->alias ?? $fieldName, $property];
         }
         // setter-only 字段没有声明属性、不在 notSimpleClass 中，由映射计划补充发现。
         foreach ($this->mapper()->getSetterOnlyNestedProperties($className) as $dataKey => $property) {
-            $this->validateNestedProperty($property, $dataKey, $data);
+            $nested[] = [$dataKey, $property];
         }
+
+        return [
+            'rules' => $validArr['rule'] ?? [],
+            'messages' => $validArr['messages'] ?? [],
+            'attributes' => $validArr['attributes'] ?? [],
+            'has_validation' => $validArr !== [],
+            'nested' => $nested,
+        ];
     }
 
     private function validateNestedProperty(Property $property, string $dataKey, array $data): void
@@ -187,28 +202,5 @@ class DtoValidation
                 $this->validateResolved($resolved, $item);
             }
         }
-    }
-
-    private function getValidatorAttributes(string $className, array $validArr): array
-    {
-        $attributes = [];
-        if ($this->translator !== null) {
-            $cacheKey = $className . ':' . $this->translator->getLocale();
-            if (! isset($this->validatorAttributes[$cacheKey])) {
-                foreach (array_keys($validArr['rule'] ?? []) as $field) {
-                    $translationKey = 'validation.attributes.' . $field;
-                    $translation = $this->translator->trans($translationKey);
-                    if (is_string($translation) && $translation !== $translationKey) {
-                        $attributes[$field] = $translation;
-                    }
-                }
-                $this->validatorAttributes[$cacheKey] = $attributes;
-            }
-            $attributes = $this->validatorAttributes[$cacheKey];
-        }
-        if (static::$isValidationCustomAttributes) {
-            return array_replace($attributes, $validArr['attributes'] ?? []);
-        }
-        return $attributes;
     }
 }
