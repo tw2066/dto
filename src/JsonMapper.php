@@ -223,7 +223,6 @@ class JsonMapper extends \JsonMapper
         // primaryKey 才是请求体里的键；JSONField 别名与属性名不同时要同时展示两者。
         $key = $field['primaryKey'];
         $className = $plan['className'];
-        $fieldLabel = $this->describeField($className, $propertyName, $key);
 
         if ($field['nullable'] || ! $this->bStrictNullTypes) {
             if ($jvalue === null) {
@@ -231,7 +230,9 @@ class JsonMapper extends \JsonMapper
                 return;
             }
         } elseif ($jvalue === null) {
-            throw new \JsonMapper_Exception($fieldLabel . ' must not be NULL');
+            throw new \JsonMapper_Exception(
+                $this->describeField($className, $propertyName, $key) . ' must not be NULL'
+            );
         }
 
         if ($this->classMap !== []) {
@@ -251,7 +252,8 @@ class JsonMapper extends \JsonMapper
         if ($isSimple && ! (is_array($jvalue) && $field['variadic'])) {
             if ($isFlat && ! $this->isFlatType(gettype($jvalue))) {
                 throw new \JsonMapper_Exception(
-                    $fieldLabel . ' is of type ' . gettype($jvalue) . ' and cannot be converted to ' . $type
+                    $this->describeField($className, $propertyName, $key)
+                    . ' is of type ' . gettype($jvalue) . ' and cannot be converted to ' . $type
                 );
             }
             settype($jvalue, $type);
@@ -289,7 +291,7 @@ class JsonMapper extends \JsonMapper
             if (! is_array($jvalue) && $this->isFlatType(gettype($jvalue))) {
                 $elementType = $subtype === null || $subtype === '' ? '' : ' of ' . ltrim($subtype, '\\');
                 throw new \JsonMapper_Exception(
-                    $fieldLabel . ' must be an array' . $elementType
+                    $this->describeField($className, $propertyName, $key) . ' must be an array' . $elementType
                     . ', ' . gettype($jvalue) . ' given'
                 );
             }
@@ -312,7 +314,7 @@ class JsonMapper extends \JsonMapper
                 && ! $this->getClassFactory($type)
             ) {
                 throw new \JsonMapper_Exception(
-                    $fieldLabel . ' must be an object of type ' . ltrim($type, '\\')
+                    $this->describeField($className, $propertyName, $key) . ' must be an object of type ' . ltrim($type, '\\')
                     . ', ' . gettype($jvalue) . ' given'
                 );
             }
