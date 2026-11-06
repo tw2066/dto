@@ -208,6 +208,7 @@ class MethodParametersManager
             if ($tag instanceof Param) {
                 $type = $tag->getType()->__toString();
                 $variableName = $tag->getVariableName();
+                $type = $this->dtoCommon->removeNullable($type) ?? '';
                 $type = explode('|', $type)[0];
                 $annotations[$variableName] = $type;
             }

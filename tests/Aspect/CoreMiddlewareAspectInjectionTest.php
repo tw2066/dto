@@ -18,6 +18,7 @@ use Hyperf\DTO\Aspect\CoreMiddlewareAspect;
 use Hyperf\DTO\DtoCommon;
 use Hyperf\DTO\DtoValidation;
 use Hyperf\DTO\Exception\DtoException;
+use Hyperf\DTO\Mapper;
 use Hyperf\DTO\Scan\MethodParametersManager;
 use Hyperf\DTO\Scan\PropertyEnum;
 use Hyperf\DTO\Scan\PropertyManager;
@@ -671,6 +672,64 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
         $this->assertSame([['name' => 'a']], $injections[0]);
     }
 
+    public function testValidInterfaceArrayParamUsesClassMapForValidationAndMapping(): void
+    {
+        $manager = $this->makeManager();
+        $manager->setMethodParameters(AspectValidInterfaceArrayController::class, 'handle');
+        $manager->scanClassMethodParam(AspectValidInterfaceArrayController::class, 'handle');
+
+        $body = [['name' => 'a', 'age' => 1], ['name' => 'b', 'age' => 2]];
+        $request = m::mock(ServerRequestInterface::class);
+        $request->shouldReceive('getParsedBody')->andReturn($body);
+        Context::set(ServerRequestInterface::class, $request);
+
+        $dtoValidation = m::mock(DtoValidation::class);
+        $this->expectValidation($dtoValidation, AspectInterfaceArrayDto::class, $body[0]);
+        $this->expectValidation($dtoValidation, AspectInterfaceArrayDto::class, $body[1]);
+
+        $mapper = Mapper::getJsonMapper();
+        $mapper->classMap[AspectArrayInterface::class] = AspectInterfaceArrayDto::class;
+        try {
+            $aspect = new CoreMiddlewareAspect($this->makeContainer($dtoValidation), $manager);
+            $injections = $aspect->process($this->makePjp(
+                null,
+                [$this->makeDefinition('array', 'items')],
+                AspectValidInterfaceArrayController::class . '::handle',
+                []
+            ));
+
+            $this->assertCount(2, $injections[0]);
+            $this->assertInstanceOf(AspectInterfaceArrayDto::class, $injections[0][0]);
+            $this->assertSame('a', $injections[0][0]->name);
+            $this->assertSame('b', $injections[0][1]->name);
+        } finally {
+            unset($mapper->classMap[AspectArrayInterface::class]);
+        }
+    }
+
+    public function testValidInterfaceArrayParamWithoutClassMapThrows(): void
+    {
+        $manager = $this->makeManager();
+        $manager->setMethodParameters(AspectValidInterfaceArrayController::class, 'handle');
+        $manager->scanClassMethodParam(AspectValidInterfaceArrayController::class, 'handle');
+
+        $request = m::mock(ServerRequestInterface::class);
+        $request->shouldReceive('getParsedBody')->andReturn([['name' => 'a']]);
+        Context::set(ServerRequestInterface::class, $request);
+        $dtoValidation = m::mock(DtoValidation::class);
+        $dtoValidation->shouldNotReceive('validate');
+        $aspect = new CoreMiddlewareAspect($this->makeContainer($dtoValidation), $manager);
+
+        $this->expectException(DtoException::class);
+        $this->expectExceptionMessage('cannot be resolved to a concrete class');
+        $aspect->process($this->makePjp(
+            null,
+            [$this->makeDefinition('array', 'items')],
+            AspectValidInterfaceArrayController::class . '::handle',
+            []
+        ));
+    }
+
     public function testValidMultiDimensionalArrayParamMapsLeafDtos(): void
     {
         $manager = $this->makeManager();
@@ -930,6 +989,16 @@ class AspectValidScalarArrayController
 }
 
 interface AspectArrayInterface {}
+
+class AspectInterfaceArrayDto extends AspectInjectDto implements AspectArrayInterface {}
+
+class AspectValidInterfaceArrayController
+{
+    /**
+     * @param AspectArrayInterface[] $items
+     */
+    public function handle(#[RequestBody] #[Valid] array $items) {}
+}
 
 class AspectInterfaceArrayController
 {

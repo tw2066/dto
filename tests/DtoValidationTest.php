@@ -114,6 +114,15 @@ class DtoValidationTest extends AbstractTestCase
         $this->assertTrue(true);
     }
 
+    public function testLeadingBackslashClassNameStillValidatesRules(): void
+    {
+        $this->prepareRules(ValidationChildDto::class, 'x');
+        $dtoValidation = $this->makeDtoValidation();
+
+        $this->expectException(ValidationException::class);
+        $dtoValidation->validate('\\' . ValidationChildDto::class, ['x' => '']);
+    }
+
     public function testAliasRulesIgnorePropertyNameInput(): void
     {
         $this->prepareAliasScalarRules();

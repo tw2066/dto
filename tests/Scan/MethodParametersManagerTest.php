@@ -124,15 +124,14 @@ class MethodParametersManagerTest extends AbstractTestCase
         $this->assertSame(Address::class, $property->arrClassName);
     }
 
-    public function testUnionDocblockWithNullFirstLosesClassArrayType(): void
+    public function testUnionDocblockWithNullFirstKeepsClassArrayType(): void
     {
-        // src 现状（坑）: 联合类型简单按 | 截断取第一个，null|Address[] 截出 'null'，
-        // 类数组类型信息丢失（此用例锁定该行为，修复后应翻转）
         $manager = $this->makeManager();
         $manager->scanClassMethodParam(MpmUnionArrayController::class, 'handle');
 
         $property = $manager->getProperty(MpmUnionArrayController::class, 'handle', 'list');
-        $this->assertNull($property->arrClassName);
+        $this->assertSame(Address::class, $property->arrClassName);
+        $this->assertTrue($property->isClassArray());
     }
 
     public function testClassTypeParam(): void

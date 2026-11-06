@@ -65,15 +65,16 @@ class CoreMiddlewareAspect
     /**
      * Get response instance from context.
      */
-    protected function response(): ResponseInterface
+    protected function response(): ResponsePlusInterface
     {
+        dump(Context::get(ResponseInterface::class)::class);
         return Context::get(ResponseInterface::class);
     }
 
     /**
      * Transfer the non-standard response content to a standard response object.
      *
-     * @param null|array|Arrayable|Jsonable|ResponseInterface|string $response
+     * @param null|array|Arrayable|Jsonable|ResponseInterface|object|string $response
      */
     protected function transferToResponse($response, ServerRequestInterface $request): ResponsePlusInterface
     {
@@ -165,7 +166,12 @@ class CoreMiddlewareAspect
         if (empty($params)) {
             return [];
         }
-        if ($property?->arrClassName == null) {
+        $className = $property?->arrClassName;
+        if ($className === null && $methodParameter->isValid()) {
+            // 接口数组仅在 Valid 路径按 classMap 解析；无 Valid 时保留原始 body 行为。
+            $className = $property?->arrInterfaceName;
+        }
+        if ($className === null) {
             if ($property?->arrSimpleType !== null || ! $methodParameter->isValid()) {
                 return $params;
             }
@@ -175,11 +181,12 @@ class CoreMiddlewareAspect
         $context = new MappingContext();
         $validation = $methodParameter->isValid() ? $this->container->get(DtoValidation::class) : null;
         $data = $this->mapArrayParameterItems(
-            $property->arrClassName,
+            $className,
             max(1, $property->arrayDepth),
             $params,
             $validation,
-            $context
+            $context,
+            $property->arrInterfaceName !== null
         );
         return array_values($data);
     }
@@ -190,6 +197,7 @@ class CoreMiddlewareAspect
         array|object $value,
         ?DtoValidation $validation,
         MappingContext $context,
+        bool $resolveInterface,
     ): array {
         $result = [];
         foreach ($value as $key => $item) {
@@ -199,14 +207,21 @@ class CoreMiddlewareAspect
             }
             if ($remainingDepth > 1) {
                 $result[$key] = is_array($item) || is_object($item)
-                    ? $this->mapArrayParameterItems($className, $remainingDepth - 1, $item, $validation, $context)
+                    ? $this->mapArrayParameterItems($className, $remainingDepth - 1, $item, $validation, $context, $resolveInterface)
                     : $item;
                 continue;
             }
-            if ($validation !== null) {
-                $validation->validate($className, $item);
+            $resolvedClass = $className;
+            if ($resolveInterface) {
+                $resolvedClass = Mapper::getJsonMapper()->resolveMappedClass($className, $item);
+                if ($resolvedClass === null) {
+                    throw new DtoException("Array element type [{$className}] cannot be resolved to a concrete class.");
+                }
             }
-            $result[$key] = Mapper::mapWithContext($item, make($className), $context);
+            if ($validation !== null) {
+                $validation->validate($resolvedClass, $item);
+            }
+            $result[$key] = Mapper::mapWithContext($item, make($resolvedClass), $context);
         }
         return $result;
     }

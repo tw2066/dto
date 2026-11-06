@@ -28,6 +28,7 @@ class PropertyManager
 
     public function getPropertyByClass(string $className): array
     {
+        $className = ltrim($className, '\\');
         $this->scanClassProperties($className);
         return static::$content[$className] ?? [];
     }
@@ -42,6 +43,7 @@ class PropertyManager
      */
     public function getPropertyAndNotSimpleType(string $className): array
     {
+        $className = ltrim($className, '\\');
         return static::$notSimpleClass[$className] ?? [];
     }
 

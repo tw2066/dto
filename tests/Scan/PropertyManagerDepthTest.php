@@ -153,6 +153,20 @@ class PropertyManagerDepthTest extends AbstractTestCase
         $this->assertSame([], $propertyManager->getPropertyAndNotSimpleType(DepthSimpleOnlyDto::class));
     }
 
+    public function testLeadingBackslashClassNameReadsNormalizedMetadata(): void
+    {
+        $propertyManager = $this->makeManager();
+        $className = '\\' . DepthSelfRefDto::class;
+
+        $properties = $propertyManager->getPropertyByClass($className);
+        $this->assertArrayHasKey('next', $properties);
+        $this->assertSame(DepthSelfRefDto::class, $properties['next']->className);
+
+        $nested = $propertyManager->getPropertyAndNotSimpleType($className);
+        $this->assertArrayHasKey('next', $nested);
+        $this->assertSame($properties, $propertyManager->getPropertyByClass(DepthSelfRefDto::class));
+    }
+
     private function makeManager(): PropertyManager
     {
         return new PropertyManager(new DtoCommon(), new PropertyEnum());

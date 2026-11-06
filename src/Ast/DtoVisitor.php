@@ -56,38 +56,56 @@ class DtoVisitor extends NodeVisitorAbstract
         }
 
         $currentClass = end($this->classStack);
-        if ($node instanceof Node\Stmt\Property && $currentClass instanceof Node\Stmt\Class_ && $this->isTargetClass($currentClass)) {
-            $prop = $node->props[0];
-            $fieldName = $prop->name->name;
-            $type = $node->type;
-            if (empty($prop->default)) {
-                // 简单类型
-                if ($type instanceof Node\Identifier && array_key_exists($dataTypeKey = $type->name, $this->dataTypeDefaultValue)) {
-                    $value = $this->dataTypeDefaultValue[$dataTypeKey];
-                    $default = $this->normalizeValue($value);
-                    $this->dtoDefaultValueLevel == 0 && $this->jsonSerializeNotDefaultValue[$fieldName] = $dataTypeKey;
-                } elseif ($type instanceof Node\NullableType) {
-                    $default = new Node\Expr\ConstFetch(
-                        new Node\Name(['null'])
-                    );
-                    $this->dtoDefaultValueLevel == 0 && $this->jsonSerializeNotDefaultValue[$fieldName] = null;
-                } elseif ($type instanceof Node\Name || $type instanceof Node\Identifier) {
-                    if ($this->dtoDefaultValueLevel == 2) {
-                        $node->type = new Node\NullableType($type);
-                        $default = new Node\Expr\ConstFetch(
-                            new Node\Name(['null'])
-                        );
-                    } else {
-                        $this->jsonSerializeNotDefaultValue[$fieldName] = null;
-                    }
+        if (! $currentClass instanceof Node\Stmt\Class_ || ! $this->isTargetClass($currentClass)) {
+            return null;
+        }
+
+        if ($node instanceof Node\Stmt\Property) {
+            foreach ($node->props as $prop) {
+                if (! empty($prop->default)) {
+                    continue;
+                }
+                $default = $this->createDefaultValue($node, $prop->name->name, ! $node->isReadonly());
+                // readonly 声明属性不能携带默认值，但仍需保留序列化元数据。
+                if ($this->dtoDefaultValueLevel > 0 && ! $node->isReadonly() && $default !== null) {
+                    $prop->default = $default;
                 }
             }
+            return null;
+        }
 
-            // 设置变量默认值
-            if ($this->dtoDefaultValueLevel > 0 && ! empty($default)) {
-                $node->props[0]->default = $default;
+        // 带可见性修饰符的构造器参数即 promoted 属性。
+        if ($node instanceof Node\Param && $node->flags !== 0 && $node->var instanceof Node\Expr\Variable
+            && is_string($node->var->name) && empty($node->default)) {
+            $default = $this->createDefaultValue($node, $node->var->name, true);
+            if ($this->dtoDefaultValueLevel > 0 && $default !== null) {
+                $node->default = $default;
             }
         }
+        return null;
+    }
+
+    private function createDefaultValue(Node\Stmt\Property|Node\Param $node, string $fieldName, bool $canInjectDefault): ?Expr
+    {
+        $type = $node->type;
+        // 简单类型
+        if ($type instanceof Node\Identifier && array_key_exists($dataTypeKey = $type->name, $this->dataTypeDefaultValue)) {
+            $value = $this->dataTypeDefaultValue[$dataTypeKey];
+            $this->dtoDefaultValueLevel == 0 && $this->jsonSerializeNotDefaultValue[$fieldName] = $dataTypeKey;
+            return $this->normalizeValue($value);
+        }
+        if ($type instanceof Node\NullableType) {
+            $this->dtoDefaultValueLevel == 0 && $this->jsonSerializeNotDefaultValue[$fieldName] = null;
+            return new Node\Expr\ConstFetch(new Node\Name(['null']));
+        }
+        if ($type instanceof Node\Name || $type instanceof Node\Identifier) {
+            if ($this->dtoDefaultValueLevel == 2 && $canInjectDefault) {
+                $node->type = new Node\NullableType($type);
+                return new Node\Expr\ConstFetch(new Node\Name(['null']));
+            }
+            $this->jsonSerializeNotDefaultValue[$fieldName] = null;
+        }
+        return null;
     }
 
     public function afterTraverse(array $nodes)

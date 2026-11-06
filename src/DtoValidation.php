@@ -47,6 +47,7 @@ class DtoValidation
      */
     public function validate(string $className, $data): void
     {
+        $className = ltrim($className, '\\');
         if ($this->validationFactory === null) {
             return;
         }

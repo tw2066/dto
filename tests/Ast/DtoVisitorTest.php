@@ -263,9 +263,8 @@ PHP;
         $this->assertStringNotContainsString('jsonSerialize', $output);
     }
 
-    public function testMultiPropertyDeclarationOnlyHandlesFirst(): void
+    public function testMultiPropertyDeclarationHandlesEveryProperty(): void
     {
-        // src 现状: leaveNode 只处理 props[0]（此用例锁定该行为）
         $code = <<<'PHP'
 <?php
 
@@ -278,7 +277,51 @@ class Demo
 PHP;
         [$output] = $this->traverse($code, $this->props('a', 'b'), false, 1);
 
-        $this->assertStringContainsString('public int $a = 0, $b;', $output);
+        $this->assertStringContainsString('public int $a = 0, $b = 0;', $output);
+    }
+
+    public function testReadonlyPropertiesDoNotReceiveDefaultsOrTypeRewrites(): void
+    {
+        $code = <<<'PHP'
+<?php
+
+namespace AstDemo;
+
+class Demo
+{
+    public readonly int $id;
+    public readonly \AstDemo\Address $addr;
+}
+PHP;
+        [$output] = $this->traverse($code, $this->props('id', 'addr'), false, 2);
+
+        $this->assertStringContainsString('public readonly int $id;', $output);
+        $this->assertStringContainsString('public readonly \AstDemo\Address $addr;', $output);
+        $this->assertStringNotContainsString('$id = 0', $output);
+        $this->assertStringNotContainsString('$addr = null', $output);
+    }
+
+    public function testPromotedPropertiesReceiveDefaults(): void
+    {
+        $code = <<<'PHP'
+<?php
+
+namespace AstDemo;
+
+class Demo
+{
+    public function __construct(int $count, public int $id, private string $name, public \AstDemo\Address $addr)
+    {
+    }
+}
+PHP;
+        [$output] = $this->traverse($code, $this->props('id', 'name', 'addr'), false, 2);
+
+        $this->assertStringContainsString('int $count,', $output);
+        $this->assertStringContainsString('public int $id = 0', $output);
+        $this->assertStringContainsString("private string \$name = ''", $output);
+        $this->assertStringContainsString('public ?\AstDemo\Address $addr = null', $output);
+        $this->assertStringNotContainsString('int $count = 0', $output);
     }
 
     public function testNormalizeValueWithMixedKeys(): void
