@@ -67,7 +67,6 @@ class CoreMiddlewareAspect
      */
     protected function response(): ResponsePlusInterface
     {
-        dump(Context::get(ResponseInterface::class)::class);
         return Context::get(ResponseInterface::class);
     }
 
