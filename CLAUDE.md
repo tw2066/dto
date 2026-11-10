@@ -17,7 +17,7 @@ php composer test
 
 # 单个测试
 php vendor/bin/phpunit -c phpunit.xml --filter ScanAnnotationTest
-php vendor/bin/phpunit -c phpunit.xml tests/JsonMapperTest.php
+php vendor/bin/phpunit -c phpunit.xml tests/JsonMapper/JsonMapperTest.php
 
 # 静态分析（phpstan level 0，仅分析 src/，phpstan.neon 中排除了 3 个文件）
 php composer analyse

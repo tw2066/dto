@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace HyperfTest\DTO;
+namespace HyperfTest\DTO\JsonMapper;
 
 use Hyperf\DTO\Annotation\ArrayType;
 use Hyperf\DTO\Annotation\JSONField;
@@ -193,7 +193,7 @@ class JsonMapperCompatibilityTest extends TestCase
             $this->assertStringContainsString('JSON property "city_new"', $e->getMessage());
             $this->assertStringContainsString('CompatibilityAliasArrayDto::$cityArr', $e->getMessage());
             $this->assertStringContainsString(
-                'must be an array of HyperfTest\DTO\CompatibilityAliasArrayItemDto',
+                'must be an array of HyperfTest\DTO\JsonMapper\CompatibilityAliasArrayItemDto',
                 $e->getMessage()
             );
             $this->assertStringContainsString('integer given', $e->getMessage());

@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-namespace HyperfTest\DTO;
+namespace HyperfTest\DTO\JsonMapper;
 
 use Hyperf\DTO\Annotation\ArrayType;
 use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\JsonMapper;
+use HyperfTest\DTO\AbstractTestCase;
 use HyperfTest\DTO\Request\Address;
 use ReflectionMethod;
 
@@ -130,7 +131,7 @@ class JsonMapperInspectPropertyTest extends AbstractTestCase
     {
         [, , $type] = $this->inspect(InspectNativeTypeDto::class, 'child');
 
-        $this->assertSame('\HyperfTest\DTO\InspectChildDto', $type);
+        $this->assertSame('\HyperfTest\DTO\JsonMapper\InspectChildDto', $type);
     }
 
     public function testPrivatePropertyWithoutSetterIsNotWritable(): void

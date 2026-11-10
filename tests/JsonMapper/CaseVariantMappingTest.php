@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace HyperfTest\DTO;
+namespace HyperfTest\DTO\JsonMapper;
 
 use Hyperf\Di\Annotation\AnnotationCollector;
 use Hyperf\Di\Annotation\MultipleAnnotation;

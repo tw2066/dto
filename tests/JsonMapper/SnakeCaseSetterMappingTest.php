@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace HyperfTest\DTO;
+namespace HyperfTest\DTO\JsonMapper;
 
 use Hyperf\DTO\Annotation\Validation\Max;
 use Hyperf\DTO\DtoCommon;
@@ -11,6 +11,7 @@ use Hyperf\DTO\JsonMapper;
 use Hyperf\DTO\Scan\PropertyEnum;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Scan\ValidationManager;
+use HyperfTest\DTO\AbstractTestCase;
 
 /**
  * 声明属性为 snake_case、setter 为 camelCase 时不得生成重复字段；

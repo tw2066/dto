@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace HyperfTest\DTO\BuiltinNamespace;
+namespace HyperfTest\DTO\JsonMapper\BuiltinNamespace;
 
 use Hyperf\DTO\JsonMapper;
 use PHPUnit\Framework\TestCase;

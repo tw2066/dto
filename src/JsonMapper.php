@@ -550,7 +550,10 @@ class JsonMapper extends \JsonMapper
             } elseif ($property->arrSimpleType !== null) {
                 $type = $property->arrSimpleType . str_repeat('[]', max(1, $property->arrayDepth));
             } elseif (($type === null || in_array($type, ['mixed', 'object', 'iterable'], true))
-                && ($property->className !== null || $property->interfaceName !== null)) {
+                && ($property->className !== null || $property->interfaceName !== null)
+                && ! $this->hasAmbiguousUnionType($accessor)) {
+                // 多成员联合类型无法确定目标类，保持原值写入；否则 DateTime|string
+                // 会被 PropertyManager 的首成员类型误当成 DateTime 映射。
                 $type = '\\' . ($property->className ?? $property->interfaceName);
             }
             $fields[$index] = [
@@ -850,6 +853,22 @@ class JsonMapper extends \JsonMapper
 
         //no setter, no property
         return array(false, null, null, false);
+    }
+
+    /**
+     * 多成员原生联合类型（如 DateTime|string）没有唯一映射目标。
+     * 此时禁止回退到属性首成员类型，调用方按原值写入并交给 PHP 类型检查。
+     */
+    private function hasAmbiguousUnionType(ReflectionMethod|ReflectionProperty|null $accessor): bool
+    {
+        if ($accessor instanceof ReflectionMethod) {
+            $reflectionType = ($accessor->getParameters()[0] ?? null)?->getType();
+        } elseif ($accessor instanceof ReflectionProperty) {
+            $reflectionType = $accessor->getType();
+        } else {
+            return false;
+        }
+        return $reflectionType instanceof \ReflectionUnionType;
     }
 
     /**
