@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HyperfTest\DTO\JsonMapper;
 
 use Hyperf\DTO\JsonMapper;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -54,9 +55,7 @@ class JsonMapperClassResolutionTest extends TestCase
         $this->assertSame('2016-04-14T23:15:42+02:00', $received[1]);
     }
 
-    /**
-     * @dataProvider leadingSlashKeyProvider
-     */
+    #[DataProvider('leadingSlashKeyProvider')]
     public function testClassMapAcceptsBothLeadingSlashKeyForms(string $registeredKey): void
     {
         $mapper = $this->mapper();
@@ -77,9 +76,7 @@ class JsonMapperClassResolutionTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider dateTimeKeyProvider
-     */
+    #[DataProvider('dateTimeKeyProvider')]
     public function testClassFactoriesAcceptBothLeadingSlashKeyForms(string $registeredKey): void
     {
         $mapper = $this->mapper();
