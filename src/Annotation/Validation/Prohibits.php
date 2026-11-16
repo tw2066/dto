@@ -15,7 +15,7 @@ class Prohibits extends BaseValidation
     protected mixed $rule = 'prohibits';
 
     /**
-     * 当验证字段存在且不为空时，给定字段必须不存在或为空.
+     * 当验证字段存在且不为空时，给定字段必须不存在或为空
      * @param array $fields 字段列表
      */
     public function __construct(array $fields, string $message = '')

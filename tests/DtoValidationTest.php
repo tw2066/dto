@@ -861,7 +861,7 @@ class DtoValidationTest extends AbstractTestCase
     }
 
     /**
-     * 为类的指定属性播种 Required 规则并生成验证数据.
+     * 为类的指定属性播种 Required 规则并生成验证数据
      */
     private function prepareRules(string $className, string $fieldName): void
     {

@@ -10,7 +10,7 @@ use Attribute;
 class Distinct extends ArrRule
 {
     /**
-     * 处理数组时，验证字段不能包含重复值.
+     * 处理数组时，验证字段不能包含重复值
      */
     public function __construct(bool $ignoreCase = false, string $message = '')
     {

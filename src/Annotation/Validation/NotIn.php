@@ -14,7 +14,7 @@ use Hyperf\Validation\Rule;
 class NotIn extends BaseValidation
 {
     /**
-     * 验证字段值不能在给定列表中.
+     * 验证字段值不能在给定列表中
      */
     public function __construct(array $value, string $message = '')
     {

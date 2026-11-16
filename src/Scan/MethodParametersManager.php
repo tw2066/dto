@@ -49,7 +49,7 @@ class MethodParametersManager
     }
 
     /**
-     * 设置方法中的参数.
+     * 设置方法中的参数
      *
      * @throws ReflectionException
      */

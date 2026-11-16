@@ -19,7 +19,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use ReflectionProperty;
 
 /**
- * 新测试的公共基类.
+ * 新测试的公共基类
  *
  * 解决两个跨测试静态污染问题：
  * 1. ApplicationContext 一旦设置容器，Mapper::getJsonMapper() 会对过期容器调用

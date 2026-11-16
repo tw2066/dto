@@ -11,7 +11,7 @@ use Hyperf\Validation\Rule;
 class In extends BaseValidation
 {
     /**
-     * 验证字段值必须在给定的列表中.
+     * 验证字段值必须在给定的列表中
      */
     public function __construct(private array $value, public string $message = '')
     {

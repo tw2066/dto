@@ -10,7 +10,7 @@ use Attribute;
 class Validation extends BaseValidation
 {
     /**
-     * ### 自定义验证器.
+     * ### 自定义验证器
      *
      * 1. 使用框架的`required|date|after:start_date`写法
      *

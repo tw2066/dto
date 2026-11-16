@@ -15,7 +15,7 @@ class RequiredWith extends BaseValidation
     protected mixed $rule = 'required_with';
 
     /**
-     * 当任一给定字段存在且不为空时，验证字段必须存在且不为空.
+     * 当任一给定字段存在且不为空时，验证字段必须存在且不为空
      * @param array $anotherFields 字段列表
      */
     public function __construct(array $anotherFields, string $message = '')

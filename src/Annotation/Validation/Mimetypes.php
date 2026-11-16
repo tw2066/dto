@@ -15,7 +15,7 @@ class Mimetypes extends BaseValidation
     protected mixed $rule = 'mimetypes';
 
     /**
-     * 验证文件的 MIME 类型必须在给定列表中.
+     * 验证文件的 MIME 类型必须在给定列表中
      * @param array $mimetypes MIME 类型列表，例如：['image/jpeg', 'image/png']
      */
     public function __construct(array $mimetypes, string $message = '')

@@ -24,12 +24,12 @@ class Scan
     }
 
     /**
-     * 扫描控制器中的方法.
+     * 扫描控制器中的方法
      * @throws ReflectionException
      */
     public function scan(string $className, string $methodName): void
     {
-        // 设置方法中的参数.
+        // 设置方法中的参数
         $this->methodParametersManager->setMethodParameters($className, $methodName);
         $this->methodParametersManager->scanClassMethodParam($className, $methodName);
         $definitionArr = $this->methodDefinitionCollector->getParameters($className, $methodName);

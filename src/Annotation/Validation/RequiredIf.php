@@ -15,7 +15,7 @@ class RequiredIf extends BaseValidation
     protected mixed $rule = 'required_if';
 
     /**
-     * 当另一个字段等于某个值时，验证字段必须存在且不为空.
+     * 当另一个字段等于某个值时，验证字段必须存在且不为空
      */
     public function __construct(string $anotherField, mixed $value, string $message = '')
     {

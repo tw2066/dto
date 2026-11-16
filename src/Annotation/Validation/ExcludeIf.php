@@ -15,7 +15,7 @@ class ExcludeIf extends BaseValidation
     protected mixed $rule = 'exclude_if';
 
     /**
-     * 当另一个字段等于某个值时，指示验证器忽略该字段.
+     * 当另一个字段等于某个值时，指示验证器忽略该字段
      */
     public function __construct(string $anotherField, mixed $value, string $message = '')
     {

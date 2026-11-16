@@ -15,7 +15,7 @@ class RequiredUnless extends BaseValidation
     protected mixed $rule = 'required_unless';
 
     /**
-     * 当另一个字段不等于某个值时，验证字段必须存在且不为空.
+     * 当另一个字段不等于某个值时，验证字段必须存在且不为空
      */
     public function __construct(string $anotherField, mixed $value, string $message = '')
     {

@@ -12,7 +12,7 @@ use ReflectionProperty;
 class DtoCommon extends JsonMapper
 {
     /**
-     * 获取PHP类型.
+     * 获取PHP类型
      */
     public function getTypeName(ReflectionParameter|ReflectionProperty $rprop): string
     {
@@ -48,7 +48,7 @@ class DtoCommon extends JsonMapper
     }
 
     /**
-     * 复用映射器的属性访问器和类型判断，避免扫描阶段另维护一套规则.
+     * 复用映射器的属性访问器和类型判断，避免扫描阶段另维护一套规则
      *
      * @return array{bool, null|ReflectionMethod|ReflectionProperty, null|string, bool}
      */

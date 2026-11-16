@@ -13,7 +13,7 @@ use HyperfTest\DTO\Response\Activity as Event;
 use PHPUnit\Framework\TestCase;
 
 /**
- * 跨命名空间 docblock 类型解析测试.
+ * 跨命名空间 docblock 类型解析测试
  *
  * 锁定 phpdocumentor ContextFactory 解析 use 语句的能力：
  * @var/@param 中的短类名（含别名导入）必须解析为 use 导入的 FQCN，

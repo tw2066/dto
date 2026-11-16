@@ -15,7 +15,7 @@ class Mimes extends BaseValidation
     protected mixed $rule = 'mimes';
 
     /**
-     * 验证文件的 MIME 类型必须对应给定扩展名列表.
+     * 验证文件的 MIME 类型必须对应给定扩展名列表
      * @param array $extensions 扩展名列表，例如：['jpg', 'png']
      */
     public function __construct(array $extensions, string $message = '')

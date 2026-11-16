@@ -12,7 +12,7 @@ class MacAddress extends BaseValidation
     protected mixed $rule = 'mac_address';
 
     /**
-     * 验证字段必须是 MAC 地址.
+     * 验证字段必须是 MAC 地址
      */
     public function __construct(string $message = '')
     {

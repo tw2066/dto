@@ -12,7 +12,7 @@ class Exclude extends BaseValidation
     protected mixed $rule = 'exclude';
 
     /**
-     * 指示验证器忽略该字段.
+     * 指示验证器忽略该字段
      */
     public function __construct(string $message = '')
     {

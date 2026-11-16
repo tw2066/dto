@@ -12,7 +12,7 @@ class Missing extends BaseValidation
     protected mixed $rule = 'missing';
 
     /**
-     * 验证字段在输入数据中必须缺失.
+     * 验证字段在输入数据中必须缺失
      */
     public function __construct(string $message = '')
     {

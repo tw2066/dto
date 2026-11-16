@@ -15,7 +15,7 @@ class DoesntStartWith extends BaseValidation
     protected mixed $rule = 'doesnt_start_with';
 
     /**
-     * 验证字段不能以某个给定值开头.
+     * 验证字段不能以某个给定值开头
      */
     public function __construct(string $value, string $message = '')
     {

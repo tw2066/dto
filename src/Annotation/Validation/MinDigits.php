@@ -15,7 +15,7 @@ class MinDigits extends BaseValidation
     protected mixed $rule = 'min_digits';
 
     /**
-     * 验证字段必须大于或等于指定的数字位数.
+     * 验证字段必须大于或等于指定的数字位数
      */
     public function __construct(int $min, string $message = '')
     {

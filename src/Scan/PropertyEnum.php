@@ -13,7 +13,7 @@ use function Hyperf\Collection\collect;
 class PropertyEnum
 {
     /**
-     * PHP 内置类型与伪类型，不可能是枚举类，也不应触发类自动加载.
+     * PHP 内置类型与伪类型，不可能是枚举类，也不应触发类自动加载
      */
     private const BUILTIN_TYPES = [
         'array', 'bool', 'boolean', 'callable', 'double', 'false', 'float',
@@ -22,17 +22,17 @@ class PropertyEnum
     ];
 
     /**
-     * 返回的类型.
+     * 返回的类型
      */
     public ?string $backedType = null;
 
     /**
-     * 名称.
+     * 名称
      */
     public ?string $className = null;
 
     /**
-     * 枚举类 value列表.
+     * 枚举类 value列表
      */
     public ?array $valueList = null;
 

@@ -15,7 +15,7 @@ use Hyperf\Validation\ValidationException;
 
 /**
  * DTO 验证类
- * 负责验证 DTO 对象的数据有效性.
+ * 负责验证 DTO 对象的数据有效性
  */
 class DtoValidation
 {
@@ -43,7 +43,7 @@ class DtoValidation
     }
 
     /**
-     * 验证 DTO 数据.
+     * 验证 DTO 数据
      * @param mixed $data
      */
     public function validate(string $className, $data): void
@@ -60,7 +60,7 @@ class DtoValidation
     }
 
     /**
-     * 构建验证异常.
+     * 构建验证异常
      */
     protected function buildValidationException(ValidatorInterface $validator): ValidationException
     {

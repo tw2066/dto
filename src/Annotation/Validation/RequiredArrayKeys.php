@@ -15,7 +15,7 @@ class RequiredArrayKeys extends BaseValidation
     protected mixed $rule = 'required_array_keys';
 
     /**
-     * 验证字段必须是数组，且包含给定键名.
+     * 验证字段必须是数组，且包含给定键名
      * @param array $keys 键名列表
      */
     public function __construct(array $keys, string $message = '')

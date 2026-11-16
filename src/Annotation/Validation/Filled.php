@@ -12,7 +12,7 @@ class Filled extends BaseValidation
     protected mixed $rule = 'filled';
 
     /**
-     * 验证字段如果存在，则必须不为空.
+     * 验证字段如果存在，则必须不为空
      */
     public function __construct(string $message = '')
     {

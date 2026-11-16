@@ -12,7 +12,7 @@ class Ipv6 extends BaseValidation
     protected mixed $rule = 'ipv6';
 
     /**
-     * 验证字段必须是 IPv6 地址.
+     * 验证字段必须是 IPv6 地址
      */
     public function __construct(string $message = '')
     {

@@ -15,7 +15,7 @@ class Contains extends BaseValidation
     protected mixed $rule = 'contains';
 
     /**
-     * 验证字段必须包含给定的值.
+     * 验证字段必须包含给定的值
      * @param array $values 允许值列表
      */
     public function __construct(array $values, string $message = '')

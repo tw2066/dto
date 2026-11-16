@@ -12,7 +12,7 @@ class Ip extends BaseValidation
     protected mixed $rule = 'ip';
 
     /**
-     * 验证字段必须是 IP 地址.
+     * 验证字段必须是 IP 地址
      */
     public function __construct(string $message = '')
     {

@@ -27,7 +27,7 @@ abstract class BaseValidation extends AbstractMultipleAnnotation
     }
 
     /**
-     * 用户支持 customKey.* 的情况.
+     * 用户支持 customKey.* 的情况
      */
     public function getCustomKey(): string
     {

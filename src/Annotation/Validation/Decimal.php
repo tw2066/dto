@@ -15,7 +15,7 @@ class Decimal extends BaseValidation
     protected mixed $rule = 'decimal';
 
     /**
-     * 验证字段必须具有指定的小数位数.
+     * 验证字段必须具有指定的小数位数
      */
     public function __construct(int $min, ?int $max = null, string $message = '')
     {

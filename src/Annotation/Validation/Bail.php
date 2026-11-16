@@ -12,7 +12,7 @@ class Bail extends BaseValidation
     protected mixed $rule = 'bail';
 
     /**
-     * 第一个验证规则验证失败则停止运行其它验证规则.
+     * 第一个验证规则验证失败则停止运行其它验证规则
      */
     public function __construct(string $message = '')
     {

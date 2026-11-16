@@ -15,7 +15,7 @@ class RequiredWithoutAll extends BaseValidation
     protected mixed $rule = 'required_without_all';
 
     /**
-     * 当所有给定字段为空或缺失时，验证字段必须存在且不为空.
+     * 当所有给定字段为空或缺失时，验证字段必须存在且不为空
      * @param array $anotherFields 字段列表
      */
     public function __construct(array $anotherFields, string $message = '')

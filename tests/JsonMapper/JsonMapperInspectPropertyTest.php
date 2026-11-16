@@ -13,10 +13,10 @@ use ReflectionClass;
 use ReflectionMethod;
 
 /**
- * JsonMapper::inspectProperty 类型推断分支测试.
+ * JsonMapper::inspectProperty 类型推断分支测试
  *
  * 优先级: setter 类型声明 > setter @param > 属性(继承链/大小写兜底)
- * > ArrayType 注解 > @var(联合截断) > 构造器 @param > PHP 原生类型.
+ * > ArrayType 注解 > @var(联合截断) > 构造器 @param > PHP 原生类型
  *
  * @internal
  * @coversNothing

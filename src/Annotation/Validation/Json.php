@@ -12,7 +12,7 @@ class Json extends BaseValidation
     protected mixed $rule = 'json';
 
     /**
-     * 验证字段必须是有效的 JSON 字符串.
+     * 验证字段必须是有效的 JSON 字符串
      */
     public function __construct(string $message = '')
     {

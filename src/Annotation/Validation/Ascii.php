@@ -12,7 +12,7 @@ class Ascii extends BaseValidation
     protected mixed $rule = 'ascii';
 
     /**
-     * 验证字段必须完全由 7 位 ASCII 字符组成.
+     * 验证字段必须完全由 7 位 ASCII 字符组成
      */
     public function __construct(string $message = '')
     {

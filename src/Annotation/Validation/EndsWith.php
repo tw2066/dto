@@ -15,7 +15,7 @@ class EndsWith extends BaseValidation
     protected mixed $rule = 'ends_with';
 
     /**
-     * 验证字段必须以某个给定值结尾.
+     * 验证字段必须以某个给定值结尾
      */
     public function __construct(string $value, string $message = '')
     {

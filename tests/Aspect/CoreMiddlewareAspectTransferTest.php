@@ -21,7 +21,7 @@ use stdClass;
 use Swow\Psr7\Message\ResponsePlusInterface;
 
 /**
- * CoreMiddlewareAspect::transferToResponse 全分支测试.
+ * CoreMiddlewareAspect::transferToResponse 全分支测试
  *
  * @internal
  * @coversNothing

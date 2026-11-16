@@ -15,7 +15,7 @@ use HyperfTest\DTO\Request\Address;
 use InvalidArgumentException;
 
 /**
- * PropertyManager 深度守卫 / 递归去重 / docblock 边界测试.
+ * PropertyManager 深度守卫 / 递归去重 / docblock 边界测试
  *
  * @internal
  * @coversNothing

@@ -18,7 +18,7 @@ use HyperfTest\DTO\AbstractTestCase;
 use HyperfTest\DTO\Request\Address;
 
 /**
- * MethodParametersManager 互斥约束校验 + scanClassMethodParam 参数类型解析测试.
+ * MethodParametersManager 互斥约束校验 + scanClassMethodParam 参数类型解析测试
  *
  * @internal
  * @coversNothing

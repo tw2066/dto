@@ -15,7 +15,7 @@ class Same extends BaseValidation
     protected mixed $rule = 'same';
 
     /**
-     * 验证字段必须与给定字段值相同.
+     * 验证字段必须与给定字段值相同
      */
     public function __construct(string $field, string $message = '')
     {

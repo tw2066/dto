@@ -15,7 +15,7 @@ class MaxDigits extends BaseValidation
     protected mixed $rule = 'max_digits';
 
     /**
-     * 验证字段必须小于或等于指定的数字位数.
+     * 验证字段必须小于或等于指定的数字位数
      */
     public function __construct(int $max, string $message = '')
     {

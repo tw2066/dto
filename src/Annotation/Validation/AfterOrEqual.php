@@ -15,7 +15,7 @@ class AfterOrEqual extends BaseValidation
     protected mixed $rule = 'after_or_equal';
 
     /**
-     * 验证字段必须是给定日期之后或等于该日期的一个值，日期将会通过 PHP 函数 strtotime 传递.
+     * 验证字段必须是给定日期之后或等于该日期的一个值，日期将会通过 PHP 函数 strtotime 传递
      */
     public function __construct(string $date, string $message = '')
     {

@@ -12,7 +12,7 @@ class Uppercase extends BaseValidation
     protected mixed $rule = 'uppercase';
 
     /**
-     * 验证字段必须是大写字符串.
+     * 验证字段必须是大写字符串
      */
     public function __construct(string $message = '')
     {

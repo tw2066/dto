@@ -15,7 +15,7 @@ class DigitsBetween extends BaseValidation
     protected mixed $rule = 'digits_between';
 
     /**
-     * 验证字段必须在指定长度范围内的数字.
+     * 验证字段必须在指定长度范围内的数字
      */
     public function __construct(int $min, int $max, string $message = '')
     {

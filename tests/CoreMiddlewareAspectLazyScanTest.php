@@ -28,10 +28,10 @@ use Psr\Http\Message\ServerRequestInterface;
 use ReflectionMethod;
 
 /**
- * CoreMiddlewareAspect 懒扫描兜底：DTO 元数据缺失且未扫描过时按需补扫.
+ * CoreMiddlewareAspect 懒扫描兜底：DTO 元数据缺失且未扫描过时按需补扫
  *
  * 注意：MethodParametersManager 的元数据是静态存储、进程内共享，
- * 各用例使用不同的控制器方法隔离，避免相互污染.
+ * 各用例使用不同的控制器方法隔离，避免相互污染
  *
  * @internal
  * @coversNothing

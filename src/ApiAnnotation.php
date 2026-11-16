@@ -12,7 +12,7 @@ use Hyperf\Di\Annotation\AnnotationCollector;
 class ApiAnnotation
 {
     /**
-     * 获取属性.
+     * 获取属性
      * @return null|object $annotationClassName
      */
     public static function getProperty(string $className, string $propertyName, string $annotationClassName): ?object

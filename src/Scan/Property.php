@@ -7,12 +7,12 @@ namespace Hyperf\DTO\Scan;
 class Property
 {
     /**
-     * 是否为简单类型.
+     * 是否为简单类型
      */
     public bool $isSimpleType = true;
 
     /**
-     * PHP简单类型.
+     * PHP简单类型
      * @var null|string 'string' 'boolean' 'bool' 'integer' 'int' 'double' 'float' 'array' 'object'
      */
     public ?string $phpSimpleType = null;
@@ -28,7 +28,7 @@ class Property
     public ?string $interfaceName = null;
 
     /**
-     * 数组 中 复杂 类的名称.
+     * 数组 中 复杂 类的名称
      */
     public ?string $arrClassName = null;
 
@@ -48,12 +48,12 @@ class Property
     public int $arrayDepth = 0;
 
     /**
-     * 枚举类.
+     * 枚举类
      */
     public ?PropertyEnum $enum = null;
 
     /**
-     * 别名.
+     * 别名
      */
     public ?string $alias = null;
 

@@ -15,7 +15,7 @@ class DoesntEndWith extends BaseValidation
     protected mixed $rule = 'doesnt_end_with';
 
     /**
-     * 验证字段不能以某个给定值结尾.
+     * 验证字段不能以某个给定值结尾
      */
     public function __construct(string $value, string $message = '')
     {

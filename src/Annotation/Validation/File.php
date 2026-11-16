@@ -12,7 +12,7 @@ class File extends BaseValidation
     protected mixed $rule = 'file';
 
     /**
-     * 验证字段必须是成功上传的文件.
+     * 验证字段必须是成功上传的文件
      */
     public function __construct(string $message = '')
     {

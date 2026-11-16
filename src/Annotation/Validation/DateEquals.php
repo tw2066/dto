@@ -15,7 +15,7 @@ class DateEquals extends BaseValidation
     protected mixed $rule = 'date_equals';
 
     /**
-     * 验证字段必须等于给定日期，日期将会通过 PHP 函数 strtotime 传递.
+     * 验证字段必须等于给定日期，日期将会通过 PHP 函数 strtotime 传递
      */
     public function __construct(string $date, string $message = '')
     {

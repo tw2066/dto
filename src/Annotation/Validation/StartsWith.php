@@ -15,7 +15,7 @@ class StartsWith extends BaseValidation
     protected mixed $rule = 'starts_with';
 
     /**
-     * 验证字段必须以某个给定值开头.
+     * 验证字段必须以某个给定值开头
      */
     public function __construct(string $value, string $message = '')
     {

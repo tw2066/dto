@@ -15,7 +15,7 @@ class MissingWith extends BaseValidation
     protected mixed $rule = 'missing_with';
 
     /**
-     * 当任一给定字段存在时，验证字段在输入数据中必须缺失.
+     * 当任一给定字段存在时，验证字段在输入数据中必须缺失
      * @param array $anotherFields 字段列表
      */
     public function __construct(array $anotherFields, string $message = '')

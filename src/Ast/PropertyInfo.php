@@ -7,17 +7,17 @@ namespace Hyperf\DTO\Ast;
 class PropertyInfo
 {
     /**
-     * 属性名称.
+     * 属性名称
      */
     public string $propertyName = '';
 
     /**
-     * get方法名称.
+     * get方法名称
      */
     public string $getMethodName = '';
 
     /**
-     * 别名 通过JSONField生成.
+     * 别名 通过JSONField生成
      */
     public string $alias = '';
 

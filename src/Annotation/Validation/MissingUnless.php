@@ -15,7 +15,7 @@ class MissingUnless extends BaseValidation
     protected mixed $rule = 'missing_unless';
 
     /**
-     * 当另一个字段不等于某个值时，验证字段在输入数据中必须缺失.
+     * 当另一个字段不等于某个值时，验证字段在输入数据中必须缺失
      */
     public function __construct(string $anotherField, mixed $value, string $message = '')
     {

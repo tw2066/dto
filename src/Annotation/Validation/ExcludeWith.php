@@ -15,7 +15,7 @@ class ExcludeWith extends BaseValidation
     protected mixed $rule = 'exclude_with';
 
     /**
-     * 当另一个字段存在时，指示验证器忽略该字段.
+     * 当另一个字段存在时，指示验证器忽略该字段
      */
     public function __construct(string $anotherField, string $message = '')
     {

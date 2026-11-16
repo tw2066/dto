@@ -15,7 +15,7 @@ class Digits extends BaseValidation
     protected mixed $rule = 'digits';
 
     /**
-     * 验证字段必须是指定长度的数字.
+     * 验证字段必须是指定长度的数字
      */
     public function __construct(int $length, string $message = '')
     {

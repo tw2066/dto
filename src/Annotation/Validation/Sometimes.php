@@ -12,7 +12,7 @@ class Sometimes extends BaseValidation
     protected mixed $rule = 'sometimes';
 
     /**
-     * 验证字段仅在该字段存在时才会进行其它规则校验.
+     * 验证字段仅在该字段存在时才会进行其它规则校验
      */
     public function __construct(string $message = '')
     {

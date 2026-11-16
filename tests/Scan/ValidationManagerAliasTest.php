@@ -145,7 +145,7 @@ class ValidationManagerAliasTest extends AbstractTestCase
     }
 
     /**
-     * tangwei/apidocs 未安装，eval 定义 ApiModelProperty stub 以覆盖 attributes 分支.
+     * tangwei/apidocs 未安装，eval 定义 ApiModelProperty stub 以覆盖 attributes 分支
      */
     private function defineApiModelPropertyStub(): void
     {

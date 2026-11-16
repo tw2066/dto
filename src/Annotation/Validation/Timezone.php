@@ -12,7 +12,7 @@ class Timezone extends BaseValidation
     protected mixed $rule = 'timezone';
 
     /**
-     * 验证字段必须是有效的时区标识符.
+     * 验证字段必须是有效的时区标识符
      */
     public function __construct(string $message = '')
     {
