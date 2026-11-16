@@ -24,4 +24,3 @@ class RequiredWithoutAll extends BaseValidation
         parent::__construct($message);
     }
 }
-

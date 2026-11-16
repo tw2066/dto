@@ -19,4 +19,3 @@ class Uppercase extends BaseValidation
         parent::__construct($message);
     }
 }
-

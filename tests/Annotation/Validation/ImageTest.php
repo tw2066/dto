@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HyperfTest\DTO\Annotation\Validation;
 
 use Hyperf\DTO\Annotation\Validation\Image;
+use SplFileInfo;
 
 /**
  * @internal
@@ -20,7 +21,7 @@ class ImageTest extends ValidationAnnotationTestCase
         $file = $this->createTempFile('.png', base64_decode(self::PNG_1X1));
 
         $this->assertPasses(
-            ['file' => new \SplFileInfo($file)],
+            ['file' => new SplFileInfo($file)],
             ['file' => [$annotation->getRule()]],
             ['file.image' => 'image message']
         );
@@ -32,7 +33,7 @@ class ImageTest extends ValidationAnnotationTestCase
         $file = $this->createTempFile('.txt', 'plain text');
 
         $this->assertFailsWithMessage(
-            ['file' => new \SplFileInfo($file)],
+            ['file' => new SplFileInfo($file)],
             ['file' => [$annotation->getRule()]],
             ['file.image' => 'image message'],
             'file',

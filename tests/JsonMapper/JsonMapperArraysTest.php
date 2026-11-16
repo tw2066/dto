@@ -4,8 +4,17 @@ declare(strict_types=1);
 
 namespace HyperfTest\DTO\JsonMapper;
 
+use ArrayAccess;
+use ArrayIterator;
+use ArrayObject;
+use DateTime;
 use Hyperf\DTO\JsonMapper;
+use IteratorAggregate;
+use JsonMapper_Exception;
 use PHPUnit\Framework\TestCase;
+use ReturnTypeWillChange;
+use stdClass;
+use Traversable;
 
 /**
  * 改编自 netresearch/jsonmapper（OSL-3.0）的 tests/ArrayTest.php、Array_PHP74_Test.php、
@@ -83,7 +92,7 @@ class JsonMapperArraysTest extends TestCase
         ], new UpstreamArrayDateTimeDto());
 
         $this->assertArrayHasKey('en-US', $dto->typedSimpleArray);
-        $this->assertInstanceOf(\DateTime::class, $dto->typedSimpleArray['en-US']);
+        $this->assertInstanceOf(DateTime::class, $dto->typedSimpleArray['en-US']);
         $this->assertSame('2014-01-02', $dto->typedSimpleArray['en-US']->format('Y-m-d'));
     }
 
@@ -92,7 +101,7 @@ class JsonMapperArraysTest extends TestCase
         $mapper = new JsonMapper();
         $mapper->bEnforceMapType = false;
 
-        $this->expectException(\JsonMapper_Exception::class);
+        $this->expectException(JsonMapper_Exception::class);
         $this->expectExceptionMessage('JSON property "strArray[1]" must not be NULL');
 
         $mapper->simpleMap(['strArray' => ['a', null, 'c']], new UpstreamArrayScalarsDto());
@@ -121,7 +130,7 @@ class JsonMapperArraysTest extends TestCase
         ], new UpstreamArrayDateTimeDto());
 
         $this->assertCount(3, $dto->typedSimpleArray);
-        $this->assertInstanceOf(\DateTime::class, $dto->typedSimpleArray[0]);
+        $this->assertInstanceOf(DateTime::class, $dto->typedSimpleArray[0]);
         $this->assertNull($dto->typedSimpleArray[1]);
         $this->assertSame('2014-05-07', $dto->typedSimpleArray[2]->format('Y-m-d'));
     }
@@ -133,9 +142,9 @@ class JsonMapperArraysTest extends TestCase
             'pNullableArrayObject' => null,
         ], new UpstreamArrayObjectDto());
 
-        $this->assertInstanceOf(\ArrayObject::class, $dto->pArrayObject);
+        $this->assertInstanceOf(ArrayObject::class, $dto->pArrayObject);
         $this->assertCount(2, $dto->pArrayObject);
-        $this->assertContainsOnlyInstancesOf(\stdClass::class, $dto->pArrayObject);
+        $this->assertContainsOnlyInstancesOf(stdClass::class, $dto->pArrayObject);
         $this->assertSame('stringvalue', $dto->pArrayObject[0]->pStr);
         $this->assertSame('1.2', $dto->pArrayObject[1]->fl);
         $this->assertNull($dto->pNullableArrayObject);
@@ -146,7 +155,7 @@ class JsonMapperArraysTest extends TestCase
         $mapper = new JsonMapper();
         $mapper->bEnforceMapType = false;
 
-        $this->expectException(\JsonMapper_Exception::class);
+        $this->expectException(JsonMapper_Exception::class);
         $this->expectExceptionMessage(
             'JSON property "pArrayObject" in class "' . UpstreamArrayObjectDto::class . '" must not be NULL'
         );
@@ -160,7 +169,7 @@ class JsonMapperArraysTest extends TestCase
             'pTypedArrayObject' => [['pStr' => 'stringvalue'], ['pStr' => '1.2']],
         ], new UpstreamArrayObjectDto());
 
-        $this->assertInstanceOf(\ArrayObject::class, $dto->pTypedArrayObject);
+        $this->assertInstanceOf(ArrayObject::class, $dto->pTypedArrayObject);
         $this->assertContainsOnlyInstancesOf(UpstreamArrayItem::class, $dto->pTypedArrayObject);
         $this->assertSame('stringvalue', $dto->pTypedArrayObject[0]->pStr);
     }
@@ -171,7 +180,7 @@ class JsonMapperArraysTest extends TestCase
             'pSimpleArrayObject' => (object) ['eins' => '1', 'zwei' => '1.2'],
         ], new UpstreamArrayObjectDto());
 
-        $this->assertInstanceOf(\ArrayObject::class, $dto->pSimpleArrayObject);
+        $this->assertInstanceOf(ArrayObject::class, $dto->pSimpleArrayObject);
         $this->assertSame(1, $dto->pSimpleArrayObject['eins']);
         $this->assertSame(1, $dto->pSimpleArrayObject['zwei']);
     }
@@ -183,7 +192,7 @@ class JsonMapperArraysTest extends TestCase
         ], new UpstreamArrayObjectDto());
 
         $this->assertCount(2, $dto->pArrayObjectList);
-        $this->assertContainsOnlyInstancesOf(\ArrayObject::class, $dto->pArrayObjectList);
+        $this->assertContainsOnlyInstancesOf(ArrayObject::class, $dto->pArrayObjectList);
         $this->assertSame(['x' => 'X'], $dto->pArrayObjectList[0]->getArrayCopy());
         $this->assertSame(['y' => 'Y'], $dto->pArrayObjectList[1]->getArrayCopy());
     }
@@ -195,7 +204,7 @@ class JsonMapperArraysTest extends TestCase
         ], new UpstreamArrayAccessDto());
 
         $this->assertInstanceOf(UpstreamArrayAccessCollection::class, $dto->pArrayAccessCollection);
-        $this->assertInstanceOf(\Traversable::class, $dto->pArrayAccessCollection);
+        $this->assertInstanceOf(Traversable::class, $dto->pArrayAccessCollection);
         $this->assertSame(1, $dto->pArrayAccessCollection['eins']);
         $this->assertSame('two', $dto->pArrayAccessCollection['zwei']);
     }
@@ -219,7 +228,7 @@ class JsonMapperArraysTest extends TestCase
 
     public function testInvalidScalarForArrayPropertyThrows(): void
     {
-        $this->expectException(\JsonMapper_Exception::class);
+        $this->expectException(JsonMapper_Exception::class);
         $this->expectExceptionMessage(
             'JSON property "flArray" in class "' . UpstreamArrayScalarsDto::class
             . '" must be an array of float, integer given'
@@ -230,17 +239,17 @@ class JsonMapperArraysTest extends TestCase
 
     public function testObjectElementInScalarArrayThrows(): void
     {
-        $this->expectException(\JsonMapper_Exception::class);
+        $this->expectException(JsonMapper_Exception::class);
         $this->expectExceptionMessage(
             'JSON property "strArray" is an array of type "string" but contained a value of type "object"'
         );
 
-        $this->mapper()->simpleMap(['strArray' => [new \stdClass()]], new UpstreamArrayScalarsDto());
+        $this->mapper()->simpleMap(['strArray' => [new stdClass()]], new UpstreamArrayScalarsDto());
     }
 
     public function testStrictObjectTypeCheckingAppliesToArrayElements(): void
     {
-        $this->expectException(\JsonMapper_Exception::class);
+        $this->expectException(JsonMapper_Exception::class);
         $this->expectExceptionMessage('JSON property "typedArray[0]" must be an object, string given');
 
         $this->mapper()->simpleMap(['typedArray' => ['abc']], new UpstreamArrayTypedDto());
@@ -258,7 +267,7 @@ class JsonMapperArraysTest extends TestCase
 
         $this->assertSame([1, 2, 3], $dto->getVariadicInt());
         $this->assertCount(2, $dto->getVariadicDateTime());
-        $this->assertContainsOnlyInstancesOf(\DateTime::class, $dto->getVariadicDateTime());
+        $this->assertContainsOnlyInstancesOf(DateTime::class, $dto->getVariadicDateTime());
         $this->assertSame('2014-01-02', $dto->getVariadicDateTime()[0]->format('Y-m-d'));
         $this->assertSame('2014-05-07', $dto->getVariadicDateTime()[1]->format('Y-m-d'));
     }
@@ -337,16 +346,16 @@ class UpstreamArrayTypedDto
 
 class UpstreamArrayDateTimeDto
 {
-    /** @var \DateTime[] */
+    /** @var DateTime[] */
     public array $typedSimpleArray = [];
 }
 
 class UpstreamArrayObjectDto
 {
-    /** @var \ArrayObject */
+    /** @var ArrayObject */
     public $pArrayObject;
 
-    /** @var null|\ArrayObject */
+    /** @var null|ArrayObject */
     public $pNullableArrayObject;
 
     /** @var \ArrayObject[UpstreamArrayItem] */
@@ -355,7 +364,7 @@ class UpstreamArrayObjectDto
     /** @var \ArrayObject[int] */
     public $pSimpleArrayObject;
 
-    /** @var \ArrayObject[] */
+    /** @var ArrayObject[] */
     public array $pArrayObjectList = [];
 }
 
@@ -368,7 +377,7 @@ class UpstreamArrayAccessDto
     public $pArrayAccessCollection;
 }
 
-class UpstreamArrayAccessObject implements \ArrayAccess
+class UpstreamArrayAccessObject implements ArrayAccess
 {
     /** @var int */
     public $eins;
@@ -379,63 +388,63 @@ class UpstreamArrayAccessObject implements \ArrayAccess
     /** @var UpstreamArrayItem */
     public $valueObject;
 
-    #[\ReturnTypeWillChange]
+    #[ReturnTypeWillChange]
     public function offsetExists($offset)
     {
         return isset($this->{$offset});
     }
 
-    #[\ReturnTypeWillChange]
+    #[ReturnTypeWillChange]
     public function offsetGet($offset)
     {
         return $this->{$offset} ?? null;
     }
 
-    #[\ReturnTypeWillChange]
+    #[ReturnTypeWillChange]
     public function offsetSet($offset, $value)
     {
         $this->{$offset} = $value;
     }
 
-    #[\ReturnTypeWillChange]
+    #[ReturnTypeWillChange]
     public function offsetUnset($offset)
     {
         unset($this->{$offset});
     }
 }
 
-class UpstreamArrayAccessCollection implements \ArrayAccess, \IteratorAggregate
+class UpstreamArrayAccessCollection implements ArrayAccess, IteratorAggregate
 {
     private array $data = [];
 
-    #[\ReturnTypeWillChange]
+    #[ReturnTypeWillChange]
     public function offsetExists($offset)
     {
         return isset($this->data[$offset]);
     }
 
-    #[\ReturnTypeWillChange]
+    #[ReturnTypeWillChange]
     public function offsetGet($offset)
     {
         return $this->data[$offset] ?? null;
     }
 
-    #[\ReturnTypeWillChange]
+    #[ReturnTypeWillChange]
     public function offsetSet($offset, $value)
     {
         $this->data[$offset] = $value;
     }
 
-    #[\ReturnTypeWillChange]
+    #[ReturnTypeWillChange]
     public function offsetUnset($offset)
     {
         unset($this->data[$offset]);
     }
 
-    #[\ReturnTypeWillChange]
+    #[ReturnTypeWillChange]
     public function getIterator()
     {
-        return new \ArrayIterator($this->data);
+        return new ArrayIterator($this->data);
     }
 }
 
@@ -462,9 +471,9 @@ class UpstreamVariadicDto
     }
 
     /**
-     * @param \DateTime[] $items
+     * @param DateTime[] $items
      */
-    public function setVariadicDateTime(\DateTime ...$items): self
+    public function setVariadicDateTime(DateTime ...$items): self
     {
         $this->variadicDateTime = $items;
         return $this;

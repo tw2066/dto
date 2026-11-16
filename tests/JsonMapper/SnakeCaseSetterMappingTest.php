@@ -12,6 +12,7 @@ use Hyperf\DTO\Scan\PropertyEnum;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Scan\ValidationManager;
 use HyperfTest\DTO\AbstractTestCase;
+use ReflectionProperty;
 
 /**
  * 声明属性为 snake_case、setter 为 camelCase 时不得生成重复字段；
@@ -88,7 +89,7 @@ class SnakeCaseSetterMappingTest extends AbstractTestCase
 
     private function plan(JsonMapper $mapper, string $className): array
     {
-        $property = new \ReflectionProperty(JsonMapper::class, 'mappingPlans');
+        $property = new ReflectionProperty(JsonMapper::class, 'mappingPlans');
         $property->setAccessible(true);
 
         return $property->getValue($mapper)[$className];

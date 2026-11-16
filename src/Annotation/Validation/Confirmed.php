@@ -19,4 +19,3 @@ class Confirmed extends BaseValidation
         parent::__construct($message);
     }
 }
-

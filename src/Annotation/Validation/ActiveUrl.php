@@ -19,4 +19,3 @@ class ActiveUrl extends BaseValidation
         parent::__construct($message);
     }
 }
-

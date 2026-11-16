@@ -24,4 +24,3 @@ class MissingWith extends BaseValidation
         parent::__construct($message);
     }
 }
-

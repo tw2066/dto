@@ -8,7 +8,6 @@ use Hyperf\Contract\ConfigInterface;
 use Hyperf\Di\ScanHandler\PcntlScanHandler;
 use Hyperf\Di\ScanHandler\ProcScanHandler;
 use Hyperf\Di\ScanHandler\ScanHandlerInterface;
-use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\Type\Convert;
 
 /**

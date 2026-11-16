@@ -23,4 +23,3 @@ class Digits extends BaseValidation
         parent::__construct($message);
     }
 }
-

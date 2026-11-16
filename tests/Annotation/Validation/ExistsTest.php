@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace HyperfTest\DTO\Annotation\Validation;
 
+use Closure;
 use Hyperf\Database\Model\Model;
 use Hyperf\DTO\Annotation\Validation\Exists;
 use Hyperf\Validation\Contract\PresenceVerifierInterface;
@@ -46,7 +47,7 @@ class ExistsTest extends ValidationAnnotationTestCase
         $this->assertSame('exists:users,email', (string) $rule);
         $callbacks = $rule->queryCallbacks();
         $this->assertCount(1, $callbacks);
-        $this->assertInstanceOf(\Closure::class, $callbacks[0]);
+        $this->assertInstanceOf(Closure::class, $callbacks[0]);
     }
 
     public function testWheresCallbackReachesPresenceVerifier(): void
@@ -59,7 +60,7 @@ class ExistsTest extends ValidationAnnotationTestCase
         $verifier->shouldReceive('getCount')
             ->once()
             ->with('users', 'email', 'a@b.com', null, null, m::on(function ($extra) {
-                return count($extra) === 1 && $extra[0] instanceof \Closure;
+                return count($extra) === 1 && $extra[0] instanceof Closure;
             }))
             ->andReturn(1);
         $factory->setPresenceVerifier($verifier);

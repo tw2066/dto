@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace HyperfTest\DTO\JsonMapper;
 
+use DateTime;
 use Hyperf\DTO\JsonMapper;
+use InvalidArgumentException;
+use JsonMapper_Exception;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -61,13 +64,13 @@ class JsonMapperObjectsTest extends TestCase
             'datetime' => '2014-04-01T00:00:00+02:00',
         ], new UpstreamObjectDateTimeDto());
 
-        $this->assertInstanceOf(\DateTime::class, $dto->datetime);
+        $this->assertInstanceOf(DateTime::class, $dto->datetime);
         $this->assertSame('2014-04-01T00:00:00+02:00', $dto->datetime->format('c'));
     }
 
     public function testDateTimeRejectsScalarUnderStrictObjectTypeChecking(): void
     {
-        $this->expectException(\JsonMapper_Exception::class);
+        $this->expectException(JsonMapper_Exception::class);
         $this->expectExceptionMessage(
             'JSON property "datetime" in class "' . UpstreamObjectDateTimeDto::class
             . '" must be an object of type DateTime, string given'
@@ -88,7 +91,7 @@ class JsonMapperObjectsTest extends TestCase
         $mapper = new JsonMapper();
         $mapper->bEnforceMapType = false;
 
-        $this->expectException(\JsonMapper_Exception::class);
+        $this->expectException(JsonMapper_Exception::class);
         $this->expectExceptionMessage(
             'JSON property "plain" in class "' . UpstreamObjectParentDto::class . '" must not be NULL'
         );
@@ -138,7 +141,7 @@ class JsonMapperObjectsTest extends TestCase
         ], UpstreamObjectCtorPrefixDto::class);
 
         $this->assertSame(1, $dto->id);
-        $this->assertInstanceOf(\DateTime::class, $dto->idDate);
+        $this->assertInstanceOf(DateTime::class, $dto->idDate);
         $this->assertSame('2025-02-23', $dto->idDate->format('Y-m-d'));
     }
 
@@ -155,7 +158,7 @@ class JsonMapperObjectsTest extends TestCase
     {
         $mapper = new JsonMapper();
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage(
             'JsonMapper::simpleMap() requires first argument to be an object, array given.'
         );
@@ -165,7 +168,7 @@ class JsonMapperObjectsTest extends TestCase
 
     public function testSecondArgumentMustBeObjectOrExistingClass(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage(
             'JsonMapper::simpleMap() requires second argument to be an object or existing class name, NULL given.'
         );
@@ -175,7 +178,7 @@ class JsonMapperObjectsTest extends TestCase
 
     public function testUnknownClassNameIsRejected(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage(
             'JsonMapper::simpleMap() requires second argument to be an object or existing class name, string given.'
         );
@@ -229,10 +232,10 @@ class UpstreamObjectParentDto
 
 class UpstreamObjectDateTimeDto
 {
-    /** @var \DateTime */
+    /** @var DateTime */
     public $datetime;
 
-    /** @var null|\DateTime */
+    /** @var null|DateTime */
     public $nullableDatetime;
 }
 
@@ -261,16 +264,18 @@ class UpstreamObjectRequiredCtorDto
     /** @var string */
     public $name = '';
 
-    public function __construct(public int $id) {}
+    public function __construct(public int $id)
+    {
+    }
 }
 
 class UpstreamObjectCtorPrefixDto
 {
     public int $id;
 
-    public \DateTime $idDate;
+    public DateTime $idDate;
 
-    public function __construct(\DateTime $idDate, int $id)
+    public function __construct(DateTime $idDate, int $id)
     {
         $this->idDate = $idDate;
         $this->id = $id;

@@ -82,10 +82,14 @@ class CrossNamespaceController
     /**
      * @param Activity[] $activities
      */
-    public function batch(array $activities): void {}
+    public function batch(array $activities): void
+    {
+    }
 
     /**
      * @param Event[] $events
      */
-    public function batchAlias(array $events): void {}
+    public function batchAlias(array $events): void
+    {
+    }
 }

@@ -11,6 +11,7 @@ use Hyperf\DTO\DtoCommon;
 use Hyperf\DTO\Exception\DtoException;
 use ReflectionClass;
 use ReflectionProperty;
+use Throwable;
 
 class PropertyManager
 {
@@ -96,7 +97,7 @@ class PropertyManager
                     && $reflectionProperty->getDeclaringClass()->getName() !== $className;
                 $this->setProperty($className, $fieldName, $property, $inheritedPrivate);
             }
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             // 失败时回滚，避免「已扫描」标记把截断元数据留给后续请求。
             unset(self::$scannedClasses[$className], static::$content[$className], static::$notSimpleClass[$className]);
             throw $exception;

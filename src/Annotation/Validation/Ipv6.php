@@ -19,4 +19,3 @@ class Ipv6 extends BaseValidation
         parent::__construct($message);
     }
 }
-

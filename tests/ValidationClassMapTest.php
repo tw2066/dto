@@ -201,7 +201,7 @@ class ValidationClassMapTest extends AbstractTestCase
 
     public function testInvalidClassMapTargetFailsValidation(): void
     {
-        $targets = ['HyperfTest\\DTO\\Missing\\Card', ValidationMappedInterface::class];
+        $targets = ['HyperfTest\DTO\Missing\Card', ValidationMappedInterface::class];
         foreach ($targets as $target) {
             Mapper::getJsonMapper()->classMap = [ValidationMappedInterface::class => $target];
             $this->setContainerWithValidatorFactory();
@@ -237,7 +237,9 @@ class ValidationClassMapTest extends AbstractTestCase
     }
 }
 
-interface ValidationMappedInterface {}
+interface ValidationMappedInterface
+{
+}
 
 class ValidationMappedCard implements ValidationMappedInterface
 {

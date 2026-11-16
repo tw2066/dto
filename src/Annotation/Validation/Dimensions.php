@@ -24,4 +24,3 @@ class Dimensions extends BaseValidation
         parent::__construct($message);
     }
 }
-

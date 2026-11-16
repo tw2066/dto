@@ -40,7 +40,7 @@ class Resource
 
 class ResourcePropertyDto
 {
-    /** @var Resource[] */
+    /** @var resource[] */
     public array $items = [];
 }
 
@@ -48,7 +48,7 @@ class ResourceSetterDto
 {
     private array $items = [];
 
-    /** @param Resource[] $items */
+    /** @param resource[] $items */
     public function setItems(array $items): void
     {
         $this->items = $items;

@@ -19,4 +19,3 @@ class Filled extends BaseValidation
         parent::__construct($message);
     }
 }
-

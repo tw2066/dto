@@ -24,4 +24,3 @@ class Extensions extends BaseValidation
         parent::__construct($message);
     }
 }
-

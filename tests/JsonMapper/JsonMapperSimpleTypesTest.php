@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace HyperfTest\DTO\JsonMapper;
 
+use DateTime;
 use Hyperf\DTO\JsonMapper;
+use JsonMapper_Exception;
 use PHPUnit\Framework\TestCase;
+use stdClass;
+use TypeError;
 
 /**
  * 改编自 netresearch/jsonmapper（OSL-3.0）的 tests/SimpleTest.php、MixedType_PHP80_Test.php
@@ -94,7 +98,7 @@ class JsonMapperSimpleTypesTest extends TestCase
         $this->assertInstanceOf(UpstreamSetterPlain::class, $dto->internalData['docblock']);
         $this->assertSame('docblock', $dto->internalData['docblock']->pStr);
 
-        $this->assertInstanceOf(\stdClass::class, $dto->internalData['notype']);
+        $this->assertInstanceOf(stdClass::class, $dto->internalData['notype']);
         $this->assertSame('notype', $dto->internalData['notype']->pStr);
     }
 
@@ -113,7 +117,7 @@ class JsonMapperSimpleTypesTest extends TestCase
         $mapper = new JsonMapper();
         $mapper->bEnforceMapType = false;
 
-        $this->expectException(\JsonMapper_Exception::class);
+        $this->expectException(JsonMapper_Exception::class);
         $this->expectExceptionMessage(
             'JSON property "str" in class "' . UpstreamScalarDto::class . '" must not be NULL'
         );
@@ -158,8 +162,8 @@ class JsonMapperSimpleTypesTest extends TestCase
         try {
             $this->mapper()->simpleMap(['dateOrString' => ['x']], new UpstreamUnionDto());
             $this->fail('Expected JsonMapper_Exception was not thrown.');
-        } catch (\JsonMapper_Exception $exception) {
-            $this->assertInstanceOf(\TypeError::class, $exception->getPrevious());
+        } catch (JsonMapper_Exception $exception) {
+            $this->assertInstanceOf(TypeError::class, $exception->getPrevious());
         }
     }
 
@@ -251,10 +255,10 @@ class UpstreamSetterPreferredDto
 
 class UpstreamUnionDto
 {
-    public \DateTime|string $dateOrString;
+    public DateTime|string $dateOrString;
 
-    /** @var \DateTime|string */
+    /** @var DateTime|string */
     public $docValue;
 
-    public int|string|null $scalarUnion = null;
+    public null|int|string $scalarUnion = null;
 }

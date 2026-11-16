@@ -10,7 +10,12 @@ use Hyperf\DTO\Type\Convert;
 use Hyperf\DTO\Type\ConvertCustom;
 use Hyperf\DTO\Type\PhpType;
 use PHPUnit\Framework\TestCase;
+use stdClass;
 
+/**
+ * @internal
+ * @coversNothing
+ */
 class TypeConvertTest extends TestCase
 {
     public function testConvertEnumCases(): void
@@ -86,7 +91,7 @@ class TypeConvertTest extends TestCase
     public function testPropertyEnumWithNonEnumClass(): void
     {
         $propertyEnum = new PropertyEnum();
-        $result = $propertyEnum->get(\stdClass::class);
+        $result = $propertyEnum->get(stdClass::class);
         $this->assertNull($result);
     }
 

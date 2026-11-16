@@ -19,4 +19,3 @@ class Exclude extends BaseValidation
         parent::__construct($message);
     }
 }
-

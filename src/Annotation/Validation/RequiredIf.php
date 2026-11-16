@@ -26,4 +26,3 @@ class RequiredIf extends BaseValidation
         parent::__construct($message);
     }
 }
-

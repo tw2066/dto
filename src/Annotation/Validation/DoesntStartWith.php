@@ -23,4 +23,3 @@ class DoesntStartWith extends BaseValidation
         $this->rule .= ':' . $value;
     }
 }
-

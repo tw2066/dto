@@ -23,4 +23,3 @@ class EndsWith extends BaseValidation
         $this->rule .= ':' . $value;
     }
 }
-

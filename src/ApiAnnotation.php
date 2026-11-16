@@ -13,18 +13,15 @@ class ApiAnnotation
 {
     /**
      * 获取属性.
-     * @param string $className
-     * @param string $propertyName
-     * @param string $annotationClassName
      * @return null|object $annotationClassName
      */
-    public static function getProperty(string $className,string $propertyName,string $annotationClassName): ?object
+    public static function getProperty(string $className, string $propertyName, string $annotationClassName): ?object
     {
         $propertyAnnotations = AnnotationCollector::getClassPropertyAnnotation($className, $propertyName);
         return $propertyAnnotations[$annotationClassName] ?? null;
     }
 
-    public static function getClassProperty(string $className,string $propertyName): array
+    public static function getClassProperty(string $className, string $propertyName): array
     {
         return AnnotationCollector::getClassPropertyAnnotation($className, $propertyName) ?? [];
     }

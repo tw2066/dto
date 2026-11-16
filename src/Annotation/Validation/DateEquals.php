@@ -23,4 +23,3 @@ class DateEquals extends BaseValidation
         parent::__construct($message);
     }
 }
-

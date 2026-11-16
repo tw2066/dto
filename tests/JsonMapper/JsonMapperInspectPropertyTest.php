@@ -9,6 +9,7 @@ use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\JsonMapper;
 use HyperfTest\DTO\AbstractTestCase;
 use HyperfTest\DTO\Request\Address;
+use ReflectionClass;
 use ReflectionMethod;
 
 /**
@@ -46,7 +47,7 @@ class JsonMapperInspectPropertyTest extends AbstractTestCase
         [$hasProperty, $accessor, $type] = $this->inspect(InspectSetterTypeDto::class, 'count');
 
         $this->assertTrue($hasProperty);
-        $this->assertInstanceOf(\ReflectionMethod::class, $accessor);
+        $this->assertInstanceOf(ReflectionMethod::class, $accessor);
         // setter 参数声明 int 优先于 @param string
         $this->assertSame('int', $type);
     }
@@ -55,7 +56,7 @@ class JsonMapperInspectPropertyTest extends AbstractTestCase
     {
         [, $accessor, $type] = $this->inspect(InspectSetterDocblockDto::class, 'list');
 
-        $this->assertInstanceOf(\ReflectionMethod::class, $accessor);
+        $this->assertInstanceOf(ReflectionMethod::class, $accessor);
         // setter @param 走正则解析返回原文，不做命名空间解析
         $this->assertSame('Address[]', $type);
     }
@@ -65,7 +66,7 @@ class JsonMapperInspectPropertyTest extends AbstractTestCase
         [$hasProperty, $accessor, $type, $isNullable] = $this->inspect(InspectSetterUntypedDto::class, 'remark');
 
         $this->assertTrue($hasProperty);
-        $this->assertInstanceOf(\ReflectionMethod::class, $accessor);
+        $this->assertInstanceOf(ReflectionMethod::class, $accessor);
         $this->assertNull($type);
         $this->assertTrue($isNullable);
     }
@@ -168,7 +169,7 @@ class JsonMapperInspectPropertyTest extends AbstractTestCase
     public function testArrayTypeAnnotationWinsOverVarDocblock(): void
     {
         $mapper = $this->makeMapper();
-        $rc = new \ReflectionClass(InspectArrayTypeClassDto::class);
+        $rc = new ReflectionClass(InspectArrayTypeClassDto::class);
         $property = $rc->getProperty('list');
 
         $annotations = $mapper->parseAnnotationsNew($rc, $property, $property->getDocComment());
@@ -190,8 +191,8 @@ class JsonMapperInspectPropertyTest extends AbstractTestCase
      */
     private function inspect(string $class, string $name): array
     {
-        $method = new \ReflectionMethod(JsonMapper::class, 'inspectProperty');
-        return $method->invoke($this->makeMapper(), new \ReflectionClass($class), $name);
+        $method = new ReflectionMethod(JsonMapper::class, 'inspectProperty');
+        return $method->invoke($this->makeMapper(), new ReflectionClass($class), $name);
     }
 }
 
@@ -258,7 +259,9 @@ class InspectParentDto
     public string $parentName = '';
 }
 
-class InspectChildDto extends InspectParentDto {}
+class InspectChildDto extends InspectParentDto
+{
+}
 
 class InspectCaseDto
 {
@@ -283,7 +286,9 @@ class InspectCtorTypedDocblockDto
     /**
      * @param int $code 状态码
      */
-    public function __construct(public int $code = 0) {}
+    public function __construct(public int $code = 0)
+    {
+    }
 
     public function getCode(): int
     {
@@ -296,7 +301,9 @@ class InspectPromotedArrayDto
     /**
      * @param InspectPromotedFileDto[] $files
      */
-    public function __construct(private array $files) {}
+    public function __construct(private array $files)
+    {
+    }
 
     public function getFiles(): array
     {

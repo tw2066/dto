@@ -75,35 +75,12 @@ class DtoVisitor extends NodeVisitorAbstract
         }
 
         // 带可见性修饰符的构造器参数即 promoted 属性。
-        if ($node instanceof Node\Param && $node->flags !== 0 && $node->var instanceof Node\Expr\Variable
+        if ($node instanceof Node\Param && $node->flags !== 0 && $node->var instanceof Expr\Variable
             && is_string($node->var->name) && empty($node->default)) {
             $default = $this->createDefaultValue($node, $node->var->name, true);
             if ($this->dtoDefaultValueLevel > 0 && $default !== null) {
                 $node->default = $default;
             }
-        }
-        return null;
-    }
-
-    private function createDefaultValue(Node\Stmt\Property|Node\Param $node, string $fieldName, bool $canInjectDefault): ?Expr
-    {
-        $type = $node->type;
-        // 简单类型
-        if ($type instanceof Node\Identifier && array_key_exists($dataTypeKey = $type->name, $this->dataTypeDefaultValue)) {
-            $value = $this->dataTypeDefaultValue[$dataTypeKey];
-            $this->dtoDefaultValueLevel == 0 && $this->jsonSerializeNotDefaultValue[$fieldName] = $dataTypeKey;
-            return $this->normalizeValue($value);
-        }
-        if ($type instanceof Node\NullableType) {
-            $this->dtoDefaultValueLevel == 0 && $this->jsonSerializeNotDefaultValue[$fieldName] = null;
-            return new Node\Expr\ConstFetch(new Node\Name(['null']));
-        }
-        if ($type instanceof Node\Name || $type instanceof Node\Identifier) {
-            if ($this->dtoDefaultValueLevel == 2 && $canInjectDefault) {
-                $node->type = new Node\NullableType($type);
-                return new Node\Expr\ConstFetch(new Node\Name(['null']));
-            }
-            $this->jsonSerializeNotDefaultValue[$fieldName] = null;
         }
         return null;
     }
@@ -123,7 +100,7 @@ class DtoVisitor extends NodeVisitorAbstract
                     $stmts = $this->createJsonSerialize();
                     if ($stmts) {
                         $class->stmts[] = $stmts;
-                        $class->implements[] = new Node\Name\FullyQualified('JsonSerializable');
+                        $class->implements[] = new Name\FullyQualified('JsonSerializable');
                     }
                 }
             }
@@ -132,14 +109,9 @@ class DtoVisitor extends NodeVisitorAbstract
         return $nodes;
     }
 
-    private function isTargetClass(Node\Stmt\Class_ $class): bool
-    {
-        return $class->name?->toString() === $this->classShortName;
-    }
-
     public function normalizeValue($value): Expr
     {
-        if ($value instanceof Node\Expr) {
+        if ($value instanceof Expr) {
             return $value;
         }
 
@@ -209,36 +181,64 @@ class DtoVisitor extends NodeVisitorAbstract
 
             if ($methodName) {
                 // 方法
-                $propertyFetch = new Node\Expr\MethodCall(
-                    new Node\Expr\Variable('this'),
+                $propertyFetch = new Expr\MethodCall(
+                    new Expr\Variable('this'),
                     new Node\Identifier($methodName)
                 );
             } else {
                 // $this
-                $propertyFetch = new Node\Expr\PropertyFetch(
-                    new Node\Expr\Variable('this'),
+                $propertyFetch = new Expr\PropertyFetch(
+                    new Expr\Variable('this'),
                     new Node\Identifier($propertyName)
                 );
                 // 设置默认值
                 $dataTypeKey = $this->jsonSerializeNotDefaultValue[$propertyName] ?? null;
                 $value = $this->dataTypeDefaultValue[$dataTypeKey] ?? null;
                 $default = $this->normalizeValue($value);
-                $propertyFetch = new Node\Expr\BinaryOp\Coalesce(
+                $propertyFetch = new Expr\BinaryOp\Coalesce(
                     $propertyFetch,
                     $default
                 );
             }
             $key = new Node\Scalar\String_($keyName);
-            $arrayItem[] = new Node\Expr\ArrayItem($propertyFetch, $key);
+            $arrayItem[] = new Expr\ArrayItem($propertyFetch, $key);
         }
         if (empty($arrayItem)) {
             return null;
         }
 
         $node->stmts[] = new Node\Stmt\Return_(
-            new Node\Expr\Array_($arrayItem)
+            new Expr\Array_($arrayItem)
         );
 
         return $node;
+    }
+
+    private function createDefaultValue(Node\Param|Node\Stmt\Property $node, string $fieldName, bool $canInjectDefault): ?Expr
+    {
+        $type = $node->type;
+        // 简单类型
+        if ($type instanceof Node\Identifier && array_key_exists($dataTypeKey = $type->name, $this->dataTypeDefaultValue)) {
+            $value = $this->dataTypeDefaultValue[$dataTypeKey];
+            $this->dtoDefaultValueLevel == 0 && $this->jsonSerializeNotDefaultValue[$fieldName] = $dataTypeKey;
+            return $this->normalizeValue($value);
+        }
+        if ($type instanceof Node\NullableType) {
+            $this->dtoDefaultValueLevel == 0 && $this->jsonSerializeNotDefaultValue[$fieldName] = null;
+            return new Expr\ConstFetch(new Name(['null']));
+        }
+        if ($type instanceof Name || $type instanceof Node\Identifier) {
+            if ($this->dtoDefaultValueLevel == 2 && $canInjectDefault) {
+                $node->type = new Node\NullableType($type);
+                return new Expr\ConstFetch(new Name(['null']));
+            }
+            $this->jsonSerializeNotDefaultValue[$fieldName] = null;
+        }
+        return null;
+    }
+
+    private function isTargetClass(Node\Stmt\Class_ $class): bool
+    {
+        return $class->name?->toString() === $this->classShortName;
     }
 }

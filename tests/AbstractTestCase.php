@@ -16,6 +16,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use ReflectionProperty;
 
 /**
  * 新测试的公共基类.
@@ -41,7 +42,7 @@ abstract class AbstractTestCase extends TestCase
     {
         $this->resetApplicationContext();
         AnnotationCollector::clear();
-        \Mockery::close();
+        Mockery::close();
         Context::destroy(ResponseInterface::class);
         Context::destroy(ServerRequestInterface::class);
         foreach ($this->tempFiles as $file) {
@@ -57,7 +58,7 @@ abstract class AbstractTestCase extends TestCase
 
     protected function resetApplicationContext(): void
     {
-        $property = new \ReflectionProperty(ApplicationContext::class, 'container');
+        $property = new ReflectionProperty(ApplicationContext::class, 'container');
         $property->setValue(null, null);
     }
 
@@ -74,7 +75,7 @@ abstract class AbstractTestCase extends TestCase
     protected function setContainerWithValidatorFactory(array $translationGroups = []): ContainerInterface
     {
         $factory = $this->makeValidatorFactory($translationGroups);
-        $container = \Mockery::mock(ContainerInterface::class);
+        $container = Mockery::mock(ContainerInterface::class);
         // 注意: Mockery 后声明的期望优先匹配，withAnyArgs 兜底必须先声明
         $container->shouldReceive('has')->withAnyArgs()->andReturn(false)->byDefault();
         $container->shouldReceive('has')->with(ValidatorFactoryInterface::class)->andReturn(true)->byDefault();

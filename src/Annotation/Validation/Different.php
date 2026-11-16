@@ -23,4 +23,3 @@ class Different extends BaseValidation
         parent::__construct($message);
     }
 }
-

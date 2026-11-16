@@ -19,4 +19,3 @@ class HexColor extends BaseValidation
         parent::__construct($message);
     }
 }
-

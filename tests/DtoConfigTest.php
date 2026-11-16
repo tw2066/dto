@@ -11,6 +11,7 @@ use Hyperf\Di\ScanHandler\ScanHandlerInterface;
 use Hyperf\DTO\DtoConfig;
 use Hyperf\DTO\Type\Convert;
 use Mockery as m;
+use ReflectionProperty;
 
 /**
  * DtoConfig 配置读取测试（含顶层键与 dto/api_docs 键的坑）.
@@ -118,7 +119,7 @@ class DtoConfigTest extends AbstractTestCase
         $dtoConfig = new DtoConfig($config);
 
         $customHandler = m::mock(ScanHandlerInterface::class);
-        $property = new \ReflectionProperty(DtoConfig::class, 'scan_handler');
+        $property = new ReflectionProperty(DtoConfig::class, 'scan_handler');
         $property->setValue($dtoConfig, $customHandler);
 
         $this->assertSame($customHandler, $dtoConfig->getScanHandler());

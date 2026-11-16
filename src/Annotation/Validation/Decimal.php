@@ -26,4 +26,3 @@ class Decimal extends BaseValidation
         parent::__construct($message);
     }
 }
-

@@ -23,4 +23,3 @@ class BeforeOrEqual extends BaseValidation
         $this->rule .= ':' . $date;
     }
 }
-

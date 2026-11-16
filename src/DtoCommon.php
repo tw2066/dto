@@ -14,7 +14,7 @@ class DtoCommon extends JsonMapper
     /**
      * 获取PHP类型.
      */
-    public function getTypeName(ReflectionProperty|ReflectionParameter $rprop): string
+    public function getTypeName(ReflectionParameter|ReflectionProperty $rprop): string
     {
         if ($rprop->hasType()) {
             $rPropType = $rprop->getType();

@@ -23,4 +23,3 @@ class MinDigits extends BaseValidation
         parent::__construct($message);
     }
 }
-

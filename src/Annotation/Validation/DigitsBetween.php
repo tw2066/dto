@@ -23,4 +23,3 @@ class DigitsBetween extends BaseValidation
         parent::__construct($message);
     }
 }
-

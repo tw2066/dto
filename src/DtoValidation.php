@@ -44,6 +44,7 @@ class DtoValidation
 
     /**
      * 验证 DTO 数据.
+     * @param mixed $data
      */
     public function validate(string $className, $data): void
     {

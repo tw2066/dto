@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace HyperfTest\DTO\JsonMapper;
 
-use Hyperf\DTO\JsonMapper;
 use Hyperf\DTO\Annotation\ArrayType;
+use Hyperf\DTO\JsonMapper;
 use Hyperf\DTO\Type\PhpType;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 
+/**
+ * @internal
+ * @coversNothing
+ */
 class JsonMapperTest extends TestCase
 {
     private JsonMapper $jsonMapper;
@@ -91,6 +95,7 @@ class JsonMapperTest extends TestCase
 class JsonMapperSimpleTestDto
 {
     public string $name = '';
+
     public ?int $age = null;
 }
 
@@ -104,13 +109,13 @@ class JsonMapperArrayTypeTestDto
 
 class JsonMapperDocBlockTestDto
 {
-    /** @var string */
     public string $name = '';
 }
 
 class JsonMapperPrivatePropertyDto
 {
     private string $name = '';
+
     private int $value = 0;
 
     public function getName(): string

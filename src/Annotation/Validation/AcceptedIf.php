@@ -26,4 +26,3 @@ class AcceptedIf extends BaseValidation
         parent::__construct($message);
     }
 }
-

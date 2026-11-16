@@ -6,7 +6,6 @@ namespace HyperfTest\DTO\Aspect;
 
 use Hyperf\Di\Aop\ProceedingJoinPoint;
 use Hyperf\DTO\Aspect\ObjectNormalizerAspect;
-use Hyperf\DTO\Mapper;
 use PHPUnit\Framework\TestCase;
 
 /**

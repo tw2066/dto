@@ -12,6 +12,7 @@ use Hyperf\DTO\Scan\PropertyEnum;
 use Hyperf\DTO\Scan\PropertyManager;
 use HyperfTest\DTO\AbstractTestCase;
 use HyperfTest\DTO\Request\Address;
+use InvalidArgumentException;
 
 /**
  * PropertyManager 深度守卫 / 递归去重 / docblock 边界测试.
@@ -72,17 +73,17 @@ class PropertyManagerDepthTest extends AbstractTestCase
     public function testFailedScanIsRolledBack(): void
     {
         $propertyManager = $this->makeManager();
-        $missingClass = 'HyperfTest\\DTO\\Scan\\MissingClassForRollbackTest';
+        $missingClass = 'HyperfTest\DTO\Scan\MissingClassForRollbackTest';
 
         try {
             $propertyManager->scanClassProperties($missingClass);
             $this->fail('Expected InvalidArgumentException was not thrown.');
-        } catch (\InvalidArgumentException $exception) {
+        } catch (InvalidArgumentException $exception) {
             // expected
         }
 
         // 未回滚时会因「已扫描」直接返回；回滚后再次调用仍应抛出
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $propertyManager->scanClassProperties($missingClass);
     }
 

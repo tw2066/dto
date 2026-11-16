@@ -9,6 +9,7 @@ use Hyperf\DTO\JsonMapper;
 use Hyperf\DTO\Scan\PropertyEnum;
 use Hyperf\DTO\Scan\PropertyManager;
 use PHPUnit\Framework\TestCase;
+use UnitEnum;
 
 /**
  * @internal
@@ -122,13 +123,12 @@ class DocblockUnionHolderDto
 {
     public string $name = '';
 
-    /** @var int|string|null */
-    public int|string|null $value = null;
+    public null|int|string $value = null;
 }
 
 class DocblockThirdPartyBase
 {
-    /** @var list<string|int|float|bool|\UnitEnum>|class-string */
+    /** @var class-string|list<bool|float|int|string|UnitEnum> */
     public array $enum = [];
 }
 

@@ -73,7 +73,7 @@ class CoreMiddlewareAspect
     /**
      * Transfer the non-standard response content to a standard response object.
      *
-     * @param null|array|Arrayable|Jsonable|ResponseInterface|object|string $response
+     * @param null|array|Arrayable|Jsonable|object|ResponseInterface|string $response
      */
     protected function transferToResponse($response, ServerRequestInterface $request): ResponsePlusInterface
     {

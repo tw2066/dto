@@ -19,4 +19,3 @@ class Timezone extends BaseValidation
         parent::__construct($message);
     }
 }
-

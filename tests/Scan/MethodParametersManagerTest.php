@@ -186,32 +186,44 @@ class MethodParametersManagerTest extends AbstractTestCase
 
 class MpmConflictController
 {
-    public function handle(#[RequestQuery] #[RequestBody] string $q) {}
+    public function handle(#[RequestQuery] #[RequestBody] string $q)
+    {
+    }
 }
 
 class MpmHeaderConflictController
 {
-    public function handle(#[RequestHeader] string $a, #[RequestHeader] string $b) {}
+    public function handle(#[RequestHeader] string $a, #[RequestHeader] string $b)
+    {
+    }
 }
 
 class MpmMethodConflictController
 {
-    public function handle(#[RequestFormData] string $a, #[RequestBody] string $b) {}
+    public function handle(#[RequestFormData] string $a, #[RequestBody] string $b)
+    {
+    }
 }
 
 class MpmOnlyValidController
 {
-    public function handle(#[Valid] string $q) {}
+    public function handle(#[Valid] string $q)
+    {
+    }
 }
 
 class MpmSkipController
 {
-    public function handle(#[Valid] string $q) {}
+    public function handle(#[Valid] string $q)
+    {
+    }
 }
 
 class MpmUnregisteredController
 {
-    public function handle(string $q) {}
+    public function handle(string $q)
+    {
+    }
 }
 
 class MpmArrayController
@@ -219,7 +231,9 @@ class MpmArrayController
     /**
      * @param Address[] $list
      */
-    public function handle(array $list) {}
+    public function handle(array $list)
+    {
+    }
 }
 
 class MpmIntArrayController
@@ -227,7 +241,9 @@ class MpmIntArrayController
     /**
      * @param int[] $nums
      */
-    public function handle(array $nums) {}
+    public function handle(array $nums)
+    {
+    }
 }
 
 class MpmUnionArrayController
@@ -235,7 +251,9 @@ class MpmUnionArrayController
     /**
      * @param null|Address[] $list
      */
-    public function handle(array $list) {}
+    public function handle(array $list)
+    {
+    }
 }
 
 class MpmUnionFirstWinsController
@@ -243,12 +261,16 @@ class MpmUnionFirstWinsController
     /**
      * @param Address[]|int[] $list
      */
-    public function handle(array $list) {}
+    public function handle(array $list)
+    {
+    }
 }
 
 class MpmClassParamController
 {
-    public function handle(Address $address) {}
+    public function handle(Address $address)
+    {
+    }
 }
 
 enum MpmStatusEnum: string
@@ -259,10 +281,14 @@ enum MpmStatusEnum: string
 
 class MpmEnumParamController
 {
-    public function handle(MpmStatusEnum $status) {}
+    public function handle(MpmStatusEnum $status)
+    {
+    }
 }
 
 class MpmSimpleParamController
 {
-    public function handle(string $s) {}
+    public function handle(string $s)
+    {
+    }
 }

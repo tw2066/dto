@@ -26,4 +26,3 @@ class RequiredUnless extends BaseValidation
         parent::__construct($message);
     }
 }
-

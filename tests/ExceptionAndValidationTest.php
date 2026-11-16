@@ -14,6 +14,7 @@ use Hyperf\DTO\Annotation\Validation\Required;
 use Hyperf\DTO\Annotation\Validation\Sometimes;
 use Hyperf\DTO\Exception\DtoException;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 /**
  * @internal
@@ -25,7 +26,7 @@ class ExceptionAndValidationTest extends TestCase
     {
         $exception = new DtoException('Test message');
 
-        $this->assertInstanceOf(\RuntimeException::class, $exception);
+        $this->assertInstanceOf(RuntimeException::class, $exception);
         $this->assertSame('Test message', $exception->getMessage());
     }
 

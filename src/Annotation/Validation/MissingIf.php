@@ -26,4 +26,3 @@ class MissingIf extends BaseValidation
         parent::__construct($message);
     }
 }
-

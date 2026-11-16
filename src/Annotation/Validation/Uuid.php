@@ -19,4 +19,3 @@ class Uuid extends BaseValidation
         parent::__construct($message);
     }
 }
-

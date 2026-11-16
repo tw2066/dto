@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace HyperfTest\DTO\JsonMapper;
 
+use ArrayObject;
 use Hyperf\DTO\Annotation\ArrayType;
 use Hyperf\DTO\Annotation\JSONField;
+use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\JsonMapper;
 use Hyperf\DTO\Mapping\MappingContext;
+use JsonMapper_Exception;
 use PHPUnit\Framework\TestCase;
+use ReflectionProperty;
+use stdClass;
 
 /**
  * @internal
@@ -84,7 +89,7 @@ class MappingPlanTest extends TestCase
             try {
                 $this->mapper()->simpleMap([], new $className());
                 $this->fail("Expected nested path alias to fail: {$className}");
-            } catch (\Hyperf\DTO\Exception\DtoException $exception) {
+            } catch (DtoException $exception) {
                 $this->assertStringContainsString('nested paths', $exception->getMessage());
             }
         }
@@ -100,7 +105,7 @@ class MappingPlanTest extends TestCase
             try {
                 $this->mapper()->simpleMap([], new $className());
                 $this->fail("Expected alias collision to fail: {$className}");
-            } catch (\Hyperf\DTO\Exception\DtoException $exception) {
+            } catch (DtoException $exception) {
                 $this->assertSame(
                     "Input key [user_name] for class {$className} is ambiguous between fields {$fields}; "
                     . 'each field must have a unique property or alias key',
@@ -112,7 +117,7 @@ class MappingPlanTest extends TestCase
 
     public function testDuplicateAliasCollisionFails(): void
     {
-        $this->expectException(\Hyperf\DTO\Exception\DtoException::class);
+        $this->expectException(DtoException::class);
         $this->expectExceptionMessage(
             'Input key [user_name] for class ' . PlanDuplicateAliasDto::class
             . ' is ambiguous between fields [firstName] and [secondName]; '
@@ -169,7 +174,7 @@ class MappingPlanTest extends TestCase
             $data['key_' . $i] = $i;
         }
 
-        $this->expectException(\JsonMapper_Exception::class);
+        $this->expectException(JsonMapper_Exception::class);
         $this->expectExceptionMessage('maximum is 1024');
         $this->mapper()->simpleMap($data, new PlanProbeDto());
     }
@@ -181,7 +186,7 @@ class MappingPlanTest extends TestCase
         $context->totalKeys = MappingContext::MAX_TOTAL_KEYS - 1;
         $mapper->simpleMap(['name' => 'first'], new PlanProbeDto(), $context);
 
-        $this->expectException(\JsonMapper_Exception::class);
+        $this->expectException(JsonMapper_Exception::class);
         $this->expectExceptionMessage('maximum is 65536');
         $mapper->simpleMap(['name' => 'second'], new PlanProbeDto(), $context);
     }
@@ -193,7 +198,7 @@ class MappingPlanTest extends TestCase
             $input = ['name' => 'node', 'child' => $input];
         }
 
-        $this->expectException(\JsonMapper_Exception::class);
+        $this->expectException(JsonMapper_Exception::class);
         $this->expectExceptionMessage('nesting too deep');
         $this->mapper()->simpleMap($input, new PlanNestedDto());
     }
@@ -291,10 +296,10 @@ class MappingPlanTest extends TestCase
     public function testTraversableInputIsReadLikeArrayInput(): void
     {
         $mapper = $this->mapper();
-        $dto = $mapper->simpleMap(new \ArrayObject(['name' => 'traversable']), new PlanProbeDto());
+        $dto = $mapper->simpleMap(new ArrayObject(['name' => 'traversable']), new PlanProbeDto());
         $this->assertSame('traversable', $dto->name);
 
-        $dto = $mapper->simpleMap(new \ArrayObject(['user_name' => 'resolved']), new PlanAliasDto());
+        $dto = $mapper->simpleMap(new ArrayObject(['user_name' => 'resolved']), new PlanAliasDto());
         $this->assertSame('resolved', $dto->userName);
     }
 
@@ -313,7 +318,7 @@ class MappingPlanTest extends TestCase
         $calls = 0;
         $mapper->classMap[PlanDynamicBaseDto::class] = static function ($type, $value) use (&$calls) {
             ++$calls;
-            return $value instanceof \stdClass ? PlanDynamicADto::class : PlanDynamicBDto::class;
+            return $value instanceof stdClass ? PlanDynamicADto::class : PlanDynamicBDto::class;
         };
         $dto = $mapper->simpleMap([
             'child' => (object) ['display_name' => 'dynamic'],
@@ -414,14 +419,14 @@ class MappingPlanTest extends TestCase
 
     private function plans(JsonMapper $mapper): array
     {
-        $property = new \ReflectionProperty(JsonMapper::class, 'mappingPlans');
+        $property = new ReflectionProperty(JsonMapper::class, 'mappingPlans');
         $property->setAccessible(true);
         return $property->getValue($mapper);
     }
 
     private function legacyInspectedCache(JsonMapper $mapper): array
     {
-        $property = new \ReflectionProperty(\JsonMapper::class, 'arInspectedClasses');
+        $property = new ReflectionProperty(\JsonMapper::class, 'arInspectedClasses');
         $property->setAccessible(true);
         return $property->getValue($mapper);
     }
@@ -444,7 +449,6 @@ class PlanFactoryChildDto extends PlanFactoryBaseDto
 
 class PlanFactoryParentDto
 {
-    /** @var PlanFactoryBaseDto */
     public PlanFactoryBaseDto $child;
 }
 
@@ -565,6 +569,7 @@ class PlanDuplicateAliasDto
 class PlanVariantConflictOrderDto
 {
     public string $first = 'default';
+
     private string $userName = '';
 
     public function setUserName(string $userName): void
@@ -674,7 +679,9 @@ class PlanMultiArrayDto
     public array $groups = [];
 }
 
-class PlanDynamicBaseDto {}
+class PlanDynamicBaseDto
+{
+}
 
 class PlanDynamicADto extends PlanDynamicBaseDto
 {
@@ -702,7 +709,9 @@ class PlanParentPrivateDto
     }
 }
 
-class PlanChildPrivateDto extends PlanParentPrivateDto {}
+class PlanChildPrivateDto extends PlanParentPrivateDto
+{
+}
 
 class PlanVisibilityDto
 {

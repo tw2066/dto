@@ -23,4 +23,3 @@ class InArray extends BaseValidation
         parent::__construct($message);
     }
 }
-

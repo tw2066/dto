@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace HyperfTest\DTO\Aspect;
 
+use Closure;
 use Hyperf\Context\Context;
 use Hyperf\Contract\NormalizerInterface;
 use Hyperf\Di\Aop\ProceedingJoinPoint;
@@ -23,9 +24,8 @@ use Hyperf\DTO\Scan\MethodParametersManager;
 use Hyperf\DTO\Scan\PropertyEnum;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\HttpServer\CoreMiddleware;
-use Hyperf\Serializer\Serializer;
-use Hyperf\Serializer\SerializerFactory;
 use HyperfTest\DTO\AbstractTestCase;
+use InvalidArgumentException;
 use Mockery as m;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -378,7 +378,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
             'name' => 'count', 'defaultValueAvailable' => false,
         ])];
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage("Parameter 'count' of any should not be null");
         $aspect->process($this->makePjp(null, $definitions, 'any', []));
     }
@@ -820,7 +820,7 @@ class CoreMiddlewareAspectInjectionTest extends AbstractTestCase
     {
         $closure = $coreMiddleware === null
             ? fn () => null
-            : \Closure::bind(fn () => null, $coreMiddleware);
+            : Closure::bind(fn () => null, $coreMiddleware);
         return new ProceedingJoinPoint($closure, CoreMiddleware::class, 'getInjections', [
             'keys' => [
                 'definitions' => $definitions,
@@ -840,22 +840,30 @@ class AspectInjectDto
 
 class AspectBodyController
 {
-    public function handle(#[RequestBody] #[Valid] AspectInjectDto $req) {}
+    public function handle(#[RequestBody] #[Valid] AspectInjectDto $req)
+    {
+    }
 }
 
 class AspectQueryController
 {
-    public function handle(#[RequestQuery] #[Valid] AspectInjectDto $req) {}
+    public function handle(#[RequestQuery] #[Valid] AspectInjectDto $req)
+    {
+    }
 }
 
 class AspectFormController
 {
-    public function handle(#[RequestFormData] #[Valid] AspectInjectDto $req) {}
+    public function handle(#[RequestFormData] #[Valid] AspectInjectDto $req)
+    {
+    }
 }
 
 class AspectHeaderController
 {
-    public function handle(#[RequestHeader] #[Valid] AspectInjectDto $req) {}
+    public function handle(#[RequestHeader] #[Valid] AspectInjectDto $req)
+    {
+    }
 }
 
 class AspectStandardHeaderDto
@@ -872,17 +880,23 @@ class AspectStandardHeaderDto
 
 class AspectStandardHeaderController
 {
-    public function handle(#[RequestHeader] AspectStandardHeaderDto $req) {}
+    public function handle(#[RequestHeader] AspectStandardHeaderDto $req)
+    {
+    }
 }
 
 class AspectOnlyValidController
 {
-    public function handle(#[Valid] AspectInjectDto $req) {}
+    public function handle(#[Valid] AspectInjectDto $req)
+    {
+    }
 }
 
 class AspectPlainController
 {
-    public function handle(AspectInjectDto $req) {}
+    public function handle(AspectInjectDto $req)
+    {
+    }
 }
 
 class AspectArrayController
@@ -890,7 +904,9 @@ class AspectArrayController
     /**
      * @param AspectInjectDto[] $items
      */
-    public function handle(#[RequestBody] #[Valid] array $items) {}
+    public function handle(#[RequestBody] #[Valid] array $items)
+    {
+    }
 }
 
 class AspectArrayQueryController
@@ -898,22 +914,30 @@ class AspectArrayQueryController
     /**
      * @param AspectInjectDto[] $items
      */
-    public function handle(#[RequestQuery] array $items) {}
+    public function handle(#[RequestQuery] array $items)
+    {
+    }
 }
 
 class AspectArrayNoDocController
 {
-    public function handle(#[RequestBody] array $items) {}
+    public function handle(#[RequestBody] array $items)
+    {
+    }
 }
 
 class AspectValidArrayNoDocController
 {
-    public function handle(#[RequestBody] #[Valid] array $items) {}
+    public function handle(#[RequestBody] #[Valid] array $items)
+    {
+    }
 }
 
 class AspectRpcValidController
 {
-    public function handle(#[Valid] AspectInjectDto $req) {}
+    public function handle(#[Valid] AspectInjectDto $req)
+    {
+    }
 }
 
 class AspectAliasDto
@@ -924,7 +948,9 @@ class AspectAliasDto
 
 class AspectAliasController
 {
-    public function handle(#[RequestBody] #[Valid] AspectAliasDto $req) {}
+    public function handle(#[RequestBody] #[Valid] AspectAliasDto $req)
+    {
+    }
 }
 
 class AspectAliasArrayController
@@ -932,17 +958,20 @@ class AspectAliasArrayController
     /**
      * @param AspectAliasDto[] $items
      */
-    public function handle(#[RequestBody] #[Valid] array $items) {}
+    public function handle(#[RequestBody] #[Valid] array $items)
+    {
+    }
 }
 
 class AspectRpcAliasController
 {
-    public function handle(#[Valid] AspectAliasDto $req) {}
+    public function handle(#[Valid] AspectAliasDto $req)
+    {
+    }
 }
 
 class AspectPlainRpcValueObject
 {
-    /** @var int|string */
     public int|string $id = 0;
 
     public string $userName = '';
@@ -950,12 +979,16 @@ class AspectPlainRpcValueObject
 
 class AspectPlainRpcController
 {
-    public function handle(AspectPlainRpcValueObject $req) {}
+    public function handle(AspectPlainRpcValueObject $req)
+    {
+    }
 }
 
 class AspectRpcNonValidAliasController
 {
-    public function handle(AspectAliasDto $req) {}
+    public function handle(AspectAliasDto $req)
+    {
+    }
 }
 
 class AspectRpcAddressDto
@@ -977,7 +1010,9 @@ class AspectRpcOrderDto
 
 class AspectRpcNestedController
 {
-    public function handle(#[Valid] AspectRpcOrderDto $req) {}
+    public function handle(#[Valid] AspectRpcOrderDto $req)
+    {
+    }
 }
 
 class AspectValidScalarArrayController
@@ -985,19 +1020,27 @@ class AspectValidScalarArrayController
     /**
      * @param int[] $items
      */
-    public function handle(#[RequestBody] #[Valid] array $items) {}
+    public function handle(#[RequestBody] #[Valid] array $items)
+    {
+    }
 }
 
-interface AspectArrayInterface {}
+interface AspectArrayInterface
+{
+}
 
-class AspectInterfaceArrayDto extends AspectInjectDto implements AspectArrayInterface {}
+class AspectInterfaceArrayDto extends AspectInjectDto implements AspectArrayInterface
+{
+}
 
 class AspectValidInterfaceArrayController
 {
     /**
      * @param AspectArrayInterface[] $items
      */
-    public function handle(#[RequestBody] #[Valid] array $items) {}
+    public function handle(#[RequestBody] #[Valid] array $items)
+    {
+    }
 }
 
 class AspectInterfaceArrayController
@@ -1005,7 +1048,9 @@ class AspectInterfaceArrayController
     /**
      * @param AspectArrayInterface[] $items
      */
-    public function handle(#[RequestBody] array $items) {}
+    public function handle(#[RequestBody] array $items)
+    {
+    }
 }
 
 class AspectValidNestedArrayController
@@ -1013,5 +1058,7 @@ class AspectValidNestedArrayController
     /**
      * @param AspectInjectDto[][] $items
      */
-    public function handle(#[RequestBody] #[Valid] array $items) {}
+    public function handle(#[RequestBody] #[Valid] array $items)
+    {
+    }
 }

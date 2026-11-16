@@ -23,4 +23,3 @@ class Same extends BaseValidation
         parent::__construct($message);
     }
 }
-

@@ -24,4 +24,3 @@ class Mimetypes extends BaseValidation
         parent::__construct($message);
     }
 }
-

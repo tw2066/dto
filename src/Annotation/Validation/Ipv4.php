@@ -19,4 +19,3 @@ class Ipv4 extends BaseValidation
         parent::__construct($message);
     }
 }
-

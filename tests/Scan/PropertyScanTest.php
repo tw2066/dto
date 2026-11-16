@@ -4,14 +4,19 @@ declare(strict_types=1);
 
 namespace HyperfTest\DTO\Scan;
 
+use DateTime;
+use Hyperf\DTO\DtoCommon;
 use Hyperf\DTO\Scan\Property;
+use Hyperf\DTO\Scan\PropertyEnum;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Scan\ValidationManager;
-use Hyperf\DTO\Scan\MethodParametersManager;
-use Hyperf\DTO\Scan\PropertyEnum;
-use Hyperf\DTO\DtoCommon;
 use PHPUnit\Framework\TestCase;
+use stdClass;
 
+/**
+ * @internal
+ * @coversNothing
+ */
 class PropertyScanTest extends TestCase
 {
     public function testPropertyDefaultValues(): void
@@ -60,7 +65,7 @@ class PropertyScanTest extends TestCase
         $property = new Property();
         $property->isSimpleType = false;
         $property->phpSimpleType = 'array';
-        $property->arrClassName = \DateTime::class;
+        $property->arrClassName = DateTime::class;
 
         $this->assertTrue($property->isClassArray());
     }
@@ -95,7 +100,7 @@ class PropertyScanTest extends TestCase
     public function testPropertyEnumWithNonEnum(): void
     {
         $propertyEnum = new PropertyEnum();
-        $result = $propertyEnum->get(\stdClass::class);
+        $result = $propertyEnum->get(stdClass::class);
         $this->assertNull($result);
     }
 }
@@ -103,5 +108,6 @@ class PropertyScanTest extends TestCase
 class PropScanTestDto
 {
     public string $name = '';
+
     public int $age = 0;
 }

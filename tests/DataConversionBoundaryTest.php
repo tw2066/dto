@@ -7,6 +7,10 @@ namespace HyperfTest\DTO;
 use Hyperf\DTO\Mapper;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * @internal
+ * @coversNothing
+ */
 class DataConversionBoundaryTest extends TestCase
 {
     public function testEmptyArrayMapping(): void
@@ -93,6 +97,7 @@ class DataConversionBoundaryTest extends TestCase
 class BoundarySimpleDto
 {
     public string $name = '';
+
     public ?int $age = null;
 }
 
@@ -104,5 +109,6 @@ class BoundaryBooleanDto
 class BoundaryItemDto
 {
     public string $name = '';
+
     public int $value = 0;
 }

@@ -19,4 +19,3 @@ class Ascii extends BaseValidation
         parent::__construct($message);
     }
 }
-

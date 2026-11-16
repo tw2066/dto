@@ -23,4 +23,3 @@ class MaxDigits extends BaseValidation
         parent::__construct($message);
     }
 }
-

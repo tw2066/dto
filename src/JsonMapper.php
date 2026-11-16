@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO;
 
+use BackedEnum;
+use BadMethodCallException;
+use Error;
 use Hyperf\Di\ReflectionManager;
 use Hyperf\DTO\Annotation\ArrayType;
 use Hyperf\DTO\Exception\DtoException;
@@ -12,6 +15,8 @@ use Hyperf\DTO\Scan\Property;
 use Hyperf\DTO\Scan\PropertyEnum;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Type\PhpType;
+use InvalidArgumentException;
+use JsonMapper_Exception;
 use phpDocumentor\Reflection\DocBlock\Tags\Param;
 use phpDocumentor\Reflection\DocBlock\Tags\Var_;
 use phpDocumentor\Reflection\DocBlockFactory;
@@ -27,6 +32,11 @@ use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionProperty;
+use ReflectionUnionType;
+use Throwable;
+use Traversable;
+use TypeError;
+use ValueError;
 
 /**
  * DTO 输入映射内核。
@@ -56,26 +66,30 @@ class JsonMapper extends \JsonMapper
 
     /**
      * 禁止回退到上游通用映射，DTO 统一使用 simpleMap()。
+     * @param mixed $json
+     * @param mixed $object
      */
     public function map($json, $object)
     {
-        throw new \BadMethodCallException('JsonMapper::map() is disabled; use simpleMap().');
+        throw new BadMethodCallException('JsonMapper::map() is disabled; use simpleMap().');
     }
 
     /**
      * DTO 专用映射入口：每次公开调用创建独立预算，嵌套对象共享该预算。
      * 支持对象/数组输入以及类名字符串目标。
+     * @param mixed $json
+     * @param mixed $object
      */
     public function simpleMap($json, $object, ?MappingContext $context = null)
     {
         if ($this->bEnforceMapType && ! is_object($json)) {
-            throw new \InvalidArgumentException(
+            throw new InvalidArgumentException(
                 'JsonMapper::simpleMap() requires first argument to be an object'
                 . ', ' . gettype($json) . ' given.'
             );
         }
         if (! is_object($object) && (! is_string($object) || ! class_exists($object))) {
-            throw new \InvalidArgumentException(
+            throw new InvalidArgumentException(
                 'JsonMapper::simpleMap() requires second argument to '
                 . 'be an object or existing class name'
                 . ', ' . gettype($object) . ' given.'
@@ -92,7 +106,10 @@ class JsonMapper extends \JsonMapper
      * 绕过整棵树的累计键数限制；各元素仍走同一套类级计划。
      */
     public function mapArray(
-        array|object $json, mixed $array, ?string $class = null, string $parent_key = ''
+        array|object $json,
+        mixed $array,
+        ?string $class = null,
+        string $parent_key = ''
     ): mixed {
         return $this->mapArrayInternal(
             $json,
@@ -105,7 +122,7 @@ class JsonMapper extends \JsonMapper
     }
 
     /**
-     * @internal 验证阶段按 classMap 解析具体类；不调用 classFactories（工厂有副作用，且映射时会再次调用）。
+     * @internal 验证阶段按 classMap 解析具体类；不调用 classFactories（工厂有副作用，且映射时会再次调用）
      *
      * @return ?string 应校验规则的类名；无 classMap 命中时类返回自身，接口返回 null（无具体规则可校验）
      */
@@ -128,6 +145,97 @@ class JsonMapper extends \JsonMapper
         }
         // class_exists 对接口返回 false，接口自然落到 null。
         return class_exists($type) ? $type : null;
+    }
+
+    /**
+     * @internal 返回仅有 setter、无同名声明属性的嵌套字段（dataKey => Property），供验证补充递归
+     *
+     * @return array<string, Property>
+     */
+    public function getSetterOnlyNestedProperties(string $className): array
+    {
+        $plan = $this->getMappingPlan($className);
+        if ($plan['setterOnlyFields'] === []) {
+            return [];
+        }
+        $result = [];
+        foreach ($plan['fields'] as $field) {
+            if (! isset($plan['setterOnlyFields'][$field['name']])) {
+                continue;
+            }
+            $property = $field['property'];
+            if ($property->isClassArray() || $property->className !== null || $property->interfaceName !== null) {
+                $result[$field['primaryKey']] = $property;
+            }
+        }
+        return $result;
+    }
+
+    public function getSetterName(string $name): string
+    {
+        return 'set' . $this->getCamelCaseName($this->getSafeName($name));
+    }
+
+    /**
+     * 解析属性的类型注解，优先使用 ArrayType 注解，其次解析 @var 标签。
+     * DocBlockFactory 在 Mapper 实例内复用，命名空间上下文按属性声明类缓存；继承属性
+     * 不会因当前 DTO 所在命名空间不同而解析错类型。
+     *
+     * @param false|string $docblock 属性或构造方法的 docblock
+     *
+     * @return array Array of arrays.
+     *               Key is the "@"-name like "param",
+     *               each value is an array of the @-lines
+     */
+    public function parseAnnotationsNew(ReflectionClass $rc, ReflectionProperty $reflectionProperty, $docblock): array
+    {
+        $annotations = [];
+        /** @var ReflectionAttribute $arrayType */
+        $arrayType = $reflectionProperty->getAttributes(ArrayType::class)[0] ?? [];
+        if (! empty($arrayType)) {
+            $type = $arrayType->getArguments()[0] ?? $arrayType->getArguments()['value'] ?? null;
+            if (! empty($type)) {
+                if ($type instanceof PhpType) {
+                    $type = $type->getValue();
+                }
+                $isSimpleType = $this->isSimpleType($type);
+                if ($isSimpleType) {
+                    $annotations['var'][] = $type . '[]';
+                } else {
+                    $annotations['var'][] = '\\' . trim($type, '\\') . '[]';
+                }
+                return $annotations;
+            }
+        }
+        if (! is_string($docblock)) {
+            return [];
+        }
+        $this->docBlockFactory ??= DocBlockFactory::createInstance();
+        $declaringClass = $reflectionProperty->getDeclaringClass();
+        $context = $this->getDocBlockContext($declaringClass);
+        try {
+            $block = $this->docBlockFactory->create($docblock, $context);
+        } catch (Throwable $exception) {
+            // 第三方类可能包含无法解析的 docblock；忽略该注解而不是阻断映射。
+            return [];
+        }
+        foreach ($block->getTags() as $tag) {
+            if ($tag instanceof Var_) {
+                $normalized = $this->normalizeDocblockType($tag->getType());
+                if ($normalized !== null) {
+                    $annotations[$tag->getName()][] = $normalized;
+                }
+            } elseif ($tag instanceof Param) {
+                // 构造器 @param 是提升属性与无 @var 属性的类型回退来源，
+                // 保留变量名供 inspectProperty 按属性名匹配。
+                $normalized = $this->normalizeDocblockType($tag->getType());
+                $variableName = $tag->getVariableName();
+                if ($normalized !== null && $variableName !== null) {
+                    $annotations[$tag->getName()][] = $normalized . ' $' . $variableName;
+                }
+            }
+        }
+        return $annotations;
     }
 
     /**
@@ -175,178 +283,14 @@ class JsonMapper extends \JsonMapper
     }
 
     /**
-     * 映射单个 DTO 节点，只按字段主键读取输入。
-     */
-    private function mapNode(
-        mixed $json,
-        object $object,
-        MappingContext $context,
-        int $depth,
-    ): object {
-        $className = get_class($object);
-        $plan = $this->getMappingPlan($className);
-        $input = $this->inputArray($json, $className);
-        $context->enterNode(count($input), $className, $depth);
-
-        foreach ($plan['fields'] as $index => $field) {
-            $primaryKey = $field['primaryKey'];
-            if (! array_key_exists($primaryKey, $input)) {
-                continue;
-            }
-            $this->writeField($object, $plan, $index, $input[$primaryKey], $context, $depth);
-        }
-
-        return $object;
-    }
-
-    /**
-     * 转换并写入单个字段。
-     * accessor 为 null 表示不可写（如 readonly、static 或无可见访问器），
-     * 与未知字段区分处理。简单类型判断在计划中预计算；嵌套对象/数组继续
-     * 使用当前请求的 MappingContext。
-     */
-    private function writeField(
-        object $object,
-        array $plan,
-        int $index,
-        mixed $jvalue,
-        MappingContext $context,
-        int $depth,
-    ): void {
-        $field = $plan['fields'][$index];
-        $accessor = $field['accessor'];
-        if ($accessor === null) {
-            return;
-        }
-        $type = $field['type'];
-        $propertyName = $field['name'];
-        // primaryKey 才是请求体里的键；JSONField 别名与属性名不同时要同时展示两者。
-        $key = $field['primaryKey'];
-        $className = $plan['className'];
-
-        if ($field['nullable'] || ! $this->bStrictNullTypes) {
-            if ($jvalue === null) {
-                $this->setProperty($object, $accessor, null);
-                return;
-            }
-        } elseif ($jvalue === null) {
-            throw new \JsonMapper_Exception(
-                $this->describeField($className, $propertyName, $key) . ' must not be NULL'
-            );
-        }
-
-        if ($this->classMap !== []) {
-            $type = $this->getMappedType($type, $jvalue);
-        }
-        if ($type === null || $type === 'mixed') {
-            $this->setProperty($object, $accessor, $jvalue);
-            return;
-        }
-        $hasClassConfig = $this->classMap !== [] || $this->classFactories !== [];
-        $isSimple = $hasClassConfig ? $this->isSimpleType($type) : $field['simple'];
-        $isFlat = $hasClassConfig ? $this->isFlatType($type) : $field['flat'];
-        if (! $isSimple && $this->isObjectOfSameType($type, $jvalue)) {
-            $this->setProperty($object, $accessor, $jvalue);
-            return;
-        }
-        if ($isSimple && ! (is_array($jvalue) && $field['variadic'])) {
-            if ($isFlat && ! $this->isFlatType(gettype($jvalue))) {
-                throw new \JsonMapper_Exception(
-                    $this->describeField($className, $propertyName, $key)
-                    . ' is of type ' . gettype($jvalue) . ' and cannot be converted to ' . $type
-                );
-            }
-            settype($jvalue, $type);
-            $this->setProperty($object, $accessor, $jvalue);
-            return;
-        }
-        if ($type === '') {
-            throw new \JsonMapper_Exception('Empty type at property "' . $className . '::$' . $propertyName . '"');
-        }
-        if (strpos(str_replace('|null', '', $type), '|')) {
-            throw new \JsonMapper_Exception('Cannot decide which of the union types shall be used: ' . $type);
-        }
-
-        if ($field['variadic'] && ! is_array($jvalue) && $this->isFlatType(gettype($jvalue))) {
-            // 上游 variadic setter 接受单个标量作为唯一实参。
-            $jvalue = [$jvalue];
-        }
-
-        $array = null;
-        $subtype = null;
-        if ($this->isArrayOfType($type)) {
-            $array = [];
-            $subtype = substr($type, 0, -2);
-        } elseif (substr($type, -1) === ']') {
-            [$proptype, $subtype] = explode('[', substr($type, 0, -1));
-            $array = $proptype === 'array' ? [] : $this->createInstance($proptype, false, $jvalue);
-        } elseif (is_array($jvalue) && $this->hasVariadicArrayType($accessor)) {
-            $array = [];
-            $subtype = $type;
-        } elseif (is_a($type, 'ArrayAccess', true) && is_a($type, 'Traversable', true)) {
-            $array = $this->createInstance($type, false, $jvalue);
-        }
-
-        if ($array !== null) {
-            if (! is_array($jvalue) && $this->isFlatType(gettype($jvalue))) {
-                $elementType = $subtype === null || $subtype === '' ? '' : ' of ' . ltrim($subtype, '\\');
-                throw new \JsonMapper_Exception(
-                    $this->describeField($className, $propertyName, $key) . ' must be an array' . $elementType
-                    . ', ' . gettype($jvalue) . ' given'
-                );
-            }
-            $subtypeNullable = $this->isNullable($subtype);
-            $subtype = $this->getFullNamespace($this->removeNullable($subtype), $plan['namespace']);
-            if ($subtypeNullable) {
-                $subtype = '?' . $subtype;
-            }
-            $child = $this->mapArrayInternal(
-                $jvalue,
-                $array,
-                $subtype,
-                $key,
-                $context,
-                $depth
-            );
-        } elseif ($this->isFlatType(gettype($jvalue))) {
-            if ($this->bStrictObjectTypeChecking
-                && ! is_subclass_of($type, \BackedEnum::class)
-                && ! $this->getClassFactory($type)
-            ) {
-                throw new \JsonMapper_Exception(
-                    $this->describeField($className, $propertyName, $key) . ' must be an object of type ' . ltrim($type, '\\')
-                    . ', ' . gettype($jvalue) . ' given'
-                );
-            }
-            $child = $this->createInstance($type, true, $jvalue);
-        } else {
-            $child = $this->createInstance($type, false, $jvalue);
-            $this->mapNode($jvalue, $child, $context, $depth + 1);
-        }
-        $this->setProperty($object, $accessor, $child);
-    }
-
-    /**
-     * 构造字段异常前缀：JSONField 别名场景下同时给出请求键与 DTO 属性，
-     * 避免只报 PHP 属性名导致在请求体中检索不到。
-     */
-    private function describeField(string $className, string $propertyName, string $primaryKey): string
-    {
-        if ($primaryKey === $propertyName) {
-            return 'JSON property "' . $primaryKey . '" in class "' . $className . '"';
-        }
-        return 'JSON property "' . $primaryKey . '" (property "' . $className . '::$' . $propertyName . '")';
-    }
-
-    /**
      * 属性写入边界统一保留 JsonMapper 异常族，避免联合类型和 variadic null 泄漏 TypeError。
      */
     protected function setProperty(object $object, ReflectionMethod|ReflectionProperty $accessor, mixed $value): void
     {
         try {
             parent::setProperty($object, $accessor, $value);
-        } catch (\TypeError $exception) {
-            throw new \JsonMapper_Exception($exception->getMessage(), 0, $exception);
+        } catch (TypeError $exception) {
+            throw new JsonMapper_Exception($exception->getMessage(), 0, $exception);
         }
     }
 
@@ -356,104 +300,26 @@ class JsonMapper extends \JsonMapper
     protected function createInstance(string $class, bool $useParameter = false, mixed $jvalue = null): object
     {
         if (PropertyEnum::isBuiltinType($class)) {
-            throw new \JsonMapper_Exception("Cannot instantiate PHP built-in type [{$class}]");
+            throw new JsonMapper_Exception("Cannot instantiate PHP built-in type [{$class}]");
         }
         try {
             return parent::createInstance($class, $useParameter, $jvalue);
-        } catch (\ValueError|\TypeError $exception) {
-            if (! $useParameter || ! is_subclass_of($class, \BackedEnum::class)) {
+        } catch (TypeError|ValueError $exception) {
+            if (! $useParameter || ! is_subclass_of($class, BackedEnum::class)) {
                 throw $exception;
             }
-            throw new \JsonMapper_Exception($exception->getMessage(), 0, $exception);
-        } catch (\Error $exception) {
+            throw new JsonMapper_Exception($exception->getMessage(), 0, $exception);
+        } catch (Error $exception) {
             $isAbstract = class_exists($class) && (new ReflectionClass($class))->isAbstract();
             if (! interface_exists($class) && ! $isAbstract) {
                 throw $exception;
             }
-            throw new \JsonMapper_Exception(
+            throw new JsonMapper_Exception(
                 "Cannot instantiate [{$class}] without a concrete class; configure classMap or classFactories",
                 0,
                 $exception
             );
         }
-    }
-
-    /**
-     * 保留上游 JsonMapper 的数组转换、null、class factory 和 ArrayObject 行为。
-     * 与公共 map 分离是为了透传请求预算，避免嵌套数组重置上下文。
-     */
-    private function mapArrayInternal(
-        array|object $json,
-        mixed $array,
-        ?string $class,
-        string $parentKey,
-        MappingContext $context,
-        int $depth,
-    ): mixed {
-        $isNullable = $this->isNullable($class);
-        $class = $this->removeNullable($class);
-        $originalClass = $class;
-        foreach ($json as $key => $jvalue) {
-            if ($jvalue === null && ! $isNullable && $this->bStrictNullTypesInArrays) {
-                throw new \JsonMapper_Exception(
-                    'JSON property "' . ($parentKey !== '' ? $parentKey : '?') . '[' . $key . ']" must not be NULL'
-                );
-            }
-
-            $class = $this->classMap === [] ? $originalClass : $this->getMappedType($originalClass, $jvalue);
-            if ($class === null) {
-                $array[$key] = $jvalue;
-            } elseif ($this->isArrayOfType($class)) {
-                $array[$key] = $this->mapArrayInternal(
-                    $jvalue,
-                    [],
-                    substr($class, 0, -2),
-                    $parentKey,
-                    $context,
-                    $depth
-                );
-            } elseif ($this->isFlatType(gettype($jvalue))) {
-                if ($jvalue === null) {
-                    $array[$key] = null;
-                } elseif ($this->isSimpleType($class)) {
-                    settype($jvalue, $class);
-                    $array[$key] = $jvalue;
-                } elseif ($this->bStrictObjectTypeChecking
-                    && ! is_subclass_of($class, \BackedEnum::class)
-                    && ! $this->getClassFactory($class)
-                ) {
-                    throw new \JsonMapper_Exception(
-                        'JSON property "' . ($parentKey !== '' ? $parentKey : '?') . '[' . $key . ']"'
-                        . ' must be an object, ' . gettype($jvalue) . ' given'
-                    );
-                } else {
-                    $array[$key] = $this->createInstance($class, true, $jvalue);
-                }
-            } elseif ($this->isFlatType($class)) {
-                throw new \JsonMapper_Exception(
-                    'JSON property "' . ($parentKey !== '' ? $parentKey : '?') . '" is an array of type "'
-                    . $class . '" but contained a value of type "' . gettype($jvalue) . '"'
-                );
-            } elseif (is_a($class, 'ArrayObject', true)) {
-                $array[$key] = $this->mapArrayInternal(
-                    $jvalue,
-                    $this->createInstance($class),
-                    null,
-                    $parentKey,
-                    $context,
-                    $depth
-                );
-            } else {
-                $child = $this->createInstance($class, false, $jvalue);
-                $array[$key] = $this->mapNode(
-                    $jvalue,
-                    $child,
-                    $context,
-                    $depth + 1
-                );
-            }
-        }
-        return $array;
     }
 
     /**
@@ -595,27 +461,385 @@ class JsonMapper extends \JsonMapper
     }
 
     /**
-     * @internal 返回仅有 setter、无同名声明属性的嵌套字段（dataKey => Property），供验证补充递归。
+     * Try to find out if a property exists in a given class.
+     * Checks property first, falls back to setter method.
      *
-     * @return array<string, Property>
+     * @param ReflectionClass $rc Reflection class to check
+     * @param string $name Property name
+     *
+     * @return array First value: if the property exists
+     *               Second value: the accessor to use (
+     *               ReflectionMethod or ReflectionProperty, or null)
+     *               Third value: type of the property
+     *               Fourth value: if the property is nullable
      */
-    public function getSetterOnlyNestedProperties(string $className): array
+    protected function inspectProperty(ReflectionClass $rc, string $name): array
     {
-        $plan = $this->getMappingPlan($className);
-        if ($plan['setterOnlyFields'] === []) {
-            return [];
+        [$methods, $properties] = $this->getClassMetadata($rc);
+        $rprop = $properties[$name] ?? null;
+        $class = $rprop?->getDeclaringClass() ?? $rc;
+
+        $setter = 'set' . $this->getCamelCaseName($name);
+        $rmeth = $methods[strtolower($setter)] ?? null;
+
+        if ($rmeth !== null) {
+            // 任意大小写变体仍需精确命中；声明属性键可使用 setID 等缩写 setter。
+            $isDeclaredPropertySetter = $rprop !== null && strcasecmp($rmeth->getName(), $setter) === 0;
+            if (($rmeth->getName() === $setter || $isDeclaredPropertySetter)
+                && ($rmeth->isPublic() || $this->bIgnoreVisibility)
+            ) {
+                $isNullable = false;
+                $rparams = $rmeth->getParameters();
+                if (count($rparams) > 0) {
+                    $isNullable = $rparams[0]->allowsNull();
+                    $ptype = $rparams[0]->getType();
+                    if ($ptype !== null) {
+                        $typeName = $this->stringifyReflectionType($ptype);
+                        if ($typeName === 'iterable') {
+                            $typeName = 'array';
+                        }
+                        // allow overriding an "array" type hint
+                        // with a more specific class in the docblock
+                        if ($typeName !== 'array' && ! str_contains($typeName, '|')) {
+                            return [
+                                true, $rmeth,
+                                $this->variadicElementType($rmeth, $typeName),
+                                $isNullable,
+                            ];
+                        }
+                    }
+                }
+
+                $docblock = $rmeth->getDocComment();
+                $annotations = static::parseAnnotations((string) $docblock);
+
+                if (! isset($annotations['param'][0])) {
+                    return [true, $rmeth, null, $isNullable];
+                }
+                [$type] = explode(' ', trim($annotations['param'][0]));
+                if (str_contains($type, '|')) {
+                    $type = $this->normalizeSetterDocblockType($rmeth);
+                }
+                return [
+                    true,
+                    $rmeth,
+                    $this->variadicElementType($rmeth, $type),
+                    $type === null ? $isNullable : $this->isNullable($type),
+                ];
+            }
         }
-        $result = [];
-        foreach ($plan['fields'] as $field) {
-            if (! isset($plan['setterOnlyFields'][$field['name']])) {
+
+        if ($rprop !== null) {
+            if ($rprop->isStatic() || $rprop->isReadOnly()) {
+                return [true, null, null, false];
+            }
+            if ($rprop->isPublic() || $this->bIgnoreVisibility) {
+                $docblock = $rprop->getDocComment();
+                if ($docblock === false && $class->hasMethod('__construct')) {
+                    $docblock = $class->getMethod('__construct')->getDocComment();
+                }
+                // 修改：优先读取 ArrayType 注解，并使用 DocBlockFactory 解析命名空间
+                $annotations = $this->parseAnnotationsNew($rc, $rprop, $docblock);
+
+                if (! isset($annotations['var'][0])) {
+                    if ($rprop->hasType() && isset($annotations['param'])) {
+                        foreach ($annotations['param'] as $param) {
+                            if (strpos($param . ' ', '$' . $rprop->getName() . ' ') !== false
+                                || strpos($param . "\t", '$' . $rprop->getName() . "\t") !== false
+                            ) {
+                                [$type] = explode(' ', $param);
+                                return [
+                                    true, $rprop, $type, $this->isNullable($type),
+                                ];
+                            }
+                        }
+                    }
+
+                    // If there is no annotations (higher priority) inspect
+                    // if there's a scalar type being defined
+                    if ($rprop->hasType()) {
+                        $rPropType = $rprop->getType();
+                        $propTypeName = $this->stringifyReflectionType($rPropType);
+                        if ($propTypeName === 'iterable') {
+                            $propTypeName = 'array';
+                        }
+                        if ($this->isSimpleType($propTypeName)) {
+                            return [
+                                true,
+                                $rprop,
+                                $propTypeName,
+                                $rPropType->allowsNull(),
+                            ];
+                        }
+                        if (str_contains($propTypeName, '|')) {
+                            // 联合类型无法确定映射目标，按原值写入。
+                            return [true, $rprop, null, $rPropType->allowsNull()];
+                        }
+
+                        return [
+                            true,
+                            $rprop,
+                            '\\' . ltrim($propTypeName, '\\'),
+                            $rPropType->allowsNull(),
+                        ];
+                    }
+
+                    return [true, $rprop, null, false];
+                }
+
+                // support "@var type description"
+                [$type] = explode(' ', $annotations['var'][0]);
+
+                return [true, $rprop, $type, $this->isNullable($type)];
+            }
+            // no setter, private property
+            return [true, null, null, false];
+        }
+
+        // no setter, no property
+        return [false, null, null, false];
+    }
+
+    /**
+     * 映射单个 DTO 节点，只按字段主键读取输入。
+     */
+    private function mapNode(
+        mixed $json,
+        object $object,
+        MappingContext $context,
+        int $depth,
+    ): object {
+        $className = get_class($object);
+        $plan = $this->getMappingPlan($className);
+        $input = $this->inputArray($json, $className);
+        $context->enterNode(count($input), $className, $depth);
+
+        foreach ($plan['fields'] as $index => $field) {
+            $primaryKey = $field['primaryKey'];
+            if (! array_key_exists($primaryKey, $input)) {
                 continue;
             }
-            $property = $field['property'];
-            if ($property->isClassArray() || $property->className !== null || $property->interfaceName !== null) {
-                $result[$field['primaryKey']] = $property;
+            $this->writeField($object, $plan, $index, $input[$primaryKey], $context, $depth);
+        }
+
+        return $object;
+    }
+
+    /**
+     * 转换并写入单个字段。
+     * accessor 为 null 表示不可写（如 readonly、static 或无可见访问器），
+     * 与未知字段区分处理。简单类型判断在计划中预计算；嵌套对象/数组继续
+     * 使用当前请求的 MappingContext。
+     */
+    private function writeField(
+        object $object,
+        array $plan,
+        int $index,
+        mixed $jvalue,
+        MappingContext $context,
+        int $depth,
+    ): void {
+        $field = $plan['fields'][$index];
+        $accessor = $field['accessor'];
+        if ($accessor === null) {
+            return;
+        }
+        $type = $field['type'];
+        $propertyName = $field['name'];
+        // primaryKey 才是请求体里的键；JSONField 别名与属性名不同时要同时展示两者。
+        $key = $field['primaryKey'];
+        $className = $plan['className'];
+
+        if ($field['nullable'] || ! $this->bStrictNullTypes) {
+            if ($jvalue === null) {
+                $this->setProperty($object, $accessor, null);
+                return;
+            }
+        } elseif ($jvalue === null) {
+            throw new JsonMapper_Exception(
+                $this->describeField($className, $propertyName, $key) . ' must not be NULL'
+            );
+        }
+
+        if ($this->classMap !== []) {
+            $type = $this->getMappedType($type, $jvalue);
+        }
+        if ($type === null || $type === 'mixed') {
+            $this->setProperty($object, $accessor, $jvalue);
+            return;
+        }
+        $hasClassConfig = $this->classMap !== [] || $this->classFactories !== [];
+        $isSimple = $hasClassConfig ? $this->isSimpleType($type) : $field['simple'];
+        $isFlat = $hasClassConfig ? $this->isFlatType($type) : $field['flat'];
+        if (! $isSimple && $this->isObjectOfSameType($type, $jvalue)) {
+            $this->setProperty($object, $accessor, $jvalue);
+            return;
+        }
+        if ($isSimple && ! (is_array($jvalue) && $field['variadic'])) {
+            if ($isFlat && ! $this->isFlatType(gettype($jvalue))) {
+                throw new JsonMapper_Exception(
+                    $this->describeField($className, $propertyName, $key)
+                    . ' is of type ' . gettype($jvalue) . ' and cannot be converted to ' . $type
+                );
+            }
+            settype($jvalue, $type);
+            $this->setProperty($object, $accessor, $jvalue);
+            return;
+        }
+        if ($type === '') {
+            throw new JsonMapper_Exception('Empty type at property "' . $className . '::$' . $propertyName . '"');
+        }
+        if (strpos(str_replace('|null', '', $type), '|')) {
+            throw new JsonMapper_Exception('Cannot decide which of the union types shall be used: ' . $type);
+        }
+
+        if ($field['variadic'] && ! is_array($jvalue) && $this->isFlatType(gettype($jvalue))) {
+            // 上游 variadic setter 接受单个标量作为唯一实参。
+            $jvalue = [$jvalue];
+        }
+
+        $array = null;
+        $subtype = null;
+        if ($this->isArrayOfType($type)) {
+            $array = [];
+            $subtype = substr($type, 0, -2);
+        } elseif (substr($type, -1) === ']') {
+            [$proptype, $subtype] = explode('[', substr($type, 0, -1));
+            $array = $proptype === 'array' ? [] : $this->createInstance($proptype, false, $jvalue);
+        } elseif (is_array($jvalue) && $this->hasVariadicArrayType($accessor)) {
+            $array = [];
+            $subtype = $type;
+        } elseif (is_a($type, 'ArrayAccess', true) && is_a($type, 'Traversable', true)) {
+            $array = $this->createInstance($type, false, $jvalue);
+        }
+
+        if ($array !== null) {
+            if (! is_array($jvalue) && $this->isFlatType(gettype($jvalue))) {
+                $elementType = $subtype === null || $subtype === '' ? '' : ' of ' . ltrim($subtype, '\\');
+                throw new JsonMapper_Exception(
+                    $this->describeField($className, $propertyName, $key) . ' must be an array' . $elementType
+                    . ', ' . gettype($jvalue) . ' given'
+                );
+            }
+            $subtypeNullable = $this->isNullable($subtype);
+            $subtype = $this->getFullNamespace($this->removeNullable($subtype), $plan['namespace']);
+            if ($subtypeNullable) {
+                $subtype = '?' . $subtype;
+            }
+            $child = $this->mapArrayInternal(
+                $jvalue,
+                $array,
+                $subtype,
+                $key,
+                $context,
+                $depth
+            );
+        } elseif ($this->isFlatType(gettype($jvalue))) {
+            if ($this->bStrictObjectTypeChecking
+                && ! is_subclass_of($type, BackedEnum::class)
+                && ! $this->getClassFactory($type)
+            ) {
+                throw new JsonMapper_Exception(
+                    $this->describeField($className, $propertyName, $key) . ' must be an object of type ' . ltrim($type, '\\')
+                    . ', ' . gettype($jvalue) . ' given'
+                );
+            }
+            $child = $this->createInstance($type, true, $jvalue);
+        } else {
+            $child = $this->createInstance($type, false, $jvalue);
+            $this->mapNode($jvalue, $child, $context, $depth + 1);
+        }
+        $this->setProperty($object, $accessor, $child);
+    }
+
+    /**
+     * 构造字段异常前缀：JSONField 别名场景下同时给出请求键与 DTO 属性，
+     * 避免只报 PHP 属性名导致在请求体中检索不到。
+     */
+    private function describeField(string $className, string $propertyName, string $primaryKey): string
+    {
+        if ($primaryKey === $propertyName) {
+            return 'JSON property "' . $primaryKey . '" in class "' . $className . '"';
+        }
+        return 'JSON property "' . $primaryKey . '" (property "' . $className . '::$' . $propertyName . '")';
+    }
+
+    /**
+     * 保留上游 JsonMapper 的数组转换、null、class factory 和 ArrayObject 行为。
+     * 与公共 map 分离是为了透传请求预算，避免嵌套数组重置上下文。
+     */
+    private function mapArrayInternal(
+        array|object $json,
+        mixed $array,
+        ?string $class,
+        string $parentKey,
+        MappingContext $context,
+        int $depth,
+    ): mixed {
+        $isNullable = $this->isNullable($class);
+        $class = $this->removeNullable($class);
+        $originalClass = $class;
+        foreach ($json as $key => $jvalue) {
+            if ($jvalue === null && ! $isNullable && $this->bStrictNullTypesInArrays) {
+                throw new JsonMapper_Exception(
+                    'JSON property "' . ($parentKey !== '' ? $parentKey : '?') . '[' . $key . ']" must not be NULL'
+                );
+            }
+
+            $class = $this->classMap === [] ? $originalClass : $this->getMappedType($originalClass, $jvalue);
+            if ($class === null) {
+                $array[$key] = $jvalue;
+            } elseif ($this->isArrayOfType($class)) {
+                $array[$key] = $this->mapArrayInternal(
+                    $jvalue,
+                    [],
+                    substr($class, 0, -2),
+                    $parentKey,
+                    $context,
+                    $depth
+                );
+            } elseif ($this->isFlatType(gettype($jvalue))) {
+                if ($jvalue === null) {
+                    $array[$key] = null;
+                } elseif ($this->isSimpleType($class)) {
+                    settype($jvalue, $class);
+                    $array[$key] = $jvalue;
+                } elseif ($this->bStrictObjectTypeChecking
+                    && ! is_subclass_of($class, BackedEnum::class)
+                    && ! $this->getClassFactory($class)
+                ) {
+                    throw new JsonMapper_Exception(
+                        'JSON property "' . ($parentKey !== '' ? $parentKey : '?') . '[' . $key . ']"'
+                        . ' must be an object, ' . gettype($jvalue) . ' given'
+                    );
+                } else {
+                    $array[$key] = $this->createInstance($class, true, $jvalue);
+                }
+            } elseif ($this->isFlatType($class)) {
+                throw new JsonMapper_Exception(
+                    'JSON property "' . ($parentKey !== '' ? $parentKey : '?') . '" is an array of type "'
+                    . $class . '" but contained a value of type "' . gettype($jvalue) . '"'
+                );
+            } elseif (is_a($class, 'ArrayObject', true)) {
+                $array[$key] = $this->mapArrayInternal(
+                    $jvalue,
+                    $this->createInstance($class),
+                    null,
+                    $parentKey,
+                    $context,
+                    $depth
+                );
+            } else {
+                $child = $this->createInstance($class, false, $jvalue);
+                $array[$key] = $this->mapNode(
+                    $jvalue,
+                    $child,
+                    $context,
+                    $depth + 1
+                );
             }
         }
-        return $result;
+        return $array;
     }
 
     /**
@@ -652,7 +876,7 @@ class JsonMapper extends \JsonMapper
         if (is_array($json)) {
             return $json;
         }
-        if ($json instanceof \Traversable) {
+        if ($json instanceof Traversable) {
             return iterator_to_array($json);
         }
         if (is_object($json)) {
@@ -664,11 +888,6 @@ class JsonMapper extends \JsonMapper
     private function getPropertyManager(): PropertyManager
     {
         return $this->propertyManager ??= new PropertyManager(new DtoCommon(), new PropertyEnum());
-    }
-
-    public function getSetterName(string $name): string
-    {
-        return 'set' . $this->getCamelCaseName($this->getSafeName($name));
     }
 
     /**
@@ -715,151 +934,10 @@ class JsonMapper extends \JsonMapper
     }
 
     /**
-     * Try to find out if a property exists in a given class.
-     * Checks property first, falls back to setter method.
-     *
-     * @param ReflectionClass $rc Reflection class to check
-     * @param string $name Property name
-     *
-     * @return array First value: if the property exists
-     *               Second value: the accessor to use (
-     *               ReflectionMethod or ReflectionProperty, or null)
-     *               Third value: type of the property
-     *               Fourth value: if the property is nullable
-     */
-    protected function inspectProperty(ReflectionClass $rc, string $name): array
-    {
-        [$methods, $properties] = $this->getClassMetadata($rc);
-        $rprop = $properties[$name] ?? null;
-        $class = $rprop?->getDeclaringClass() ?? $rc;
-
-        $setter = 'set' . $this->getCamelCaseName($name);
-        $rmeth = $methods[strtolower($setter)] ?? null;
-
-        if ($rmeth !== null) {
-            // 任意大小写变体仍需精确命中；声明属性键可使用 setID 等缩写 setter。
-            $isDeclaredPropertySetter = $rprop !== null && strcasecmp($rmeth->getName(), $setter) === 0;
-            if (($rmeth->getName() === $setter || $isDeclaredPropertySetter)
-                && ($rmeth->isPublic() || $this->bIgnoreVisibility)
-            ) {
-                $isNullable = false;
-                $rparams = $rmeth->getParameters();
-                if (count($rparams) > 0) {
-                    $isNullable = $rparams[0]->allowsNull();
-                    $ptype      = $rparams[0]->getType();
-                    if ($ptype !== null) {
-                        $typeName = $this->stringifyReflectionType($ptype);
-                        if ($typeName === 'iterable') {
-                            $typeName = 'array';
-                        }
-                        //allow overriding an "array" type hint
-                        // with a more specific class in the docblock
-                        if ($typeName !== 'array' && ! str_contains($typeName, '|')) {
-                            return array(
-                                true, $rmeth,
-                                $this->variadicElementType($rmeth, $typeName),
-                                $isNullable,
-                            );
-                        }
-                    }
-                }
-
-                $docblock    = $rmeth->getDocComment();
-                $annotations = static::parseAnnotations((string) $docblock);
-
-                if (!isset($annotations['param'][0])) {
-                    return array(true, $rmeth, null, $isNullable);
-                }
-                list($type) = explode(' ', trim($annotations['param'][0]));
-                if (str_contains($type, '|')) {
-                    $type = $this->normalizeSetterDocblockType($rmeth);
-                }
-                return array(
-                    true,
-                    $rmeth,
-                    $this->variadicElementType($rmeth, $type),
-                    $type === null ? $isNullable : $this->isNullable($type)
-                );
-            }
-        }
-
-        if ($rprop !== null) {
-            if ($rprop->isStatic() || $rprop->isReadOnly()) {
-                return array(true, null, null, false);
-            }
-            if ($rprop->isPublic() || $this->bIgnoreVisibility) {
-                $docblock = $rprop->getDocComment();
-                if ($docblock === false && $class->hasMethod('__construct')) {
-                    $docblock = $class->getMethod('__construct')->getDocComment();
-                }
-                // 修改：优先读取 ArrayType 注解，并使用 DocBlockFactory 解析命名空间
-                $annotations = $this->parseAnnotationsNew($rc, $rprop, $docblock);
-
-                if (!isset($annotations['var'][0])) {
-                    if ($rprop->hasType() && isset($annotations['param'])) {
-                        foreach ($annotations['param'] as $param) {
-                            if (strpos($param . ' ', '$' . $rprop->getName() . ' ') !== false
-                                || strpos($param . "\t", '$' . $rprop->getName() . "\t") !== false
-                            ) {
-                                list($type) = explode(' ', $param);
-                                return array(
-                                    true, $rprop, $type, $this->isNullable($type)
-                                );
-                            }
-                        }
-                    }
-
-                    // If there is no annotations (higher priority) inspect
-                    // if there's a scalar type being defined
-                    if ($rprop->hasType()) {
-                        $rPropType = $rprop->getType();
-                        $propTypeName = $this->stringifyReflectionType($rPropType);
-                        if ($propTypeName === 'iterable') {
-                            $propTypeName = 'array';
-                        }
-                        if ($this->isSimpleType($propTypeName)) {
-                            return array(
-                                true,
-                                $rprop,
-                                $propTypeName,
-                                $rPropType->allowsNull()
-                            );
-                        }
-                        if (str_contains($propTypeName, '|')) {
-                            // 联合类型无法确定映射目标，按原值写入。
-                            return array(true, $rprop, null, $rPropType->allowsNull());
-                        }
-
-                        return array(
-                            true,
-                            $rprop,
-                            '\\' . ltrim($propTypeName, '\\'),
-                            $rPropType->allowsNull()
-                        );
-                    }
-
-                    return array(true, $rprop, null, false);
-                }
-
-                //support "@var type description"
-                list($type) = explode(' ', $annotations['var'][0]);
-
-                return array(true, $rprop, $type, $this->isNullable($type));
-            } else {
-                //no setter, private property
-                return array(true, null, null, false);
-            }
-        }
-
-        //no setter, no property
-        return array(false, null, null, false);
-    }
-
-    /**
      * 多成员原生联合类型（如 DateTime|string）没有唯一映射目标。
      * 此时禁止回退到属性首成员类型，调用方按原值写入并交给 PHP 类型检查。
      */
-    private function hasAmbiguousUnionType(ReflectionMethod|ReflectionProperty|null $accessor): bool
+    private function hasAmbiguousUnionType(null|ReflectionMethod|ReflectionProperty $accessor): bool
     {
         if ($accessor instanceof ReflectionMethod) {
             $reflectionType = ($accessor->getParameters()[0] ?? null)?->getType();
@@ -868,69 +946,7 @@ class JsonMapper extends \JsonMapper
         } else {
             return false;
         }
-        return $reflectionType instanceof \ReflectionUnionType;
-    }
-
-    /**
-     * 解析属性的类型注解，优先使用 ArrayType 注解，其次解析 @var 标签。
-     * DocBlockFactory 在 Mapper 实例内复用，命名空间上下文按属性声明类缓存；继承属性
-     * 不会因当前 DTO 所在命名空间不同而解析错类型。
-     *
-     * @param false|string $docblock 属性或构造方法的 docblock
-     *
-     * @return array Array of arrays.
-     *               Key is the "@"-name like "param",
-     *               each value is an array of the @-lines
-     */
-    public function parseAnnotationsNew(ReflectionClass $rc, ReflectionProperty $reflectionProperty, $docblock): array
-    {
-        $annotations = [];
-        /** @var ReflectionAttribute $arrayType */
-        $arrayType = $reflectionProperty->getAttributes(ArrayType::class)[0] ?? [];
-        if (! empty($arrayType)) {
-            $type = $arrayType->getArguments()[0] ?? $arrayType->getArguments()['value'] ?? null;
-            if (! empty($type)) {
-                if ($type instanceof PhpType) {
-                    $type = $type->getValue();
-                }
-                $isSimpleType = $this->isSimpleType($type);
-                if ($isSimpleType) {
-                    $annotations['var'][] = $type . '[]';
-                } else {
-                    $annotations['var'][] = '\\' . trim($type, '\\') . '[]';
-                }
-                return $annotations;
-            }
-        }
-        if (! is_string($docblock)) {
-            return [];
-        }
-        $this->docBlockFactory ??= DocBlockFactory::createInstance();
-        $declaringClass = $reflectionProperty->getDeclaringClass();
-        $context = $this->getDocBlockContext($declaringClass);
-        try {
-            $block = $this->docBlockFactory->create($docblock, $context);
-        } catch (\Throwable $exception) {
-            // 第三方类可能包含无法解析的 docblock；忽略该注解而不是阻断映射。
-            return [];
-        }
-        foreach ($block->getTags() as $tag) {
-            if ($tag instanceof Var_) {
-                $normalized = $this->normalizeDocblockType($tag->getType());
-                if ($normalized !== null) {
-                    $annotations[$tag->getName()][] = $normalized;
-                }
-            } elseif ($tag instanceof Param) {
-                // 构造器 @param 是提升属性与无 @var 属性的类型回退来源，
-                // 保留变量名供 inspectProperty 按属性名匹配。
-                $normalized = $this->normalizeDocblockType($tag->getType());
-                $variableName = $tag->getVariableName();
-                if ($normalized !== null && $variableName !== null) {
-                    $annotations[$tag->getName()][] = $normalized . ' $' . $variableName;
-                }
-            }
-        }
-        return $annotations;
+        return $reflectionType instanceof ReflectionUnionType;
     }
 
     /**
@@ -948,7 +964,7 @@ class JsonMapper extends \JsonMapper
                 $docblock,
                 $this->getDocBlockContext($method->getDeclaringClass())
             );
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null;
         }
         foreach ($block->getTags() as $tag) {

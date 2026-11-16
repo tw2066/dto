@@ -24,4 +24,3 @@ class RequiredArrayKeys extends BaseValidation
         parent::__construct($message);
     }
 }
-

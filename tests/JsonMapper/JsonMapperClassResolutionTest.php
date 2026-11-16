@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace HyperfTest\DTO\JsonMapper;
 
+use DateTime;
 use Hyperf\DTO\JsonMapper;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 /**
  * 改编自 netresearch/jsonmapper（OSL-3.0）的 tests/ClassMapTest.php、tests/ClassFactoriesTest.php
@@ -38,14 +40,14 @@ class JsonMapperClassResolutionTest extends TestCase
         $received = [];
         $mapper->classMap[UpstreamResolvePlain::class] = static function ($type, $value) use (&$received) {
             $received = [$type, $value];
-            return \DateTime::class;
+            return DateTime::class;
         };
 
         $dto = $mapper->simpleMap([
             'value' => '2016-04-14T23:15:42+02:00',
         ], new UpstreamResolveDto());
 
-        $this->assertInstanceOf(\DateTime::class, $dto->value);
+        $this->assertInstanceOf(DateTime::class, $dto->value);
         $this->assertSame('2016-04-14T23:15:42+02:00', $dto->value->format('c'));
         $this->assertSame(
             ltrim(UpstreamResolvePlain::class, '\\'),
@@ -61,11 +63,11 @@ class JsonMapperClassResolutionTest extends TestCase
     {
         $mapper = $this->mapper();
         $mapper->bStrictObjectTypeChecking = false;
-        $mapper->classMap[$registeredKey] = \DateTime::class;
+        $mapper->classMap[$registeredKey] = DateTime::class;
 
         $dto = $mapper->simpleMap(['value' => '2026-06-05'], new UpstreamResolveDto());
 
-        $this->assertInstanceOf(\DateTime::class, $dto->value);
+        $this->assertInstanceOf(DateTime::class, $dto->value);
         $this->assertSame('2026-06-05', $dto->value->format('Y-m-d'));
     }
 
@@ -84,11 +86,11 @@ class JsonMapperClassResolutionTest extends TestCase
     {
         $mapper = $this->mapper();
         $mapper->bStrictObjectTypeChecking = false;
-        $mapper->classFactories[$registeredKey] = static fn ($value) => new \DateTime($value);
+        $mapper->classFactories[$registeredKey] = static fn ($value) => new DateTime($value);
 
         $dto = $mapper->simpleMap(['value' => '2026-06-05'], new UpstreamResolveDateTimeDto());
 
-        $this->assertInstanceOf(\DateTime::class, $dto->value);
+        $this->assertInstanceOf(DateTime::class, $dto->value);
         $this->assertSame('2026-06-05', $dto->value->format('Y-m-d'));
     }
 
@@ -103,11 +105,11 @@ class JsonMapperClassResolutionTest extends TestCase
     public function testClassFactoryErrorsAreNotSwallowed(): void
     {
         $mapper = $this->mapper();
-        $mapper->classFactories['DateTime'] = static function (): \DateTime {
-            throw new \RuntimeException('Invalid date pattern');
+        $mapper->classFactories['DateTime'] = static function (): DateTime {
+            throw new RuntimeException('Invalid date pattern');
         };
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Invalid date pattern');
 
         $mapper->simpleMap(['value' => '05/06/2026'], new UpstreamResolveDateTimeDto());
@@ -116,7 +118,7 @@ class JsonMapperClassResolutionTest extends TestCase
     public function testClassMapCanConvertArraySubtypeToScalar(): void
     {
         $mapper = $this->mapper();
-        $mapper->classMap[\DateTime::class] = 'string';
+        $mapper->classMap[DateTime::class] = 'string';
 
         $dto = $mapper->simpleMap([
             'items' => ['2019-03-23'],
@@ -171,13 +173,13 @@ class UpstreamResolveDto
 
 class UpstreamResolveDateTimeDto
 {
-    /** @var \DateTime */
+    /** @var DateTime */
     public $value;
 }
 
 class UpstreamResolveDateTimeArrayDto
 {
-    /** @var \DateTime[] */
+    /** @var DateTime[] */
     public array $items = [];
 }
 
@@ -186,9 +188,13 @@ abstract class UpstreamResolveAnimal
     public string $name = '';
 }
 
-class UpstreamResolveCat extends UpstreamResolveAnimal {}
+class UpstreamResolveCat extends UpstreamResolveAnimal
+{
+}
 
-class UpstreamResolveFish extends UpstreamResolveAnimal {}
+class UpstreamResolveFish extends UpstreamResolveAnimal
+{
+}
 
 class UpstreamResolveZooDto
 {

@@ -19,4 +19,3 @@ class Lowercase extends BaseValidation
         parent::__construct($message);
     }
 }
-

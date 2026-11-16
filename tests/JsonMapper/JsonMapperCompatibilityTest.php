@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace HyperfTest\DTO\JsonMapper;
 
+use BadMethodCallException;
 use Hyperf\DTO\Annotation\ArrayType;
 use Hyperf\DTO\Annotation\JSONField;
 use Hyperf\DTO\JsonMapper;
+use JsonMapper_Exception;
 use PHPUnit\Framework\TestCase;
+use TypeError;
+use ValueError;
 
 /**
  * @internal
@@ -17,7 +21,7 @@ class JsonMapperCompatibilityTest extends TestCase
 {
     public function testUpstreamMapEntryIsDisabled(): void
     {
-        $this->expectException(\BadMethodCallException::class);
+        $this->expectException(BadMethodCallException::class);
         $this->expectExceptionMessage('use simpleMap()');
         $this->mapper()->map(['id' => 7], new CompatibilityAcronymDto());
     }
@@ -53,8 +57,8 @@ class JsonMapperCompatibilityTest extends TestCase
             try {
                 $this->mapper()->simpleMap(['value' => ['x']], $dto);
                 $this->fail('Expected JsonMapper_Exception was not thrown.');
-            } catch (\JsonMapper_Exception $e) {
-                $this->assertInstanceOf(\TypeError::class, $e->getPrevious());
+            } catch (JsonMapper_Exception $e) {
+                $this->assertInstanceOf(TypeError::class, $e->getPrevious());
             }
         }
     }
@@ -67,8 +71,8 @@ class JsonMapperCompatibilityTest extends TestCase
         try {
             $mapper->simpleMap(['children' => [['name' => 'a'], null]], new CompatibilityVariadicParentDto());
             $this->fail('Expected JsonMapper_Exception was not thrown.');
-        } catch (\JsonMapper_Exception $e) {
-            $this->assertInstanceOf(\TypeError::class, $e->getPrevious());
+        } catch (JsonMapper_Exception $e) {
+            $this->assertInstanceOf(TypeError::class, $e->getPrevious());
         }
 
         $result = $mapper->mapArray([['name' => 'a'], null], [], CompatibilityVariadicChildDto::class);
@@ -96,8 +100,8 @@ class JsonMapperCompatibilityTest extends TestCase
             try {
                 $this->mapper()->simpleMap($input, new CompatibilityEnumDto());
                 $this->fail('Expected JsonMapper_Exception was not thrown.');
-            } catch (\JsonMapper_Exception $e) {
-                $this->assertInstanceOf(\ValueError::class, $e->getPrevious());
+            } catch (JsonMapper_Exception $e) {
+                $this->assertInstanceOf(ValueError::class, $e->getPrevious());
             }
         }
     }
@@ -107,8 +111,8 @@ class JsonMapperCompatibilityTest extends TestCase
         try {
             $this->mapper()->simpleMap(['status' => 'abc'], new CompatibilityIntEnumDto());
             $this->fail('Expected JsonMapper_Exception was not thrown.');
-        } catch (\JsonMapper_Exception $e) {
-            $this->assertInstanceOf(\TypeError::class, $e->getPrevious());
+        } catch (JsonMapper_Exception $e) {
+            $this->assertInstanceOf(TypeError::class, $e->getPrevious());
         }
     }
 
@@ -118,7 +122,7 @@ class JsonMapperCompatibilityTest extends TestCase
             try {
                 $this->mapper()->simpleMap(['value' => []], $dto);
                 $this->fail('Expected JsonMapper_Exception was not thrown.');
-            } catch (\JsonMapper_Exception $e) {
+            } catch (JsonMapper_Exception $e) {
                 $this->assertStringContainsString('concrete class', $e->getMessage());
             }
         }
@@ -169,7 +173,7 @@ class JsonMapperCompatibilityTest extends TestCase
 
     public function testUnsupportedBuiltinTypeThrowsLibraryException(): void
     {
-        $this->expectException(\JsonMapper_Exception::class);
+        $this->expectException(JsonMapper_Exception::class);
         $this->expectExceptionMessage('built-in type');
         $this->mapper()->simpleMap(['callback' => ['strlen']], new CompatibilityCallableSetterDto());
     }
@@ -189,7 +193,7 @@ class JsonMapperCompatibilityTest extends TestCase
         try {
             $this->mapper()->simpleMap(['city_new' => 123], new CompatibilityAliasArrayDto());
             $this->fail('Expected JsonMapper_Exception was not thrown.');
-        } catch (\JsonMapper_Exception $e) {
+        } catch (JsonMapper_Exception $e) {
             $this->assertStringContainsString('JSON property "city_new"', $e->getMessage());
             $this->assertStringContainsString('CompatibilityAliasArrayDto::$cityArr', $e->getMessage());
             $this->assertStringContainsString(
@@ -231,7 +235,7 @@ class CompatibilityHeaderDto
 
 class CompatibilityUnionPropertyDto
 {
-    public int|string|null $value = null;
+    public null|int|string $value = null;
 }
 
 class CompatibilityUnionSetterDto
@@ -246,15 +250,15 @@ class CompatibilityUnionSetterDto
 
 class CompatibilityNullableUnionSetterDto
 {
-    private int|string|null $value = null;
+    private null|int|string $value = null;
 
-    /** @param int|string|null $value */
+    /** @param null|int|string $value */
     public function setValue($value): void
     {
         $this->value = $value;
     }
 
-    public function getValue(): int|string|null
+    public function getValue(): null|int|string
     {
         return $this->value;
     }

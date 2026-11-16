@@ -13,7 +13,7 @@ class ArrayType extends AbstractAnnotation
 {
     public string $value;
 
-    public function __construct(string|PhpType $value)
+    public function __construct(PhpType|string $value)
     {
         if ($value instanceof PhpType) {
             $this->value = $value->getValue();

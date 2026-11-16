@@ -19,4 +19,3 @@ class Ip extends BaseValidation
         parent::__construct($message);
     }
 }
-

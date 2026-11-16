@@ -17,10 +17,9 @@ class MultipleOf extends BaseValidation
     /**
      * 验证字段必须是给定值的倍数.
      */
-    public function __construct(int|float $value, string $message = '')
+    public function __construct(float|int $value, string $message = '')
     {
         $this->rule .= ':' . $value;
         parent::__construct($message);
     }
 }
-

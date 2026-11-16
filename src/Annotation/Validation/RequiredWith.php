@@ -24,4 +24,3 @@ class RequiredWith extends BaseValidation
         parent::__construct($message);
     }
 }
-

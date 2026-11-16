@@ -24,4 +24,3 @@ class Contains extends BaseValidation
         parent::__construct($message);
     }
 }
-

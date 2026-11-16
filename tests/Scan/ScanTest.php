@@ -6,16 +6,15 @@ namespace HyperfTest\DTO\Scan;
 
 use Hyperf\Di\Annotation\AnnotationCollector;
 use Hyperf\DTO\Annotation\Validation\Validation;
-use Hyperf\DTO\Scan\Scan;
-use Hyperf\DTO\Scan\PropertyManager;
-use Hyperf\DTO\Scan\ValidationManager;
-use Hyperf\DTO\Scan\MethodParametersManager;
 use Hyperf\DTO\Scan\PropertyEnum;
-use Hyperf\DTO\Scan\Property;
-use Hyperf\DTO\DtoCommon;
-use PHPUnit\Framework\TestCase;
+use Hyperf\DTO\Scan\ValidationManager;
 use Mockery;
+use PHPUnit\Framework\TestCase;
 
+/**
+ * @internal
+ * @coversNothing
+ */
 class ScanTest extends TestCase
 {
     protected function tearDown(): void
@@ -116,6 +115,7 @@ class ScanTest extends TestCase
 class SimpleScanTestDto
 {
     public string $name = '';
+
     public int $age = 0;
 }
 

@@ -227,7 +227,7 @@ PHP;
         $propertyInfo->alias = 'user_value';
         $propertyInfo->jsonArrKey = 'user_value';
 
-        [$output] = $this->traverse($code, ['value' => $propertyInfo], true, 1, 'AstDemo\\Demo');
+        [$output] = $this->traverse($code, ['value' => $propertyInfo], true, 1, 'AstDemo\Demo');
         [$demoCode, $helperCode] = explode('class Helper', $output, 2);
         $helperCode = 'class Helper' . $helperCode;
 
@@ -235,7 +235,7 @@ PHP;
         $this->assertStringContainsString('function jsonSerialize(): array', $demoCode);
         $this->assertStringContainsString('public int $value;', $helperCode);
         $this->assertStringNotContainsString('$value = 0', $helperCode);
-        $this->assertStringNotContainsString('implements \\JsonSerializable', $helperCode);
+        $this->assertStringNotContainsString('implements \JsonSerializable', $helperCode);
         $this->assertSame(1, substr_count($helperCode, 'function jsonSerialize('));
     }
 

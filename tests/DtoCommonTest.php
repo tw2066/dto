@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace HyperfTest\DTO;
 
+use DateTime;
 use Hyperf\DTO\DtoCommon;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
-use ReflectionProperty;
 
+/**
+ * @internal
+ * @coversNothing
+ */
 class DtoCommonTest extends TestCase
 {
     private DtoCommon $dtoCommon;
@@ -46,7 +50,7 @@ class DtoCommonTest extends TestCase
 
         $result = $this->dtoCommon->getTypeName($property);
 
-        $this->assertSame('\\DateTime', $result);
+        $this->assertSame('\DateTime', $result);
     }
 
     public function testGetTypeNameWithUnionType(): void
@@ -56,7 +60,7 @@ class DtoCommonTest extends TestCase
 
         $result = $this->dtoCommon->getTypeName($property);
 
-        $this->assertSame('\\DateTime', $result);
+        $this->assertSame('\DateTime', $result);
     }
 
     public function testGetTypeNameWithoutType(): void
@@ -89,8 +93,12 @@ class DtoCommonTest extends TestCase
 class DtoCommonTestDto
 {
     public string $stringProp = '';
+
     public int $intProp = 0;
-    public \DateTime $dateProp;
-    public \DateTime|string $unionProp;
+
+    public DateTime $dateProp;
+
+    public DateTime|string $unionProp;
+
     public $noTypeProp;
 }

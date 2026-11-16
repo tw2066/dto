@@ -19,4 +19,3 @@ class Sometimes extends BaseValidation
         parent::__construct($message);
     }
 }
-

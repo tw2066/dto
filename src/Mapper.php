@@ -27,7 +27,7 @@ class Mapper
     }
 
     /**
-     * @internal DTO 数组共享同一个请求级映射预算。
+     * @internal DTO 数组共享同一个请求级映射预算
      */
     public static function mapWithContext(mixed $json, object $object, MappingContext $context): object
     {

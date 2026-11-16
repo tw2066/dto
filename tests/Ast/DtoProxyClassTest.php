@@ -55,7 +55,7 @@ class DtoProxyClassTest extends AbstractTestCase
         $content = file_get_contents($this->proxyFilePath($proxyDir, ProxyArrayTypeAliasDto::class));
         $this->assertStringContainsString("'user_items' => \$this->items", $content);
         $this->assertStringNotContainsString('_set_dto_alias_', $content);
-        $this->assertStringNotContainsString('@param \\HyperfTest\\DTO\\Ast\\Fixtures\\ProxyArrayTypeItem[] $param', $content);
+        $this->assertStringNotContainsString('@param \HyperfTest\DTO\Ast\Fixtures\ProxyArrayTypeItem[] $param', $content);
     }
 
     public function testProxySkippedWhenFresh(): void

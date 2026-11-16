@@ -19,4 +19,3 @@ class MacAddress extends BaseValidation
         parent::__construct($message);
     }
 }
-

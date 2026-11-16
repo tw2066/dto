@@ -30,8 +30,6 @@ class MethodParametersManager
     {
     }
 
-
-
     public function getMethodParameter(string $className, string $methodName, string $paramName): ?MethodParameter
     {
         $key = $this->getKey($className, $methodName, $paramName);

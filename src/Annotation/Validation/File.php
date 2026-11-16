@@ -19,4 +19,3 @@ class File extends BaseValidation
         parent::__construct($message);
     }
 }
-

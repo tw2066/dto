@@ -24,4 +24,3 @@ class Prohibits extends BaseValidation
         parent::__construct($message);
     }
 }
-

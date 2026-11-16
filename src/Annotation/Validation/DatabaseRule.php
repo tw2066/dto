@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Hyperf\DTO\Annotation\Validation;
 
-use Doctrine\Instantiator\Exception\ExceptionInterface;
 use Doctrine\Instantiator\Instantiator;
 use Hyperf\Database\Model\Model;
 

@@ -7,6 +7,10 @@ namespace HyperfTest\DTO;
 use Hyperf\DTO\Mapper;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * @internal
+ * @coversNothing
+ */
 class MapperTest extends TestCase
 {
     public function testMapSimpleObject(): void

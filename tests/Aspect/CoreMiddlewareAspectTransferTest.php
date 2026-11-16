@@ -17,6 +17,7 @@ use Mockery as m;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use stdClass;
 use Swow\Psr7\Message\ResponsePlusInterface;
 
 /**
@@ -71,7 +72,7 @@ class CoreMiddlewareAspectTransferTest extends AbstractTestCase
 
     public function testObjectResponseReturnsJson(): void
     {
-        $object = new \stdClass();
+        $object = new stdClass();
         $object->name = 'dto';
 
         $result = $this->processTransfer($object);

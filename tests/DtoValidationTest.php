@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace HyperfTest\DTO;
 
+use ArrayObject;
 use Hyperf\Context\ApplicationContext;
 use Hyperf\DTO\Annotation\ArrayType;
 use Hyperf\DTO\Annotation\JSONField;
@@ -23,6 +24,8 @@ use Hyperf\DTO\Scan\ValidationManager;
 use Hyperf\Validation\ValidationException;
 use Mockery as m;
 use Psr\Container\ContainerInterface;
+use ReflectionProperty;
+use RuntimeException;
 
 /**
  * DtoValidation::validateResolved 全分支测试（含嵌套递归验证）.
@@ -54,7 +57,7 @@ class DtoValidationTest extends AbstractTestCase
 
         $this->expectException(DtoException::class);
         $this->expectExceptionMessage('data must be array');
-        $dtoValidation->validate(ValidationChildDto::class, new \ArrayObject(['x' => 'filled']));
+        $dtoValidation->validate(ValidationChildDto::class, new ArrayObject(['x' => 'filled']));
     }
 
     public function testNullDataIsValidatedAsEmptyArray(): void
@@ -347,7 +350,7 @@ class DtoValidationTest extends AbstractTestCase
         $this->prepareRules(ValidationAttrDto::class, 'name');
 
         // 白盒播种 messages/attributes（ValidationManager 无公开 setter）
-        $contentProperty = new \ReflectionProperty(ValidationManager::class, 'content');
+        $contentProperty = new ReflectionProperty(ValidationManager::class, 'content');
         $content = $contentProperty->getValue();
         $content[ValidationAttrDto::class]['messages'] = ['name.required' => 'The :attribute is missing'];
         $content[ValidationAttrDto::class]['attributes'] = ['name' => 'User Name'];
@@ -369,7 +372,7 @@ class DtoValidationTest extends AbstractTestCase
     {
         $this->prepareRules(ValidationAttrDto::class, 'name');
 
-        $contentProperty = new \ReflectionProperty(ValidationManager::class, 'content');
+        $contentProperty = new ReflectionProperty(ValidationManager::class, 'content');
         $content = $contentProperty->getValue();
         $content[ValidationAttrDto::class]['messages'] = ['name.required' => 'The :attribute is missing'];
         $content[ValidationAttrDto::class]['attributes'] = ['name' => 'User Name'];
@@ -834,7 +837,7 @@ class DtoValidationTest extends AbstractTestCase
         try {
             $dtoValidation->validate(ValidationGeneratedMarkerThrowDto::class, ['name' => 'ok']);
             $this->fail('Expected RuntimeException was not thrown.');
-        } catch (\RuntimeException $exception) {
+        } catch (RuntimeException $exception) {
             $this->assertSame('boom', $exception->getMessage());
         }
 
@@ -995,7 +998,7 @@ class ValidationNullableSetterArrayDto
 {
     private array $items = [];
 
-    /** @param ValidationChildDto[]|null $items */
+    /** @param null|ValidationChildDto[] $items */
     public function setItems(array $items): void
     {
         $this->items = $items;
@@ -1180,13 +1183,13 @@ class ValidationInheritedSetterChildDto extends ValidationInheritedSetterParentD
 
 class ValidationBroadSetterDto
 {
+    public ?ValidationChildDto $child = null;
+
     #[ArrayType(ValidationChildDto::class)]
     private array $items = [];
 
     /** @var ValidationChildDto[] */
     private array $groups = [];
-
-    public ?ValidationChildDto $child = null;
 
     public function setItems(mixed $items): void
     {
@@ -1249,6 +1252,6 @@ class ThrowingGeneratedValidationManager extends ValidationManager
 {
     public function generateValidation(string $className, string $fieldName): void
     {
-        throw new \RuntimeException('boom');
+        throw new RuntimeException('boom');
     }
 }

@@ -15,6 +15,7 @@ use Hyperf\DTO\Scan\ValidationManager;
 use HyperfTest\DTO\AbstractTestCase;
 use Mockery as m;
 use Psr\Container\ContainerInterface;
+use ReflectionProperty;
 
 /**
  * Scan::scan 编排测试（参数类扫描 / 简单类型跳过 / 返回类型扫描 / 去重与清理）.
@@ -132,7 +133,7 @@ class ScanOrchestrationTest extends AbstractTestCase
 
     private function readPropertyManagerContent(): array
     {
-        $property = new \ReflectionProperty(PropertyManager::class, 'content');
+        $property = new ReflectionProperty(PropertyManager::class, 'content');
         return $property->getValue();
     }
 }
@@ -162,7 +163,9 @@ class ScanOrchIdempotentDto
 
 class ScanOrchIdempotentController
 {
-    public function handle(ScanOrchIdempotentDto $dto): void {}
+    public function handle(ScanOrchIdempotentDto $dto): void
+    {
+    }
 }
 
 class ScanOrchClearDto
@@ -192,7 +195,9 @@ class ScanOrchNestedItemDto
 
 class ScanOrchNestedController
 {
-    public function handle(ScanOrchNestedParentDto $dto): void {}
+    public function handle(ScanOrchNestedParentDto $dto): void
+    {
+    }
 }
 
 class ScanOrchRepeatedDto
@@ -202,7 +207,9 @@ class ScanOrchRepeatedDto
 
 class ScanOrchRepeatedController
 {
-    public function handle(ScanOrchRepeatedDto $dto): void {}
+    public function handle(ScanOrchRepeatedDto $dto): void
+    {
+    }
 }
 
 class CountingValidationManager extends ValidationManager
