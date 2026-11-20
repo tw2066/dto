@@ -29,7 +29,6 @@ class PropertyScanTest extends TestCase
         $this->assertTrue($property->isSimpleType);
         $this->assertNull($property->phpSimpleType);
         $this->assertNull($property->className);
-        $this->assertFalse($property->union);
         $this->assertNull($property->arrClassName);
         $this->assertNull($property->arrSimpleType);
         $this->assertNull($property->enum);
@@ -84,16 +83,17 @@ class PropertyScanTest extends TestCase
         $this->assertIsArray($properties);
     }
 
-    public function testUnionPropertyDoesNotRecordFirstMemberClass(): void
+    /**
+     * 与 Hyperf AbstractCallableDefinitionCollector 一致：联合类型取第一个成员。
+     */
+    public function testUnionPropertyRecordsFirstMemberClass(): void
     {
         $manager = new PropertyManager(new DtoCommon(), new PropertyEnum());
 
         $property = $manager->getProperty(PropScanUnionDto::class, 'value');
 
         $this->assertNotNull($property);
-        $this->assertTrue($property->union);
-        $this->assertNull($property->className);
-        $this->assertNull($property->interfaceName);
+        $this->assertSame(PropScanUnionA::class, $property->className);
     }
 
     public function testSingleClassPropertyStillRecordsClassName(): void
@@ -103,7 +103,6 @@ class PropertyScanTest extends TestCase
         $property = $manager->getProperty(PropScanSingleDto::class, 'value');
 
         $this->assertNotNull($property);
-        $this->assertFalse($property->union);
         $this->assertSame(PropScanUnionA::class, $property->className);
     }
 

@@ -578,6 +578,15 @@ class ValidationExceptionHandler extends ExceptionHandler
 }
 ```
 
+### 4. Union Types
+
+Union-typed DTO properties (for example `FooA|FooB` or `DateTime|string`) follow the Hyperf framework behavior: **the first union member** is used for mapping, validation, and documentation.
+
+- `FooA|FooB` with `setX(mixed)` / an untyped setter: the input is mapped as `FooA`; `FooB` fields are not preserved.
+- `DateTime|string` with a string input: it is handled as `DateTime` and may throw `JsonMapper_Exception`.
+- Union-typed properties without a setter are still written as raw values and rely on PHP's native union type check.
+- For multiple shapes, prefer a concrete DTO with a `type` discriminator instead of relying on runtime union branches.
+
 ## 📚 FAQ
 
 ### Q: Why isn't validation working?

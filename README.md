@@ -697,6 +697,15 @@ class ValidationExceptionHandler extends ExceptionHandler
 - 代理文件按源文件修改时间自动过期重建（`scan_cacheable = false` 时）
 - 4.0 的代理只负责响应序列化，不再生成输入别名 setter；代理缓存不检查生成器版本，升级后建议手动清理并重建旧代理目录
 
+### 5. 联合类型
+
+DTO 属性的联合类型（如 `FooA|FooB`、`DateTime|string`）与 Hyperf 框架保持一致：**取第一个成员**作为映射、验证和文档类型。
+
+- `FooA|FooB` + `setX(mixed)` / 无类型 setter：输入会按 `FooA` 映射，`FooB` 的字段不会保留。
+- `DateTime|string` + 字符串输入：按 `DateTime` 处理，可能抛出 `JsonMapper_Exception`。
+- 无 setter 的联合类型属性仍按原值写入，由 PHP 原生联合类型兜底。
+- 需要多类型时，推荐具体 DTO + `type` 判别字段，不要依赖联合类型的运行时分支。
+
 ## 📚 常见问题
 
 ### Q: 为什么验证没有生效？

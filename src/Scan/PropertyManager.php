@@ -13,7 +13,6 @@ use Hyperf\DTO\DtoCommon;
 use Hyperf\DTO\Exception\DtoException;
 use ReflectionClass;
 use ReflectionProperty;
-use ReflectionUnionType;
 use Throwable;
 
 class PropertyManager
@@ -172,20 +171,11 @@ class PropertyManager
                 [, $accessor, $type] = $this->dtoCommon->inspectPropertyMetadata($rc, $fieldName);
                 $readUntypedPropertyAnnotations = $accessor !== null && ! $reflectionProperty->hasType()
                     && ($type === null || in_array($type, ['mixed', 'object', 'iterable'], true));
-                // 原生联合类型无法确定唯一目标类：不能把首个成员写进 className，
-                // 否则 wide/无类型 setter 时映射、验证和文档都会误用该成员。
-                $declaredUnion = $reflectionProperty->getType() instanceof ReflectionUnionType;
-                $unionDerived = $declaredUnion
-                    && ($type === null || in_array($type, ['mixed', 'object', 'iterable'], true));
-                if ($unionDerived) {
-                    $type = null;
-                } elseif (in_array($type, ['mixed', 'object', 'iterable'], true)) {
-                    // 宽泛 setter 不能遮蔽属性上的 ArrayType/@var/原生类声明。
+                if (in_array($type, ['mixed', 'object', 'iterable'], true)) {
+                    // 宽泛 setter 不遮蔽属性声明；与 Hyperf 一致，联合类型取第一个成员。
                     $type = $this->dtoCommon->getTypeName($reflectionProperty);
                 }
-                if ($type === null && ! $declaredUnion) {
-                    $type = $this->dtoCommon->getTypeName($reflectionProperty);
-                }
+                $type ??= $this->dtoCommon->getTypeName($reflectionProperty);
                 $type = $this->dtoCommon->removeNullable($type);
 
                 if ($type === 'array' || $readUntypedPropertyAnnotations) {
@@ -207,7 +197,6 @@ class PropertyManager
                     $this->getJsonFieldName($className, $fieldName, $reflectionProperty),
                     $depth
                 );
-                $property->union = $unionDerived;
                 $inheritedPrivate = $reflectionProperty->isPrivate()
                     && $reflectionProperty->getDeclaringClass()->getName() !== $className;
                 $this->setProperty($className, $fieldName, $property, $inheritedPrivate);

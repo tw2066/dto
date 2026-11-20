@@ -66,6 +66,7 @@ public string $userName;
 - 字段主键必须唯一；别名与另一属性名冲突、多个字段共用别名都会在计划构建时抛出 `DtoException`。
 - `#[JSONField]` 别名支持连字符等线上键名（旧 safe-key 拒绝逻辑已删除），但不得包含 `.` 或 `*`（Laravel 会将其解释为嵌套路径），否则在计划构建时抛出 `DtoException`：`#[JSONField('x-token')]` 合法，输入读取、验证规则键与响应输出键统一使用该别名。`#[RequestHeader]` 的 Header 键统一转小写后按 primaryKey 精确匹配（Header 名大小写不敏感是 RFC 7230 协议语义），标准连字符 Header 用别名显式声明，如 `#[JSONField('x-request-id')]`。
 - `customKey` 与跨字段规则使用外部 primaryKey 路径，不再进行 canonical 字段路径转换。
+- 联合类型与 Hyperf 框架保持一致：DTO 属性取第一个成员作为映射、验证和文档类型。`FooA|FooB` + wide/无类型 setter 会按 `FooA` 映射；`DateTime|string` 的字符串输入会按 `DateTime` 处理并可能抛 `JsonMapper_Exception`。无 setter 的联合类型属性仍按原值写入；需要多类型时推荐具体 DTO + 判别字段。
 
 ## 验证建议
 
@@ -76,3 +77,4 @@ public string $userName;
 3. 跨字段规则、`customKey`、非主键输入及未知字段忽略规则。
 4. 清理并重建代理后的启动扫描和响应序列化。
 5. 业务既有 Mapper 扩展配置及关键请求的回归测试。
+6. 联合类型字段：确认映射/文档按第一个成员处理；需要多态时改为具体 DTO + 判别字段。

@@ -22,6 +22,7 @@ class DtoCommon extends JsonMapper
             if ($this->isSimpleType($propTypeName)) {
                 return $propTypeName;
             }
+            // 与 Hyperf AbstractCallableDefinitionCollector 一致：联合类型取第一个成员。
             return '\\' . ltrim(explode('|', $propTypeName)[0], '\\');
         }
         return 'string';

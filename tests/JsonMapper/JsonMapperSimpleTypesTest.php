@@ -168,46 +168,24 @@ class JsonMapperSimpleTypesTest extends TestCase
     }
 
     /**
-     * wide setter 不能遮蔽属性上的联合类型：FooA|FooB 不能取首成员 FooA 作为映射目标。
+     * 与 Hyperf AbstractCallableDefinitionCollector 一致：DTO 属性联合类型取第一个成员。
      */
-    public function testUnionPropertyWithWideSetterKeepsRawObject(): void
+    public function testUnionPropertyWithWideSetterUsesFirstMember(): void
     {
-        $fooB = new UnionRawFooB();
+        $fooB = new UnionFirstFooB();
         $fooB->b = 'v';
 
-        $dto = $this->mapper()->simpleMap(['value' => $fooB], new UnionWideSetterDto());
+        $dto = $this->mapper()->simpleMap(['value' => $fooB], new UnionFirstWideSetterDto());
 
-        $this->assertSame($fooB, $dto->value);
+        $this->assertInstanceOf(UnionFirstFooA::class, $dto->value);
+        $this->assertSame('', $dto->value->a);
     }
 
-    public function testUnionPropertyWithUntypedSetterKeepsRawObject(): void
+    public function testUnionPropertyWithWideSetterUsesFirstMemberForScalarUnion(): void
     {
-        $fooB = new UnionRawFooB();
-        $fooB->b = 'v';
-
-        $dto = $this->mapper()->simpleMap(['value' => $fooB], new UnionUntypedSetterDto());
-
-        $this->assertSame($fooB, $dto->value);
-    }
-
-    /**
-     * DateTime|string + mixed setter：字符串不能被构造成首成员 DateTime。
-     */
-    public function testUnionPropertyWithWideSetterKeepsRawScalar(): void
-    {
-        $dto = $this->mapper()->simpleMap(['value' => '2026-01-01'], new UnionWideSetterDateDto());
-
-        $this->assertSame('2026-01-01', $dto->value);
-    }
-
-    public function testUnionPropertyWithWideSetterStillEnforcesPhpNativeType(): void
-    {
-        try {
-            $this->mapper()->simpleMap(['value' => 'not-a-union-member'], new UnionWideSetterDto());
-            $this->fail('Expected JsonMapper_Exception was not thrown.');
-        } catch (JsonMapper_Exception $exception) {
-            $this->assertInstanceOf(TypeError::class, $exception->getPrevious());
-        }
+        // 首成员是 DateTime，字符串会按 DateTime 目标处理并抛映射异常
+        $this->expectException(JsonMapper_Exception::class);
+        $this->mapper()->simpleMap(['value' => '2026-01-01'], new UnionFirstDateDto());
     }
 
     private function mapper(): JsonMapper
@@ -306,19 +284,19 @@ class UpstreamUnionDto
     public null|int|string $scalarUnion = null;
 }
 
-class UnionRawFooA
+class UnionFirstFooA
 {
     public string $a = '';
 }
 
-class UnionRawFooB
+class UnionFirstFooB
 {
     public string $b = '';
 }
 
-class UnionWideSetterDto
+class UnionFirstWideSetterDto
 {
-    public UnionRawFooA|UnionRawFooB $value;
+    public UnionFirstFooA|UnionFirstFooB $value;
 
     public function setValue(mixed $value): void
     {
@@ -326,17 +304,7 @@ class UnionWideSetterDto
     }
 }
 
-class UnionUntypedSetterDto
-{
-    public UnionRawFooA|UnionRawFooB $value;
-
-    public function setValue($value): void
-    {
-        $this->value = $value;
-    }
-}
-
-class UnionWideSetterDateDto
+class UnionFirstDateDto
 {
     public DateTime|string $value;
 
