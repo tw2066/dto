@@ -14,6 +14,7 @@ use Hyperf\Engine\Channel;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use stdClass;
+use Swoole\Coroutine;
 
 /**
  * @internal
@@ -130,14 +131,14 @@ class PropertyScanTest extends TestCase
                     if ($rc->getName() === PropScanConcurrentDto::class && $name === 'first') {
                         $this->started->push(true);
                         // 强制让出，模拟扫描过程中的文件 I/O
-                        \Swoole\Coroutine::sleep(0.02);
+                        Coroutine::sleep(0.02);
                     }
                     return parent::inspectPropertyMetadata($rc, $name);
                 }
             };
             $manager = new PropertyManager($dtoCommon, new PropertyEnum());
 
-            \Swoole\Coroutine::create(function () use ($manager, &$results, $done): void {
+            Coroutine::create(function () use ($manager, &$results, $done): void {
                 try {
                     $results['a'] = $manager->getPropertyByClass(PropScanConcurrentDto::class);
                 } finally {
@@ -145,7 +146,7 @@ class PropertyScanTest extends TestCase
                 }
             });
             $started->pop(); // A 已进入扫描并让出
-            \Swoole\Coroutine::create(function () use ($manager, &$results, $done): void {
+            Coroutine::create(function () use ($manager, &$results, $done): void {
                 try {
                     $results['b'] = $manager->getPropertyByClass(PropScanConcurrentDto::class);
                 } finally {

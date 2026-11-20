@@ -25,7 +25,7 @@ if ($sourceDir !== null) {
     // Composer 默认会把自己 prepend 到 autoload 链首，addPsr4 无法覆盖 classmap；
     // 必须在 require vendor/autoload.php 之后 prepend 独立 loader 才能加载基线源码。
     spl_autoload_register(static function (string $class) use ($sourceDir): void {
-        $prefix = 'Hyperf\\DTO\\';
+        $prefix = 'Hyperf\DTO\\';
         if (! str_starts_with($class, $prefix)) {
             return;
         }
@@ -43,7 +43,9 @@ $rounds = max(2, (int) ($options['rounds'] ?? 8));
 $translator = new Translator(new FakeTranslatorLoader(), 'en');
 $validatorFactory = new ValidatorFactory($translator);
 $container = new class($validatorFactory) implements ContainerInterface {
-    public function __construct(private ValidatorFactoryInterface $validatorFactory) {}
+    public function __construct(private ValidatorFactoryInterface $validatorFactory)
+    {
+    }
 
     public function get(string $id)
     {
