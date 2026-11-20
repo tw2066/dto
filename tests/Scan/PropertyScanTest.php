@@ -106,6 +106,18 @@ class PropertyScanTest extends TestCase
         $this->assertSame(PropScanUnionA::class, $property->className);
     }
 
+    public function testScalarUnionPropertyRecordsFirstReflectionType(): void
+    {
+        $manager = new PropertyManager(new DtoCommon(), new PropertyEnum());
+
+        $property = $manager->getProperty(PropScanScalarUnionDto::class, 'value');
+
+        $this->assertNotNull($property);
+        $this->assertNull($property->className);
+        // int|string 的反射首成员是 string
+        $this->assertSame('string', $property->phpSimpleType);
+    }
+
     /**
      * 并发首次扫描同一类时，后到的协程必须等扫描完成后再读取元数据，
      * 不能读到只填充了一半的 content。
@@ -224,4 +236,9 @@ class PropScanConcurrentDto
     public string $first = '';
 
     public string $second = '';
+}
+
+class PropScanScalarUnionDto
+{
+    public int|string $value = 0;
 }

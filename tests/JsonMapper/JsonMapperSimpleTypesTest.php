@@ -133,21 +133,28 @@ class JsonMapperSimpleTypesTest extends TestCase
     }
 
     /**
-     * DateTime|string 是多成员联合类型：不能取首成员 DateTime 作为映射目标，
-     * 否则字符串也会被构造为 DateTime（历史缺陷），这里按原值写入。
+     * 联合类型统一按首成员的单类型处理：DateTime|string → DateTime，null|int|string → string。
      */
-    public function testNativeUnionPropertyKeepsRawValue(): void
+    public function testNativeUnionPropertyUsesFirstMember(): void
     {
+        $date = new DateTime('2026-01-01');
         $dto = $this->mapper()->simpleMap([
-            'dateOrString' => 'hello',
+            'dateOrString' => $date,
             'scalarUnion' => 5,
         ], new UpstreamUnionDto());
 
-        $this->assertSame('hello', $dto->dateOrString);
-        $this->assertSame(5, $dto->scalarUnion);
+        $this->assertSame($date, $dto->dateOrString);
+        $this->assertSame('5', $dto->scalarUnion);
     }
 
-    public function testUnionDocblockKeepsRawValue(): void
+    public function testNativeUnionArrayInputMapsFirstMemberClass(): void
+    {
+        $dto = $this->mapper()->simpleMap(['dateOrString' => ['x']], new UpstreamUnionDto());
+
+        $this->assertInstanceOf(DateTime::class, $dto->dateOrString);
+    }
+
+    public function testUnionDocblockWithoutNativeTypeUsesDerivedStringType(): void
     {
         $dto = $this->mapper()->simpleMap(
             ['docValue' => 'world'],
@@ -155,16 +162,6 @@ class JsonMapperSimpleTypesTest extends TestCase
         );
 
         $this->assertSame('world', $dto->docValue);
-    }
-
-    public function testUnionPropertyStillEnforcesPhpNativeType(): void
-    {
-        try {
-            $this->mapper()->simpleMap(['dateOrString' => ['x']], new UpstreamUnionDto());
-            $this->fail('Expected JsonMapper_Exception was not thrown.');
-        } catch (JsonMapper_Exception $exception) {
-            $this->assertInstanceOf(TypeError::class, $exception->getPrevious());
-        }
     }
 
     /**
@@ -186,6 +183,28 @@ class JsonMapperSimpleTypesTest extends TestCase
         // 首成员是 DateTime，字符串会按 DateTime 目标处理并抛映射异常
         $this->expectException(JsonMapper_Exception::class);
         $this->mapper()->simpleMap(['value' => '2026-01-01'], new UnionFirstDateDto());
+    }
+
+    public function testScalarUnionWithWideSetterUsesFirstReflectionType(): void
+    {
+        // int|string 的反射首成员是 string
+        $dto = $this->mapper()->simpleMap(['value' => 5], new UnionScalarWideDto());
+
+        $this->assertSame('5', $dto->value);
+    }
+
+    public function testEnumWithWideSetterUsesPropertyEnumType(): void
+    {
+        $dto = $this->mapper()->simpleMap(['value' => 'a'], new UnionEnumWideDto());
+
+        $this->assertSame(UnionStatus::A, $dto->value);
+    }
+
+    public function testSimpleTypeWithWideSetterUsesPropertyType(): void
+    {
+        $dto = $this->mapper()->simpleMap(['value' => '5'], new SimpleIntWideDto());
+
+        $this->assertSame(5, $dto->value);
     }
 
     private function mapper(): JsonMapper
@@ -307,6 +326,43 @@ class UnionFirstWideSetterDto
 class UnionFirstDateDto
 {
     public DateTime|string $value;
+
+    public function setValue(mixed $value): void
+    {
+        $this->value = $value;
+    }
+}
+
+class UnionScalarWideDto
+{
+    public int|string $value = 0;
+
+    public function setValue(mixed $value): void
+    {
+        $this->value = $value;
+    }
+}
+
+enum UnionStatus: string
+{
+    case A = 'a';
+
+    case B = 'b';
+}
+
+class UnionEnumWideDto
+{
+    public UnionStatus $value;
+
+    public function setValue(mixed $value): void
+    {
+        $this->value = $value;
+    }
+}
+
+class SimpleIntWideDto
+{
+    public int $value = 0;
 
     public function setValue(mixed $value): void
     {

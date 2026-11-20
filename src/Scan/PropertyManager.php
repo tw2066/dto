@@ -169,6 +169,8 @@ class PropertyManager
             foreach ($this->getClassProperties($rc) as $reflectionProperty) {
                 $fieldName = $reflectionProperty->getName();
                 [, $accessor, $type] = $this->dtoCommon->inspectPropertyMetadata($rc, $fieldName);
+                $typeDeclared = $reflectionProperty->hasType()
+                    || ($type !== null && ! in_array($type, ['mixed', 'object', 'iterable'], true));
                 $readUntypedPropertyAnnotations = $accessor !== null && ! $reflectionProperty->hasType()
                     && ($type === null || in_array($type, ['mixed', 'object', 'iterable'], true));
                 if (in_array($type, ['mixed', 'object', 'iterable'], true)) {
@@ -188,6 +190,7 @@ class PropertyManager
                     );
                     if (! empty($annotations['var'])) {
                         [$type] = explode(' ', $annotations['var'][0]);
+                        $typeDeclared = true;
                     }
                 }
 
@@ -197,6 +200,7 @@ class PropertyManager
                     $this->getJsonFieldName($className, $fieldName, $reflectionProperty),
                     $depth
                 );
+                $property->typeDeclared = $typeDeclared;
                 $inheritedPrivate = $reflectionProperty->isPrivate()
                     && $reflectionProperty->getDeclaringClass()->getName() !== $className;
                 $this->setProperty($className, $fieldName, $property, $inheritedPrivate);

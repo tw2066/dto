@@ -23,7 +23,19 @@ class DtoCommon extends JsonMapper
                 return $propTypeName;
             }
             // 与 Hyperf AbstractCallableDefinitionCollector 一致：联合类型取第一个成员。
-            return '\\' . ltrim(explode('|', $propTypeName)[0], '\\');
+            // 首成员是内置类型时不要加前导反斜杠，交给 createPropertyFromType 按单类型处理。
+            $parts = explode('|', $propTypeName);
+            $first = $parts[0];
+            if ($first === 'null' && isset($parts[1])) {
+                $first = $parts[1];
+            }
+            if ($first === 'true' || $first === 'false') {
+                return 'bool';
+            }
+            if ($this->isSimpleType($first)) {
+                return $first;
+            }
+            return '\\' . ltrim($first, '\\');
         }
         return 'string';
     }

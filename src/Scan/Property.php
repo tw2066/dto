@@ -28,6 +28,12 @@ class Property
     public ?string $interfaceName = null;
 
     /**
+     * 类型是否来自显式声明（原生类型、@var、ArrayType 或 accessor 类型），
+     * 用于区分无类型属性的兜底 'string'，避免 wide setter 误当成真实类型。
+     */
+    public bool $typeDeclared = false;
+
+    /**
      * 数组 中 复杂 类的名称
      */
     public ?string $arrClassName = null;

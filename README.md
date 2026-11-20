@@ -699,11 +699,13 @@ class ValidationExceptionHandler extends ExceptionHandler
 
 ### 5. 联合类型
 
-DTO 属性的联合类型（如 `FooA|FooB`、`DateTime|string`）与 Hyperf 框架保持一致：**取第一个成员**作为映射、验证和文档类型。
+DTO 属性的联合类型（如 `FooA|FooB`、`DateTime|string`）统一按**第一个成员的单类型**处理：文档、验证、映射使用同一个类型。
 
-- `FooA|FooB` + `setX(mixed)` / 无类型 setter：输入会按 `FooA` 映射，`FooB` 的字段不会保留。
-- `DateTime|string` + 字符串输入：按 `DateTime` 处理，可能抛出 `JsonMapper_Exception`。
-- 无 setter 的联合类型属性仍按原值写入，由 PHP 原生联合类型兜底。
+- `FooA|FooB` → `FooA`，无论 wide/无类型 setter、无 setter 还是联合类型 setter；`FooB` 的字段不会保留。
+- `DateTime|string` → `DateTime`；字符串输入按 `DateTime` 处理，可能抛出 `JsonMapper_Exception`。
+- `int|string` 的反射首成员是 `string`，输入 `5` 会转成 `'5'`。
+- “第一个成员”以 PHP `ReflectionUnionType::getTypes()` 为准：类成员排在内置类型之前，类与类之间按声明顺序。
+- 原生联合类型的文档/验证与映射一致；`classMap` callable/标量目标和未配置 `classMap` 的接口属性仍是已知差异。
 - 需要多类型时，推荐具体 DTO + `type` 判别字段，不要依赖联合类型的运行时分支。
 
 ## 📚 常见问题

@@ -580,11 +580,13 @@ class ValidationExceptionHandler extends ExceptionHandler
 
 ### 4. Union Types
 
-Union-typed DTO properties (for example `FooA|FooB` or `DateTime|string`) follow the Hyperf framework behavior: **the first union member** is used for mapping, validation, and documentation.
+Union-typed DTO properties (for example `FooA|FooB` or `DateTime|string`) are uniformly handled as the **single first union member**: documentation, validation, and mapping use the same type.
 
-- `FooA|FooB` with `setX(mixed)` / an untyped setter: the input is mapped as `FooA`; `FooB` fields are not preserved.
-- `DateTime|string` with a string input: it is handled as `DateTime` and may throw `JsonMapper_Exception`.
-- Union-typed properties without a setter are still written as raw values and rely on PHP's native union type check.
+- `FooA|FooB` becomes `FooA`, regardless of whether it uses a wide/untyped setter, no setter, or a union-typed setter; `FooB` fields are not preserved.
+- `DateTime|string` becomes `DateTime`; a string input is handled as `DateTime` and may throw `JsonMapper_Exception`.
+- The first reflection member of `int|string` is `string`, so `5` is converted to `'5'`.
+- "First member" follows PHP `ReflectionUnionType::getTypes()`: class members come before built-in types, and class-to-class order follows the declaration.
+- For native union types, documentation/validation and mapping are aligned; `classMap` callables/scalar targets and interface properties without `classMap` remain known differences.
 - For multiple shapes, prefer a concrete DTO with a `type` discriminator instead of relying on runtime union branches.
 
 ## 📚 FAQ

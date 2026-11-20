@@ -32,7 +32,6 @@ use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionProperty;
-use ReflectionUnionType;
 use Throwable;
 use Traversable;
 use TypeError;
@@ -430,12 +429,18 @@ class JsonMapper extends \JsonMapper
                 $type = '\\' . $property->arrInterfaceName . str_repeat('[]', max(1, $property->arrayDepth));
             } elseif ($property->arrSimpleType !== null) {
                 $type = $property->arrSimpleType . str_repeat('[]', max(1, $property->arrayDepth));
-            } elseif (($type === null || in_array($type, ['mixed', 'object', 'iterable'], true))
-                && ($property->className !== null || $property->interfaceName !== null)
-                && ! $this->hasAmbiguousUnionType($accessor)) {
-                // 多成员联合类型无法确定目标类，保持原值写入；否则 DateTime|string
-                // 会被 PropertyManager 的首成员类型误当成 DateTime 映射。
-                $type = '\\' . ($property->className ?? $property->interfaceName);
+            } elseif ($type === null || in_array($type, ['mixed', 'object', 'iterable'], true)) {
+                // accessor 无法给出具体类型（wide/无类型 setter、联合类型）时，
+                // 统一回退到属性声明推导出的单类型，保证映射与验证/文档一致。
+                if ($property->className !== null || $property->interfaceName !== null) {
+                    $type = '\\' . ($property->className ?? $property->interfaceName);
+                } elseif ($property->enum !== null) {
+                    $type = '\\' . $property->enum->className;
+                } elseif ($property->typeDeclared
+                    && $property->phpSimpleType !== null
+                    && ! in_array($property->phpSimpleType, ['mixed', 'object'], true)) {
+                    $type = $property->phpSimpleType;
+                }
             }
             $fields[$index] = [
                 'name' => $fieldName,
@@ -699,6 +704,19 @@ class JsonMapper extends \JsonMapper
             return;
         }
         if ($isSimple && ! (is_array($jvalue) && $field['variadic'])) {
+            // 数组不能隐式转成标量（避免 'Array' 字符串），数组类型也不接受标量输入。
+            if (is_array($jvalue) && $type !== 'array') {
+                throw new JsonMapper_Exception(
+                    $this->describeField($className, $propertyName, $key)
+                    . ' is of type array and cannot be converted to ' . $type
+                );
+            }
+            if ($type === 'array' && ! is_array($jvalue) && ! is_object($jvalue)) {
+                throw new JsonMapper_Exception(
+                    $this->describeField($className, $propertyName, $key)
+                    . ' must be an array, ' . gettype($jvalue) . ' given'
+                );
+            }
             if ($isFlat && ! $this->isFlatType(gettype($jvalue))) {
                 throw new JsonMapper_Exception(
                     $this->describeField($className, $propertyName, $key)
@@ -972,22 +990,6 @@ class JsonMapper extends \JsonMapper
 
         $this->classMetadata[$className] = [$methods, $properties];
         return $this->classMetadata[$className];
-    }
-
-    /**
-     * 多成员原生联合类型（如 DateTime|string）没有唯一映射目标。
-     * 此时禁止回退到属性首成员类型，调用方按原值写入并交给 PHP 类型检查。
-     */
-    private function hasAmbiguousUnionType(null|ReflectionMethod|ReflectionProperty $accessor): bool
-    {
-        if ($accessor instanceof ReflectionMethod) {
-            $reflectionType = ($accessor->getParameters()[0] ?? null)?->getType();
-        } elseif ($accessor instanceof ReflectionProperty) {
-            $reflectionType = $accessor->getType();
-        } else {
-            return false;
-        }
-        return $reflectionType instanceof ReflectionUnionType;
     }
 
     /**
