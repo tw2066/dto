@@ -100,6 +100,39 @@ class ValidationManagerAliasTest extends AbstractTestCase
         $this->assertArrayNotHasKey('value.min', $data['messages']);
     }
 
+    public function testMessagesAlignedAfterParameterizedArrayRule(): void
+    {
+        // min:5 之后的 max 消息不能因为整串 explode(':') 而丢失
+        (new Validation(
+            ['integer', 'min:5', 'max:10'],
+            ['必须是整数', '不能小于5', '不能大于10']
+        ))->collectProperty(VmLongRuleMessageDto::class, 'value');
+
+        $manager = new ValidationManager();
+        $manager->generateValidation(VmLongRuleMessageDto::class, 'value');
+
+        $data = $manager->getData(VmLongRuleMessageDto::class);
+        $this->assertSame(['integer', 'min:5', 'max:10'], $data['rule']['value']);
+        $this->assertSame('必须是整数', $data['messages']['value.integer']);
+        $this->assertSame('不能小于5', $data['messages']['value.min']);
+        $this->assertSame('不能大于10', $data['messages']['value.max']);
+    }
+
+    public function testMessagesAlignedAfterParameterizedStringRule(): void
+    {
+        (new Validation('integer|min:5|max:10', '必须是整数|不能小于5|不能大于10'))
+            ->collectProperty(VmLongStringRuleMessageDto::class, 'value');
+
+        $manager = new ValidationManager();
+        $manager->generateValidation(VmLongStringRuleMessageDto::class, 'value');
+
+        $data = $manager->getData(VmLongStringRuleMessageDto::class);
+        $this->assertSame(['integer', 'min:5', 'max:10'], $data['rule']['value']);
+        $this->assertSame('必须是整数', $data['messages']['value.integer']);
+        $this->assertSame('不能小于5', $data['messages']['value.min']);
+        $this->assertSame('不能大于10', $data['messages']['value.max']);
+    }
+
     public function testApiModelPropertyValueWrittenToAttributes(): void
     {
         $this->defineApiModelPropertyStub();
@@ -183,6 +216,16 @@ class VmColonMessageDto
 class VmShortMessageDto
 {
     public string $value = '';
+}
+
+class VmLongRuleMessageDto
+{
+    public int $value = 0;
+}
+
+class VmLongStringRuleMessageDto
+{
+    public int $value = 0;
 }
 
 class VmAttributesDto

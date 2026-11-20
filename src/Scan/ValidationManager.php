@@ -99,40 +99,38 @@ class ValidationManager
             $isRegexRule = is_string($rule) && (
                 str_starts_with($rule, 'regex:') || str_starts_with($rule, 'not_regex:')
             );
+            // 当前注解拆出的单条规则。消息键必须逐条取冒号前的规则名，
+            // 不能对整串再 explode(':')，否则 min:5 之后的规则消息会全部丢失。
+            $currentRules = [];
             // Parse pipe-separated rules (e.g., "required|date|after:start_date")
             // Or array-style rules (e.g., ['int', 'min:5'])
             if (is_array($rule)) {
                 foreach ($rule as $item) {
                     $ruleArray[$ruleKey][] = $item;
+                    $currentRules[] = $item;
                 }
             } elseif ($isRegexRule) {
                 // 正则中的 | 是交替语法，不是验证规则分隔符。
                 $ruleArray[$ruleKey][] = $rule;
+                $currentRules[] = $rule;
             } elseif (is_string($rule) && Str::contains($rule, '|')) {
                 $ruleArr = explode('|', $rule);
                 foreach ($ruleArr as $item) {
                     $ruleArray[$ruleKey][] = $item;
+                    $currentRules[] = $item;
                 }
             } else {
                 $ruleArray[$ruleKey][] = $rule;
+                $currentRules[] = $rule;
             }
 
             if (empty($validation->messages)) {
                 continue;
             }
-            if ($isRegexRule) {
-                [$messageRule] = explode(':', $rule, 2);
-                $messageRuleArr = [$messageRule];
-            } else {
-                $ruleValue = $validation->getRule();
-                if (is_array($ruleValue)) {
-                    $ruleString = implode('|', $ruleValue);
-                } else {
-                    $ruleString = (string) $ruleValue;
-                }
-                [$messageRules] = explode(':', $ruleString);
-                $messageRuleArr = explode('|', $messageRules);
-            }
+            $messageRuleArr = array_map(
+                static fn (mixed $item): string => explode(':', (string) $item, 2)[0],
+                $currentRules
+            );
             if (is_array($validation->messages)) {
                 $messageArr = $validation->messages;
             } else {
