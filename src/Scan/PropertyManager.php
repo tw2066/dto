@@ -67,6 +67,11 @@ class PropertyManager
     {
         $className = ltrim($className, '\\');
         $cid = Coroutine::id();
+        if ($cid === -1) {
+            // 非协程上下文（启动扫描/CLI/测试）不存在并发，无需加锁。
+            $this->scanClassPropertiesInternal($className, $depth);
+            return;
+        }
         if (self::$scanningOwnerCid === $cid) {
             // 当前协程已持有扫描锁，嵌套类直接扫描，避免重复加锁/死锁。
             $this->scanClassPropertiesInternal($className, $depth);
