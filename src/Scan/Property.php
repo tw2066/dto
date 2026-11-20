@@ -28,6 +28,12 @@ class Property
     public ?string $interfaceName = null;
 
     /**
+     * 类型来自原生联合类型（如 DateTime|string）：无法确定唯一目标类，
+     * 映射按原值写入，验证不递归，文档降级为通用 object。
+     */
+    public bool $union = false;
+
+    /**
      * 数组 中 复杂 类的名称
      */
     public ?string $arrClassName = null;

@@ -432,6 +432,7 @@ class JsonMapper extends \JsonMapper
                 $type = $property->arrSimpleType . str_repeat('[]', max(1, $property->arrayDepth));
             } elseif (($type === null || in_array($type, ['mixed', 'object', 'iterable'], true))
                 && ($property->className !== null || $property->interfaceName !== null)
+                && ! $property->union
                 && ! $this->hasAmbiguousUnionType($accessor)) {
                 // 多成员联合类型无法确定目标类，保持原值写入；否则 DateTime|string
                 // 会被 PropertyManager 的首成员类型误当成 DateTime 映射。

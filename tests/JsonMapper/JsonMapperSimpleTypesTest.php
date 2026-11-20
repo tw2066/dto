@@ -167,6 +167,49 @@ class JsonMapperSimpleTypesTest extends TestCase
         }
     }
 
+    /**
+     * wide setter 不能遮蔽属性上的联合类型：FooA|FooB 不能取首成员 FooA 作为映射目标。
+     */
+    public function testUnionPropertyWithWideSetterKeepsRawObject(): void
+    {
+        $fooB = new UnionRawFooB();
+        $fooB->b = 'v';
+
+        $dto = $this->mapper()->simpleMap(['value' => $fooB], new UnionWideSetterDto());
+
+        $this->assertSame($fooB, $dto->value);
+    }
+
+    public function testUnionPropertyWithUntypedSetterKeepsRawObject(): void
+    {
+        $fooB = new UnionRawFooB();
+        $fooB->b = 'v';
+
+        $dto = $this->mapper()->simpleMap(['value' => $fooB], new UnionUntypedSetterDto());
+
+        $this->assertSame($fooB, $dto->value);
+    }
+
+    /**
+     * DateTime|string + mixed setter：字符串不能被构造成首成员 DateTime。
+     */
+    public function testUnionPropertyWithWideSetterKeepsRawScalar(): void
+    {
+        $dto = $this->mapper()->simpleMap(['value' => '2026-01-01'], new UnionWideSetterDateDto());
+
+        $this->assertSame('2026-01-01', $dto->value);
+    }
+
+    public function testUnionPropertyWithWideSetterStillEnforcesPhpNativeType(): void
+    {
+        try {
+            $this->mapper()->simpleMap(['value' => 'not-a-union-member'], new UnionWideSetterDto());
+            $this->fail('Expected JsonMapper_Exception was not thrown.');
+        } catch (JsonMapper_Exception $exception) {
+            $this->assertInstanceOf(TypeError::class, $exception->getPrevious());
+        }
+    }
+
     private function mapper(): JsonMapper
     {
         $mapper = new JsonMapper();
@@ -261,4 +304,44 @@ class UpstreamUnionDto
     public $docValue;
 
     public null|int|string $scalarUnion = null;
+}
+
+class UnionRawFooA
+{
+    public string $a = '';
+}
+
+class UnionRawFooB
+{
+    public string $b = '';
+}
+
+class UnionWideSetterDto
+{
+    public UnionRawFooA|UnionRawFooB $value;
+
+    public function setValue(mixed $value): void
+    {
+        $this->value = $value;
+    }
+}
+
+class UnionUntypedSetterDto
+{
+    public UnionRawFooA|UnionRawFooB $value;
+
+    public function setValue($value): void
+    {
+        $this->value = $value;
+    }
+}
+
+class UnionWideSetterDateDto
+{
+    public DateTime|string $value;
+
+    public function setValue(mixed $value): void
+    {
+        $this->value = $value;
+    }
 }
