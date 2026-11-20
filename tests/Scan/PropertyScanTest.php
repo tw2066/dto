@@ -10,7 +10,9 @@ use Hyperf\DTO\Scan\Property;
 use Hyperf\DTO\Scan\PropertyEnum;
 use Hyperf\DTO\Scan\PropertyManager;
 use Hyperf\DTO\Scan\ValidationManager;
+use Hyperf\Engine\Channel;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 use stdClass;
 
 /**
@@ -104,6 +106,62 @@ class PropertyScanTest extends TestCase
         $this->assertSame(PropScanUnionA::class, $property->className);
     }
 
+    /**
+     * 并发首次扫描同一类时，后到的协程必须等扫描完成后再读取元数据，
+     * 不能读到只填充了一半的 content。
+     */
+    public function testConcurrentScanWaitsForCompleteMetadata(): void
+    {
+        if (! extension_loaded('swoole')) {
+            $this->markTestSkipped('Swoole is required for the coroutine scan test.');
+        }
+
+        $results = [];
+        \Swoole\Coroutine\run(function () use (&$results): void {
+            $started = new Channel(1);
+            $done = new Channel(2);
+            $dtoCommon = new class($started) extends DtoCommon {
+                public function __construct(private Channel $started)
+                {
+                }
+
+                public function inspectPropertyMetadata(ReflectionClass $rc, string $name): array
+                {
+                    if ($rc->getName() === PropScanConcurrentDto::class && $name === 'first') {
+                        $this->started->push(true);
+                        // 强制让出，模拟扫描过程中的文件 I/O
+                        \Swoole\Coroutine::sleep(0.02);
+                    }
+                    return parent::inspectPropertyMetadata($rc, $name);
+                }
+            };
+            $manager = new PropertyManager($dtoCommon, new PropertyEnum());
+
+            \Swoole\Coroutine::create(function () use ($manager, &$results, $done): void {
+                try {
+                    $results['a'] = $manager->getPropertyByClass(PropScanConcurrentDto::class);
+                } finally {
+                    $done->push(true);
+                }
+            });
+            $started->pop(); // A 已进入扫描并让出
+            \Swoole\Coroutine::create(function () use ($manager, &$results, $done): void {
+                try {
+                    $results['b'] = $manager->getPropertyByClass(PropScanConcurrentDto::class);
+                } finally {
+                    $done->push(true);
+                }
+            });
+            $done->pop();
+            $done->pop();
+        });
+
+        $this->assertArrayHasKey('first', $results['a']);
+        $this->assertArrayHasKey('second', $results['a']);
+        $this->assertArrayHasKey('first', $results['b']);
+        $this->assertArrayHasKey('second', $results['b']);
+    }
+
     public function testPropertyManagerGetPropertyNotFound(): void
     {
         $dtoCommon = new DtoCommon();
@@ -159,4 +217,11 @@ class PropScanUnionDto
 class PropScanSingleDto
 {
     public PropScanUnionA $value;
+}
+
+class PropScanConcurrentDto
+{
+    public string $first = '';
+
+    public string $second = '';
 }
