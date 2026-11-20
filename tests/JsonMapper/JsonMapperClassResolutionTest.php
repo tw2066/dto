@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HyperfTest\DTO\JsonMapper;
 
 use DateTime;
+use Hyperf\DTO\Exception\DtoException;
 use Hyperf\DTO\JsonMapper;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -145,6 +146,60 @@ class JsonMapperClassResolutionTest extends TestCase
         $this->assertSame('Lion', $dto->animals[0]->name);
         $this->assertInstanceOf(UpstreamResolveFish::class, $dto->animals[1]);
         $this->assertSame('Clown Fish', $dto->animals[1]->name);
+    }
+
+    /**
+     * 文档期静态解析：callable 的分派结果依赖运行时值，不能执行，也不能用 null 调用。
+     */
+    public function testResolveMappedClassSkipsCallableInDocumentationMode(): void
+    {
+        $mapper = $this->mapper();
+        $mapper->classMap[UpstreamResolveAnimal::class] = static function (string $type, array $value): string {
+            return UpstreamResolveCat::class;
+        };
+
+        $this->assertNull($mapper->resolveMappedClass(UpstreamResolveAnimal::class, null, false));
+        // 运行时模式仍保留原有行为：按实际值执行 callable。
+        $this->assertSame(
+            UpstreamResolveCat::class,
+            $mapper->resolveMappedClass(UpstreamResolveAnimal::class, ['kind' => 'cat'])
+        );
+    }
+
+    /**
+     * 标量 classMap 目标没有 schema 可生成，文档期应返回 null 由调用方降级为 object。
+     */
+    public function testResolveMappedClassTreatsScalarTargetAsUnresolvedInDocumentationMode(): void
+    {
+        $mapper = $this->mapper();
+        $mapper->classMap[DateTime::class] = 'string';
+
+        $this->assertNull($mapper->resolveMappedClass(DateTime::class, null, false));
+    }
+
+    public function testResolveMappedClassResolvesStaticTargetInDocumentationMode(): void
+    {
+        $mapper = $this->mapper();
+        $mapper->classMap[UpstreamResolveAnimal::class] = UpstreamResolveCat::class;
+
+        $this->assertSame(
+            UpstreamResolveCat::class,
+            $mapper->resolveMappedClass(UpstreamResolveAnimal::class, null, false)
+        );
+    }
+
+    /**
+     * 未知类目标属于配置错误，文档期仍需显式失败，不能静默降级。
+     */
+    public function testResolveMappedClassStillRejectsUnknownClassTargetInDocumentationMode(): void
+    {
+        $mapper = $this->mapper();
+        $mapper->classMap[UpstreamResolvePlain::class] = 'Missing\PaymentClass';
+
+        $this->expectException(DtoException::class);
+        $this->expectExceptionMessage('classMap target [Missing\PaymentClass]');
+
+        $mapper->resolveMappedClass(UpstreamResolvePlain::class, null, false);
     }
 
     private function mapper(): JsonMapper

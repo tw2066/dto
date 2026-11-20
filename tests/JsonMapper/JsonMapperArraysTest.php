@@ -82,6 +82,20 @@ class JsonMapperArraysTest extends TestCase
         $this->assertSame('deep', $dto->pMultiverse[0][0][0]->pStr);
     }
 
+    /**
+     * 嵌套数组出现标量元素时必须转成 JsonMapper_Exception，
+     * 不能把标量喂给带 array|object 类型声明的递归形参而泄漏 PHP TypeError。
+     */
+    public function testScalarElementInNestedArrayThrowsJsonMapperException(): void
+    {
+        $this->expectException(JsonMapper_Exception::class);
+        $this->expectExceptionMessage(
+            'JSON property "nMatrix[1]" is an array of type "int[]" but contained a value of type "integer"'
+        );
+
+        $this->mapper()->simpleMap(['nMatrix' => [[1, 2], 3]], new UpstreamArrayTypedDto());
+    }
+
     public function testKeyedDateTimeArrayFromObjectInput(): void
     {
         $mapper = $this->mapper();

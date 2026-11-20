@@ -124,20 +124,35 @@ class JsonMapper extends \JsonMapper
     /**
      * @internal 验证阶段按 classMap 解析具体类；不调用 classFactories（工厂有副作用，且映射时会再次调用）
      *
+     * @param bool $allowDynamic 文档生成等静态场景传 false：不执行 callable classMap（分派目标依赖运行时值），
+     *                           标量转换目标（如 DateTime => 'string'）返回 null，由调用方降级为通用 object
      * @return ?string 应校验规则的类名；无 classMap 命中时类返回自身，接口返回 null（无具体规则可校验）
      */
-    public function resolveMappedClass(?string $type, mixed $value): ?string
+    public function resolveMappedClass(?string $type, mixed $value, bool $allowDynamic = true): ?string
     {
         if ($type === null || $type === '') {
             return null;
         }
         $type = ltrim($type, '\\');
         if ($this->classMap !== []) {
-            // getMappedType('\Foo') 同时匹配 classMap['\Foo'] 与 classMap['Foo']。
-            $mapped = $this->getMappedType('\\' . $type, $value);
+            if ($allowDynamic) {
+                // getMappedType('\Foo') 同时匹配 classMap['\Foo'] 与 classMap['Foo']。
+                $mapped = $this->getMappedType('\\' . $type, $value);
+            } else {
+                $target = $this->getClassMapTarget($type);
+                if (is_callable($target)) {
+                    // 文档期无法知道运行时分派结果，交给调用方输出通用 object。
+                    return null;
+                }
+                $mapped = $target;
+            }
             if (is_string($mapped) && $mapped !== '' && $mapped !== '\\' . $type) {
                 $mapped = ltrim($mapped, '\\');
                 if (! class_exists($mapped)) {
+                    if (! $allowDynamic && $this->isSimpleType($mapped)) {
+                        // 标量 classMap 目标（DateTime => 'string'）没有可生成的 schema。
+                        return null;
+                    }
                     throw new DtoException("classMap target [{$mapped}] for [{$type}] is not a loadable class");
                 }
                 return $mapped;
@@ -601,6 +616,14 @@ class JsonMapper extends \JsonMapper
     }
 
     /**
+     * 读取 classMap 原始目标（不执行 callable），键优先级与 getMappedType() 一致。
+     */
+    private function getClassMapTarget(string $type): mixed
+    {
+        return $this->classMap['\\' . $type] ?? $this->classMap[$type] ?? null;
+    }
+
+    /**
      * 映射单个 DTO 节点，只按字段主键读取输入。
      */
     private function mapNode(
@@ -765,6 +788,22 @@ class JsonMapper extends \JsonMapper
     }
 
     /**
+     * 嵌套数组/ArrayObject 元素必须是数组或对象：递归形参带 array|object 类型，
+     * 标量元素会直接抛 PHP TypeError，这里提前转成字段级映射异常。
+     */
+    private function assertArrayElement(mixed $jvalue, string $class, string $parentKey, int|string $key): void
+    {
+        if (is_array($jvalue) || is_object($jvalue)) {
+            return;
+        }
+        throw new JsonMapper_Exception(
+            'JSON property "' . ($parentKey !== '' ? $parentKey : '?') . '[' . $key . ']"'
+            . ' is an array of type "' . $class . '" but contained a value of type "'
+            . gettype($jvalue) . '"'
+        );
+    }
+
+    /**
      * 保留上游 JsonMapper 的数组转换、null、class factory 和 ArrayObject 行为。
      * 与公共 map 分离是为了透传请求预算，避免嵌套数组重置上下文。
      */
@@ -790,6 +829,7 @@ class JsonMapper extends \JsonMapper
             if ($class === null) {
                 $array[$key] = $jvalue;
             } elseif ($this->isArrayOfType($class)) {
+                $this->assertArrayElement($jvalue, $class, $parentKey, $key);
                 $array[$key] = $this->mapArrayInternal(
                     $jvalue,
                     [],
@@ -821,6 +861,7 @@ class JsonMapper extends \JsonMapper
                     . $class . '" but contained a value of type "' . gettype($jvalue) . '"'
                 );
             } elseif (is_a($class, 'ArrayObject', true)) {
+                $this->assertArrayElement($jvalue, $class, $parentKey, $key);
                 $array[$key] = $this->mapArrayInternal(
                     $jvalue,
                     $this->createInstance($class),
